@@ -3,7 +3,7 @@ from flask import request
 from database.db import insert, select
 
 register = Namespace('register', description='User registration')
-users_list = Namespace('user list', description='User list')
+users_list = Namespace('userdata', description='User list')
 users_get_model = users_list.model('user list', {'email': fields.String(required=True, description='email and key')})
 
 
