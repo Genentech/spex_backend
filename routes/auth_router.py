@@ -1,8 +1,10 @@
 from flask_restx import Namespace, Resource, fields
-from flask import jsonify, request
-from database.db import insert
+from flask import request
+from database.db import insert, select
 
 register = Namespace('register', description='User registration')
+users_list = Namespace('user list', description='User list')
+users_get_model = users_list.model('user list', {'email': fields.String(required=True, description='email and key')})
 
 
 register_model = register.model('register', {
@@ -22,9 +24,15 @@ class Reg(Resource):
     def post(self):
         '''Fetch a users given its identifier'''
         data = request.json
-        # data["_key"] = data["email"]
-        print(data)
         result = insert('users', data)
         return result
         # return request.get_json()
 
+
+@users_list.route('/list')
+class List(Resource):
+    @users_list.doc('reg_list')
+    @users_list.expect(users_get_model)
+    def post(self):
+        data = request.json
+        return select('users', " FILTER doc.email == @value ", data['email'])

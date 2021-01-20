@@ -4,6 +4,7 @@ from flask import Flask
 from flask_restx import Api
 # from flask_cors import CORS
 from routes.auth_router import register as userApi
+from routes.auth_router import users_list as users_list
 
 
 application = Flask(__name__)
@@ -15,6 +16,7 @@ application.config['CORS_METHODS'] = 'GET,POST,OPTIONS'
 
 # Initialize_database()
 api.add_namespace(userApi)
+api.add_namespace(users_list)
 api.init_app(application)
 
 

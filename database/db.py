@@ -1,4 +1,5 @@
 from arango import ArangoClient
+from flask import jsonify
 client = ArangoClient(hosts='http://localhost:8529')
 db = client.db('genentechdb', username='root', password='pass')
 
@@ -16,3 +17,10 @@ def Initialize_database(db=db):
 
 def insert(collection, data):
     return db.insert_document(collection, data, True)
+
+
+def select(collection, filter, value):
+    print('FOR doc IN ' + collection + ' ' + filter + ' RETURN doc ')
+    cursor = db.aql.execute('FOR doc IN ' + collection + ' ' + filter + ' RETURN doc ', bind_vars={'value': value})
+    emails = [doc for doc in cursor]
+    return jsonify(emails)
