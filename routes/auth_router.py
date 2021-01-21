@@ -1,12 +1,9 @@
 from flask_restx import Namespace, Resource, fields
 from flask import request
-from database.db import insert, select
+from database.db import ArangoDB
+from flask_bcrypt import generate_password_hash, check_password_hash
 
 register = Namespace('register', description='User registration')
-users_list = Namespace('userdata', description='User list')
-users_get_model = users_list.model('user list', {'email': fields.String(required=True, description='email and key')})
-
-
 register_model = register.model('register', {
     'email': fields.String(required=True, description='email and key'),
     'password': fields.String(required=True,  description='User password', help="password cannot be empty."),
@@ -15,16 +12,37 @@ register_model = register.model('register', {
     'confirmation': fields.String(required=True,  description='Confirmation', help="Confirmation password cannot be empty.")
 })
 
+users_list = Namespace('userdata', description='User list')
+users_get_model = users_list.model('user list', {'email': fields.String(required=True, description='email and key')})
+
+
+login = Namespace('login', description='User login')
+login_model = login.model('user login', {'email': fields.String(required=True, description='email and key'),
+                                         'password': fields.String(required=True,  description='User password', help="password cannot be empty.")})
+
+
+class User():
+
+    def hash_password(Data):
+        Data['password'] = generate_password_hash(Data['password']).decode('utf8')
+        return Data
+
+    def check_password(Data, password):
+        return check_password_hash(Data.password, password)
+
 
 @register.route('/')
 class Reg(Resource):
     @register.doc('reg_user')
     # @register.marshal_list_with(register_model)
     @register.expect(register_model)
-    def post(self):
-        '''Fetch a users given its identifier'''
-        data = request.json
-        result = insert('users', data)
+    async def post(self):
+        '''Signup user'''
+        body = request.json
+        hasUser = await ArangoDB.selectUser(body['email'])
+        print(hasUser)
+        body = User.hash_password(body)
+        result = ArangoDB.insert('users', body)
         return result
         # return request.get_json()
 
@@ -35,4 +53,16 @@ class List(Resource):
     @users_list.expect(users_get_model)
     def post(self):
         data = request.json
-        return select('users', " FILTER doc.email == @value ", data['email'])
+        return ArangoDB.select('users', " FILTER doc.email == @value ", data['email'])
+
+
+@login.route('/')
+class loginApi(Resource):
+    @login.doc('login user')
+    @login.expect(login_model)
+    def post(self):
+        body = request.get_json()
+        User = ArangoDB.selectUser(body['email'])
+        # authorized = User.check_password(body.get('password'))
+        body = User.hash_password(body)
+        return body, 200
