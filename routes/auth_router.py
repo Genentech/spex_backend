@@ -1,6 +1,6 @@
 from flask_restx import Namespace, Resource, fields
 from flask import request
-from database.db import ArangoDB
+from database import database
 from flask_bcrypt import generate_password_hash, check_password_hash
 
 register = Namespace('register', description='User registration')
@@ -36,13 +36,15 @@ class Reg(Resource):
     @register.doc('reg_user')
     # @register.marshal_list_with(register_model)
     @register.expect(register_model)
-    async def post(self):
+    def post(self):
         '''Signup user'''
         body = request.json
-        hasUser = await ArangoDB.selectUser(body['email'])
-        print(hasUser)
+        hasUser = database.selectUser(body['email'])
+        if len(hasUser) > 0:
+            #  return res.boom.conflict('Exists', { success: false, message: `User with email ${email} already exists` });
+            return 'mustaches'
         body = User.hash_password(body)
-        result = ArangoDB.insert('users', body)
+        result = database.insert('users', body)
         return result
         # return request.get_json()
 
@@ -53,7 +55,7 @@ class List(Resource):
     @users_list.expect(users_get_model)
     def post(self):
         data = request.json
-        return ArangoDB.select('users', " FILTER doc.email == @value ", data['email'])
+        return database.select('users', " FILTER doc.email == @value ", data['email'])
 
 
 @login.route('/')
@@ -62,7 +64,8 @@ class loginApi(Resource):
     @login.expect(login_model)
     def post(self):
         body = request.get_json()
-        User = ArangoDB.selectUser(body['email'])
+        User = database.selectUser(body['email'])
         # authorized = User.check_password(body.get('password'))
-        body = User.hash_password(body)
+        # body = User.hash_password(body)
+        print(User)
         return body, 200
