@@ -2,7 +2,6 @@ from arango import ArangoClient
 from arango.database import StandardDatabase, AsyncDatabase
 # from arango.collection import StandardCollection
 from arango.job import AsyncJob
-from flask import jsonify
 import ujson
 import time
 
@@ -33,9 +32,7 @@ class ArangoDB():
         self.async_instance = self.instance.begin_async_execution(return_result=True)
 
     def receive_asynс_response(self, task: AsyncJob):
-        print(f'test job {task.status()}')
         while task.status() != 'done':
-            print('await')
             time.sleep(0.1)
         return [i for i in task.result()]
 
@@ -53,14 +50,12 @@ class ArangoDB():
         return db.insert_document(collection, data, True)
 
     def select(self, collection, filter, value):
-        cursor = db.aql.execute('FOR doc IN ' + collection + ' ' + filter + ' RETURN doc ', bind_vars={'value': value})
-        emails = [doc for doc in cursor]
-        cursor.close()
-        return jsonify(emails)
+        task = self.async_instance.aql.execute('FOR doc IN ' + collection + ' ' + filter + ' RETURN doc ', bind_vars={'value': value})
+        emails = self.receive_asynс_response(task)
+        return emails
 
     def selectUser(self, value):
         task = self.async_instance.aql.execute('FOR doc IN users FILTER doc.email == @value LIMIT 1 RETURN  doc ',
                                                bind_vars={'value': value}, count=True)
         users = self.receive_asynс_response(task)
-        print(users)
         return users

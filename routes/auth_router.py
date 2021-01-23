@@ -1,7 +1,10 @@
 from flask_restx import Namespace, Resource, fields
 from flask import request
 from database import database
-from flask_bcrypt import generate_password_hash, check_password_hash
+from validation import User
+from flask_jwt_extended import create_access_token
+import datetime
+
 
 register = Namespace('register', description='User registration')
 register_model = register.model('register', {
@@ -21,16 +24,6 @@ login_model = login.model('user login', {'email': fields.String(required=True, d
                                          'password': fields.String(required=True,  description='User password', help="password cannot be empty.")})
 
 
-class User():
-
-    def hash_password(Data):
-        Data['password'] = generate_password_hash(Data['password']).decode('utf8')
-        return Data
-
-    def check_password(Data, password):
-        return check_password_hash(Data.password, password)
-
-
 @register.route('/')
 class Reg(Resource):
     @register.doc('reg_user')
@@ -39,14 +32,21 @@ class Reg(Resource):
     def post(self):
         '''Signup user'''
         body = request.json
-        hasUser = database.selectUser(body['email'])
+        email = body['email']
+        password = body['password']
+        confirmation = body['confirmation']
+        if not User.validEmail(email):
+            return {'success': False, 'message': 'incorrect email:  ' + email}, 409
+
+        hasUser = database.selectUser(email)
         if len(hasUser) > 0:
-            #  return res.boom.conflict('Exists', { success: false, message: `User with email ${email} already exists` });
-            return 'mustaches'
+            return {'success': False, 'message': 'User with email ' + email + ' already exists'}, 409
+        if password != confirmation:
+            return {'success': False, 'message': "Password and confirmation doesn't match"}, 409
+
         body = User.hash_password(body)
         result = database.insert('users', body)
-        return result
-        # return request.get_json()
+        return {'success': True, 'message': 'User created ', 'User id': result['_key']}, 200
 
 
 @users_list.route('/list')
@@ -55,7 +55,13 @@ class List(Resource):
     @users_list.expect(users_get_model)
     def post(self):
         data = request.json
-        return database.select('users', " FILTER doc.email == @value ", data['email'])
+        users = database.select('users', " FILTER doc.email == @value ", data['email'])
+        if len(users) == 0:
+            return {'success': False, 'message': 'user with this email address not found ', 'Email': data['email']}, 200
+        else:
+            user = users[0]
+            User.cleanField(user)
+            return {'success': True, 'User': user}, 200
 
 
 @login.route('/')
@@ -64,8 +70,16 @@ class loginApi(Resource):
     @login.expect(login_model)
     def post(self):
         body = request.get_json()
-        User = database.selectUser(body['email'])
-        # authorized = User.check_password(body.get('password'))
-        # body = User.hash_password(body)
-        print(User)
-        return body, 200
+        users = database.selectUser(body['email'])
+        if len(users) == 0:
+            return {'success': False, 'message': 'user with this email address not found ', 'Email': body['email']}, 200
+        else:
+            user = users[0]
+        authorized = User.check_password(user, body['password'])
+        expires = datetime.timedelta(days=7)
+        access_token = create_access_token(identity=str(user['_id']), expires_delta=expires)
+        if authorized:
+            User.cleanField(user)
+            return {'success': True, 'User': user, 'token': access_token}, 200
+        else:
+            return {'success': False, 'message': 'Unable to login user'}, 401

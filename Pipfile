@@ -12,6 +12,10 @@ arango = "*"
 python-arango = "*"
 asyncio = "*"
 ujson = "*"
+email-validator = "*"
+flask-jwt-extended = "*"
+flask-cors = "*"
+python-dotenv = "*"
 
 [dev-packages]
 
