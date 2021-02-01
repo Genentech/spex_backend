@@ -1,7 +1,11 @@
-.env*
+*.local
 .vscode
 /ignore
 /__pycache__
 *.pyc
 *.pyo
 /env
+
+*.iml
+*.ipr
+*.iws
