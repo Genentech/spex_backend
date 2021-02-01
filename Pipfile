@@ -16,6 +16,7 @@ email-validator = "*"
 flask-jwt-extended = "*"
 flask-cors = "*"
 python-dotenv = "*"
+werkzeug="*"
 
 [dev-packages]
 
