@@ -9,7 +9,7 @@ def select_user(email='', id=None):
     search = 'FILTER doc.email = @value LIMIT 1'
     if id:
         value = id
-        search = 'FILTER doc._id = @value LIMIT 1'
+        search = 'FILTER doc._key = @value LIMIT 1'
 
     items = database.select(collection, search, **{'value': value})
     return user(items[0]) if not items[0] is None else None
