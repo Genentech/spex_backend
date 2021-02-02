@@ -1,5 +1,5 @@
 from os import getenv
-from database.model import ArangoDB
+from modules.database.model import ArangoDB
 
 database = ArangoDB(
     getenv('ARANGODB_DATABASE_URL'),

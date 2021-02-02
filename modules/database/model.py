@@ -49,6 +49,7 @@ class ArangoDB:
         return self.instance.insert_document(collection, data, True)
 
     def select(self, collection, search='', **kwargs):
+        print('FOR doc IN {} {} RETURN doc'.format(collection, search))
         task = self.async_instance.aql.execute(
             'FOR doc IN {} {} RETURN doc'.format(collection, search),
             bind_vars={

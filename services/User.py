@@ -1,4 +1,4 @@
-from database import database
+from modules.database import database
 from models.User import user
 
 collection = 'users'
@@ -6,17 +6,21 @@ collection = 'users'
 
 def select_user(email='', id=None):
     value = email
-    search = 'FILTER doc.email = @value LIMIT 1'
+    search = 'FILTER doc.email == @value LIMIT 1'
     if id:
         value = id
-        search = 'FILTER doc._key = @value LIMIT 1'
+        search = 'FILTER doc._key == @value LIMIT 1'
 
-    items = database.select(collection, search, **{'value': value})
+    items = database.select(collection, search, value=value)
+    if len(items) == 0:
+        return None
     return user(items[0]) if not items[0] is None else None
 
 
 def select_users():
     items = database.select(collection)
+    if len(items) == 0:
+        return None
     return [user(items[0]) for item in items]
 
 
