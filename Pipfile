@@ -17,6 +17,7 @@ flask-jwt-extended = "*"
 flask-cors = "*"
 python-dotenv = "*"
 werkzeug="*"
+omero-py = "*"
 
 [dev-packages]
 
