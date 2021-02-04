@@ -1,5 +1,11 @@
+export JAVA_OPTS=-Xmx4G
+omero import -d 4051 R2_PCNA.Her2.ER.CD45_BM-Her2N75-15_2017_08_11__2327.czi --debug WARN
 from omero.gateway import BlitzGateway
 from io import BytesIO
+try:
+    from PIL import Image
+except ImportError:
+    import Image
 
 
 def connect(hostname, username, password):
@@ -54,14 +60,32 @@ def getData():
         for dataset in project.listChildren():
             print_obj(dataset, 2)
             try:
-                for image in dataset.listChildren():
-                    id = print_obj(image, 4)
-                    imageF = conn.getObject("Image", id)
-                    img_data = imageF.getThumbnail()
+                for imageF in dataset.listChildren():
+                    id = print_obj(imageF, 4)
+                    image = conn.getObject("Image", id)
+                    print(" X:", image.getSizeX())
+                    print(" Y:", image.getSizeY())
+                    print(" Z:", image.getSizeZ())
+                    print(" C:", image.getSizeC())
+                    print(" T:", image.getSizeT())
 
-                    rendered_thumb = imageF.open(BytesIO(img_data))
-                    # renderedThumb.show()           # shows a pop-up
-                    rendered_thumb.save("thumbnail.jpg")
+                    # img_data = image.getThumbnail()  # R endering settings from OMERO.web
+                    # rendered_image = Image.open(BytesIO(img_data))
+
+                    # rendered_image.save('tmp/my_image.png')  # Save image to current folder
+
+                    z = image.getSizeZ() / 2
+                    t = 0
+                    image.setColorRenderingModel()
+                    channels = [1, 2, 3]
+                    colorList = ['F00', None, 'FFFF00']  # do not change colour of 2nd channel
+                    image.setActiveChannels(channels, colors=colorList)
+                    # max intensity projection 'intmean' for mean-intensity
+                    image.setProjection('intmax')
+                    # renderedImage = image.renderImage(z=None, t=None, compression=0.5)  # z and t are ignored for projections
+                    # renderedImage.show()
+                    # renderedImage.save("all_channels.jpg")
+
             except AttributeError as ae:
                 disconnect(conn)
                 raise ae

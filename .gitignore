@@ -5,7 +5,7 @@
 *.pyc
 *.pyo
 /env
-
+/tmp
 *.iml
 *.ipr
 *.iws
