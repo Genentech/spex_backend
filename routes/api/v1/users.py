@@ -179,12 +179,17 @@ class Item(Resource):
     @namespace.response(204, 'User deleted')
     @namespace.response(404, 'User not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
+    @jwt_required
     def delete(self, id):
         current_user = get_jwt_identity()
         # TODO Add admin check
 
         if current_user != id:
             abort(401, 'No authority for this action')
+
+        user = UserService.delete_user(id=id)
+        if user is None:
+            abort(404, 'User with id:{} not deleted'.format(id))
         #  add UserService.delete(id), only admins can remove users,
         #  need add to jwt role, and in user model
-        abort(500, 'Not implemented')
+        return {'success': True, 'data': user}, 200

@@ -68,13 +68,14 @@ class ArangoDB:
         )
         return receive_async_response(task)
 
-#     FOR u IN users FILTER u._key == @value LIMIT 1
-#   UPDATE u WITH {
-#     firstName: 'saxek4',
-#     notNeeded: null
-#   }
-#   IN users
-#   LET updated = NEW
-#  Return UNSET(updated, "_key", "_id", "_rev", 'password')
-
-    # TODO delete and update
+    def delete(self, collection, search='', **kwargs):
+        print('FOR doc IN  {} {} REMOVE doc IN {} LET deleted = OLD RETURN UNSET(deleted, "_key", "_id", "_rev", "password")'
+              .format(collection, search, collection))
+        task = self.async_instance.aql.execute(
+            'FOR doc IN  {} {} REMOVE doc IN {} LET deleted = OLD RETURN UNSET(deleted, "_key", "_id", "_rev", "password")'
+            .format(collection, search, collection),
+            bind_vars={
+                **kwargs
+            }
+        )
+        return receive_async_response(task)
