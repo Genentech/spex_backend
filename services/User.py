@@ -4,7 +4,7 @@ from models.User import user
 collection = 'users'
 
 
-def select_user(email='', id=None):
+def select(email='', id=None):
     value = email
     search = 'FILTER doc.email == @value LIMIT 1'
     if id:
@@ -24,7 +24,7 @@ def select_users():
     return [user(items[0]) for item in items]
 
 
-def update_user(email='', id=None, data=None):
+def update(email='', id=None, data=None):
     value = email
     search = 'FILTER doc.email == @value LIMIT 1'
     if id:
@@ -37,7 +37,7 @@ def update_user(email='', id=None, data=None):
     return user(items[0]) if not items[0] is None else None
 
 
-def delete_user(email='', id=None):
+def delete(email='', id=None):
     value = email
     search = 'FILTER doc.email == @value '
     if id:

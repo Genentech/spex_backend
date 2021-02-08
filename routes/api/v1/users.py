@@ -39,7 +39,7 @@ class Items(Resource):
         if not User.valid_email(email):
             abort(400, 'Incorrect email: {}'.format(email))
 
-        has_user = UserService.select_user(email)
+        has_user = UserService.select(email)
         if has_user:
             abort(400, 'User with email {} already exists'.format(email))
 
@@ -70,7 +70,7 @@ class Login(Resource):
     @namespace.response(401, 'Unauthorized', responses.error_response)
     def post(self):
         body = request.json
-        user = UserService.select_user(body['email'])
+        user = UserService.select(body['email'])
         if user is None:
             abort(404, 'User with {} email address not found'.format(body['email']))
 
@@ -96,7 +96,7 @@ class Item(Resource):
         if id == 'login':
             abort(404, 'User with id:{} not found'.format(id))
 
-        user = UserService.select_user(id=id)
+        user = UserService.select(id=id)
 
         if user is None:
             abort(404, 'User with id:{} not found'.format(id))
@@ -137,7 +137,7 @@ class Item(Resource):
         else:
             confirmation = None
 
-        has_user = UserService.select_user(id=id)
+        has_user = UserService.select(id=id)
         if has_user and has_user.id != id:
             abort(400, 'User with email {} already exists'.format(email))
 
@@ -167,7 +167,7 @@ class Item(Resource):
         for key in body:
             data[key] = body[key]
 
-        user = UserService.update_user(id=id, data=body)  # Users can't change email, firstName, lastName
+        user = UserService.update(id=id, data=body)  # Users can't change email, firstName, lastName
         #  for password (old password, new, and confirm new)
         if user is None:
             abort(404, 'User with id:{} not updated'.format(id))
@@ -187,7 +187,7 @@ class Item(Resource):
         if current_user != id:
             abort(401, 'No authority for this action')
 
-        user = UserService.delete_user(id=id)
+        user = UserService.delete(id=id)
         if user is None:
             abort(404, 'User with id:{} not deleted'.format(id))
         #  add UserService.delete(id), only admins can remove users,
