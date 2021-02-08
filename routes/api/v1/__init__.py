@@ -8,6 +8,7 @@ api = Api(
     description='Genentech API',
     validate=True,
 )
+
 prefix = '/api/v1'
 
 

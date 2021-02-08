@@ -49,7 +49,6 @@ class ArangoDB:
         return self.instance.insert_document(collection, data, True)
 
     def select(self, collection, search='', **kwargs):
-        print('FOR doc IN {} {} RETURN doc'.format(collection, search))
         task = self.async_instance.aql.execute(
             'FOR doc IN {} {} RETURN doc'.format(collection, search),
             bind_vars={
@@ -57,5 +56,25 @@ class ArangoDB:
             }
         )
         return receive_async_response(task)
+
+    def update(self, collection, data, search='', **kwargs):
+
+        task = self.async_instance.aql.execute(
+            'FOR doc IN {} {} UPDATE doc WITH {} IN {} LET updated = NEW Return  UNSET(updated, "_key", "_id", "_rev", "password")'
+            .format(collection, search, data, collection),
+            bind_vars={
+                **kwargs
+            }
+        )
+        return receive_async_response(task)
+
+#     FOR u IN users FILTER u._key == @value LIMIT 1
+#   UPDATE u WITH {
+#     firstName: 'saxek4',
+#     notNeeded: null
+#   }
+#   IN users
+#   LET updated = NEW
+#  Return UNSET(updated, "_key", "_id", "_rev", 'password')
 
     # TODO delete and update

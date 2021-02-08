@@ -3,7 +3,7 @@ import datetime
 from flask_restx import Namespace, Resource
 from flask import request, abort
 from models.User import User
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from .models import users, responses
 
 namespace = Namespace('Users', description='Users CRUD operations')
@@ -33,6 +33,9 @@ class Items(Resource):
         password = body['password']
         confirmation = body['confirmation']
 
+        if password != confirmation:
+            abort(400, 'Password and confirmation don\'t match')
+
         if not User.valid_email(email):
             abort(400, 'Incorrect email: {}'.format(email))
 
@@ -40,10 +43,9 @@ class Items(Resource):
         if has_user:
             abort(400, 'User with email {} already exists'.format(email))
 
-        if password != confirmation:
-            abort(400, 'Password and confirmation don\'t match')
-
         body = User.hash_password(body)
+        del body['confirmation']
+
         result = UserService.insert(body)
         return {'success': True, 'data': result}, 200
 
@@ -77,7 +79,7 @@ class Login(Resource):
         if not authorized:
             abort(401, 'Unable to login user')
 
-        expires = datetime.timedelta(days=1)
+        expires = datetime.timedelta(days=7)
         access_token = create_access_token(identity=str(user.id), expires_delta=expires)
         return {'success': True, 'data': user}, 200, \
                {'Authorization': access_token}
@@ -89,8 +91,8 @@ class Item(Resource):
     @namespace.marshal_with(users.a_user_response)
     @namespace.response(404, 'User not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
+    @jwt_required
     def get(self, id):
-        # TODO check JWT, return error 401
         if id == 'login':
             abort(404, 'User with id:{} not found'.format(id))
 
@@ -106,11 +108,71 @@ class Item(Resource):
     @namespace.response(200, 'Updated user', users.a_user_response)
     @namespace.response(404, 'User not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
+    @jwt_required
     def put(self, id):
-        # TODO check JWT, return error 401
-        #  add UserService.update(id, data). Users can't change email,
+        current_user = get_jwt_identity()
+        # TODO Add admin check
+
+        if current_user != id:
+            abort(401, 'No authority for this action')
+
+        body = request.json
+        if body.get('email'):
+            email = body['email']
+        else:
+            email = None
+
+        if body.get('oldpassword'):
+            oldpassword = body['oldpassword']
+        else:
+            oldpassword = None
+
+        if body.get('password'):
+            password = body['password']
+        else:
+            password = None
+
+        if body.get('confirmation'):
+            confirmation = body['confirmation']
+        else:
+            confirmation = None
+
+        has_user = UserService.select_user(id=id)
+        if has_user and has_user.id != id:
+            abort(400, 'User with email {} already exists'.format(email))
+
+        authorized = has_user.check_password(oldpassword)
+        if not authorized:
+            abort(401, 'Unable to login user')
+
+        if authorized:
+            if password != confirmation and password:
+                abort(400, 'Password and confirmation don\'t match')
+                del body['password']
+                del body['confirmation']
+                del body['oldpassword']
+            if not password:
+                del body['password']
+                del body['confirmation']
+                del body['oldpassword']
+            else:
+                body = User.hash_password(body)
+                del body['confirmation']
+                del body['oldpassword']
+
+        if not User.valid_email(email):
+            abort(400, 'Incorrect email: {}'.format(email))
+
+        data = has_user.__dict__
+        for key in body:
+            data[key] = body[key]
+
+        user = UserService.update_user(id=id, data=body)  # Users can't change email, firstName, lastName
         #  for password (old password, new, and confirm new)
-        abort(500, 'Not implemented')
+        if user is None:
+            abort(404, 'User with id:{} not updated'.format(id))
+
+        return {'success': True, 'data': user}, 200
 
     @namespace.doc('user/delete')
     @namespace.marshal_with(responses.response)
@@ -118,7 +180,11 @@ class Item(Resource):
     @namespace.response(404, 'User not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     def delete(self, id):
-        # TODO check JWT, return error 401
+        current_user = get_jwt_identity()
+        # TODO Add admin check
+
+        if current_user != id:
+            abort(401, 'No authority for this action')
         #  add UserService.delete(id), only admins can remove users,
         #  need add to jwt role, and in user model
         abort(500, 'Not implemented')

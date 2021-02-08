@@ -26,7 +26,7 @@ signup_model = user_model.inherit('UserSignup', {
     ),
     'confirmation': fields.String(
         required=True,
-        description='Confirmation',
+        description='Confirmation password cannot be empty',
         help='Confirmation password cannot be empty.'
     )
 })

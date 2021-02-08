@@ -1,11 +1,11 @@
 import omero
 from omero.gateway import BlitzGateway
-from io import BytesIO
-try:
-    from PIL import Image
-except ImportError:
-    import Image
-import tempfile
+# from io import BytesIO
+# try:
+#     from PIL import Image
+# except ImportError:
+#     import Image
+# import tempfile
 
 
 def connect(hostname, username, password):
