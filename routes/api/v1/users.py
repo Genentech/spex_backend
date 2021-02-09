@@ -27,7 +27,6 @@ class Items(Resource):
     @namespace.response(400, 'Message about reason of error', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     def post(self):
-        # TODO check JWT, return error 401
         body = request.json
         email = body['email']
         password = body['password']
@@ -45,6 +44,8 @@ class Items(Resource):
 
         body = User.hash_password(body)
         del body['confirmation']
+        if UserService.count() == 0:  # first user admin
+            body['admin'] = True
 
         result = UserService.insert(body)
         return {'success': True, 'data': result}, 200
@@ -53,8 +54,8 @@ class Items(Resource):
     @namespace.marshal_list_with(users.list_user_response)
     @namespace.response(200, 'List of users', users.list_user_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
+    @jwt_required
     def get(self):
-        # TODO check JWT, return error 401
         items = UserService.select_users()
         return {'success': True, 'data': items}, 200
 
@@ -111,10 +112,9 @@ class Item(Resource):
     @jwt_required
     def put(self, id):
         current_user = get_jwt_identity()
-        # TODO Add admin check
 
-        if current_user != id:
-            abort(401, 'No authority for this action')
+        if current_user != id and not UserService.isAdmin(current_user):
+            abort(401, 'only admins can update other user')
 
         body = request.json
         if body.get('email'):
@@ -137,13 +137,16 @@ class Item(Resource):
         else:
             confirmation = None
 
+        if not UserService.isAdmin(current_user):
+            body['admin'] = False
+
         has_user = UserService.select(id=id)
         if has_user and has_user.id != id:
             abort(400, 'User with email {} already exists'.format(email))
 
         authorized = has_user.check_password(oldpassword)
         if not authorized:
-            abort(401, 'Unable to login user')
+            abort(401, 'old password problem, cannot login user')
 
         if authorized:
             if password != confirmation and password:
@@ -181,15 +184,13 @@ class Item(Resource):
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required
     def delete(self, id):
-        current_user = get_jwt_identity()
-        # TODO Add admin check
 
-        if current_user != id:
-            abort(401, 'No authority for this action')
+        current_user = get_jwt_identity()
+
+        if current_user != id and not UserService.isAdmin(current_user):
+            abort(401, 'only admins can remove users')
 
         user = UserService.delete(id=id)
         if user is None:
             abort(404, 'User with id:{} not deleted'.format(id))
-        #  add UserService.delete(id), only admins can remove users,
-        #  need add to jwt role, and in user model
         return {'success': True, 'data': user}, 200

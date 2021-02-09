@@ -53,3 +53,25 @@ def delete(email='', id=None):
 def insert(data):
     item = database.insert(collection, data)
     return user(item)
+
+
+def isAdmin(id):
+
+    search = 'FILTER doc._key == @value LIMIT 1'
+
+    items = database.select(collection, search, value=id)
+    if len(items) == 0:
+        return False
+    if items[0] is None:
+        return False
+    else:
+        if items[0].get('admin') is None:
+            return False
+        else:
+            return items[0].get('admin')
+
+
+def count():
+
+    arr = database.count('users', '')
+    return arr[0]

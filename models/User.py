@@ -9,13 +9,15 @@ class User:
         self.lastName = kwargs.get('lastName', '')
         self.email = kwargs.get('email', '')
         self.password = kwargs.get('password', '')
+        self.admin = kwargs.get('admin', False)
 
     def to_json(self):
         return {
             'id': self.id,
             'firstName': self.firstName,
             'lastName': self.lastName,
-            'email': self.email
+            'email': self.email,
+            'admin': self.admin
         }
 
     def check_password(self, password):
