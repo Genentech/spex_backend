@@ -1,5 +1,6 @@
 import omero
 from omero.gateway import BlitzGateway
+from os import getenv
 # from io import BytesIO
 # try:
 #     from PIL import Image
@@ -8,41 +9,30 @@ from omero.gateway import BlitzGateway
 # import tempfile
 
 
-def connect(hostname, username, password):
-    """
-    Connect to an OMERO server
-    :param hostname: Host name
-    :param username: User
-    :param password: Password
-    :return: Connected BlitzGateway
-    """
-    conn = BlitzGateway(username, password,
-                        host=hostname, secure=True)
+def connect(username, password):
+    hostname = getenv('OMERO_HOST')
+    print(hostname)
+
+    conn = BlitzGateway(username, password, host=hostname, secure=True)
     conn.connect()
     conn.c.enableKeepAlive(60)
     return conn
 
 
 def disconnect(conn):
-    """
-    Disconnect from an OMERO server
-    :param conn: The BlitzGateway
-    """
     conn.close()
 
 
 def print_obj(obj, indent=0):
-    """
-    Helper method to display info about OMERO objects.
-    Not all objects will have a "name" or owner field.
-    """
-    print("""%s%s:%s  Name:"%s" (owner=%s)""" % (
+    res = """%s%s:%s  Name:"%s" (owner=%s)""" % (
         " " * indent,
         obj.OMERO_CLASS,
         obj.getId(),
         obj.getName(),
-        obj.getOwnerOmeName()))
-    return obj.getId()
+        obj.getOwnerOmeName())
+
+    print(res)
+    return res
 
 
 def getData():
@@ -88,7 +78,10 @@ def getData():
         raise ae
 
 
-getData()
+# getData()
+
+# conn = connect("localhost", "root", "omero")
+# disconnect(conn)
 
 
 def archived_files(iid=None, conn=None, **kwargs):

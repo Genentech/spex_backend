@@ -32,6 +32,7 @@ class ArangoDB:
         self.async_instance = self.instance.begin_async_execution(return_result=True)
 
     def initialize(self):
+        # TODO to env login root login passw
         sys_db = self.client.db('_system', username='root', password='pass')
 
         if not sys_db.has_database('genentechdb'):
