@@ -152,3 +152,10 @@ def archived_files(iid=None, conn=None, **kwargs):
 
 
 # archived_files()
+
+
+def render_thumbnail(id, conn, size=96):
+    image = conn.getObject("Image", id)
+    img_data = image.getThumbnail(size)
+    # rendered_thumb = Image.open(BytesIO(img_data))
+    return img_data
