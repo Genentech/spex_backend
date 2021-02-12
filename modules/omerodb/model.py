@@ -1,11 +1,11 @@
 import omero
 from omero.gateway import BlitzGateway
 from os import getenv
-# from io import BytesIO
-# try:
-#     from PIL import Image
-# except ImportError:
-#     import Image
+from io import BytesIO
+try:
+    from PIL import Image
+except ImportError:
+    import Image
 # import tempfile
 
 
@@ -159,3 +159,162 @@ def render_thumbnail(id, conn, size=96):
     img_data = image.getThumbnail(size)
     # rendered_thumb = Image.open(BytesIO(img_data))
     return img_data
+
+
+def is_big_image(conn, image):
+    max_w, max_h = conn.getMaxPlaneSize()
+    print('Max w, h', max_w, max_h)
+    return image.getSizeX() * image.getSizeY() > max_w * max_h
+
+
+def get_zoom_level_scale(conn, image, region, max_width):
+    """Calculate the scale and zoom level we want to use for big image."""
+    width = region['width']
+    height = region['height']
+
+    zm_levels = image.getZoomLevelScaling()
+    # e.g. {0: 1.0, 1: 0.25, 2: 0.0625, 3: 0.03123, 4: 0.01440}
+    # Pick zoom such that returned image is below MAX size
+    max_level = len(zm_levels.keys()) - 1
+
+    # Maximum size that the rendering engine will render without OOM
+    max_plane = conn.getDownloadAsMaxSizeSetting()
+
+    # start big, and go until we reach target size
+    zm = 0
+    while (zm < max_level and
+            zm_levels[zm] * width > max_width or
+            zm_levels[zm] * width * zm_levels[zm] * height > max_plane):
+        zm = zm + 1
+
+    level = max_level - zm
+
+    # We need to use final rendered jpeg coordinates
+    # Convert from original image coordinates by scaling
+    scale = zm_levels[zm]
+    return scale, level
+
+
+def render_big_image_region(conn, image, panel, z, t, region, max_width):
+
+    #  Render region of a big image at an appropriate zoom level
+    #  so width < max_width
+
+    scale, level = get_zoom_level_scale(conn, image, region, max_width)
+    # cache the 'zoom_level_scale', in the panel dict.
+    # since we need it for scalebar, and don't want to calculate again
+    # since rendering engine will be closed by then
+    panel['zoom_level_scale'] = scale
+
+    width = region['width']
+    height = region['height']
+    x = region['x']
+    y = region['y']
+    size_x = image.getSizeX()
+    size_y = image.getSizeY()
+    x = int(x * scale)
+    y = int(y * scale)
+    width = int(width * scale)
+    height = int(height * scale)
+    size_x = int(size_x * scale)
+    size_y = int(size_y * scale)
+
+    canvas = None
+    # Coordinates below are all final jpeg coordinates & sizes
+    if x < 0 or y < 0 or (x + width) > size_x or (y + height) > size_y:
+        # If we're outside the bounds of the image...
+        # Need to render reduced region and paste on to full size image
+        canvas = Image.new("RGBA", (width, height), (221, 221, 221))
+        paste_x = 0
+        paste_y = 0
+        if x < 0:
+            paste_x = -x
+            width = width + x
+            x = 0
+        if y < 0:
+            paste_y = -y
+            height = height + y
+            y = 0
+
+    # Render the region...
+    jpeg_data = image.renderJpegRegion(z, t, x, y, width, height, level=level)
+    if jpeg_data is None:
+        return
+
+    i = BytesIO(jpeg_data)
+    pil_img = Image.open(i)
+
+    # paste to canvas if needed
+    if canvas is not None:
+        canvas.paste(pil_img, (paste_x, paste_y))
+        pil_img = canvas
+
+    return pil_img
+
+
+def testRenderImage(conn, imageId):
+    try:
+        image = conn.getObject("Image", imageId)
+        print(image.getName(), image.getDescription())
+        # Retrieve information about an image.
+        print(" X:", image.getSizeX())
+        print(" Y:", image.getSizeY())
+        print(" Z:", image.getSizeZ())
+        print(" C:", image.getSizeC())
+        print(" T:", image.getSizeT())
+        # List Channels (loads the Rendering settings to get channel colors)
+        for channel in image.getChannels():
+            print('Channel:', channel.getLabel())
+            print('Color:', channel.getColor().getRGB())
+            print('Lookup table:', channel.getLut())
+            print('Is reverse intensity?', channel.isReverseIntensity())
+
+        # render the first timepoint, mid Z section
+        z = image.getSizeZ() / 2
+        t = 0
+        viewport_region = {'x': 0, 'y': 0, 'width': 300, 'height': 300}
+        vp_x = viewport_region['x']
+        vp_y = viewport_region['y']
+        vp_w = viewport_region['width']
+        vp_h = viewport_region['height']
+
+        print(is_big_image(conn, image), 'big or not')
+        # rendered_image = image.renderImage(z, t)
+        max_length = 1.5 * max(vp_w, vp_h)
+        extra_w = max_length - vp_w
+        extra_h = max_length - vp_h
+        viewport_region = {'x': vp_x - (extra_w/2),
+                           'y': vp_y - (extra_h/2),
+                           'width': vp_w + extra_w,
+                           'height': vp_h + extra_h,
+                           'zoom_level_scale': 100}
+        max_width = vp_w + extra_w
+        max_width = max_width * (viewport_region['width'] / vp_w)
+        panel = {}
+        panel['width'] = 3000
+        panel['height'] = 3000
+
+        # image.setGreyscaleRenderingModel()
+        size_c = image.getSizeC()
+        z = image.getSizeZ() / 2
+        t = 0
+        for c in range(1, size_c + 1):       # Channel index starts at 1
+            channels = [c]                  # Turn on a single channel at a time
+            image.setActiveChannels(channels)
+            pil_img = render_big_image_region(conn, image, panel, z, t, viewport_region, max_width)
+            pil_img.save("./tmp/channels/channel%s.png" % c)
+
+        image.setActiveChannels([0, 1, 2])
+        pil_img = render_big_image_region(conn, image, panel, z, t, viewport_region, max_width)
+        pil_img.save("./tmp/block.png")
+
+        disconnect(conn)
+        return pil_img
+
+    except AttributeError as ae:
+        disconnect(conn)
+        raise ae
+
+
+conn = connect('root', 'omero')
+testRenderImage(conn, 52)
