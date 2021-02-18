@@ -42,7 +42,8 @@ class ArangoDB:
 
         if not db.has_collection('users'):
             db.create_collection('users', edge=True)
-
+        if not db.has_collection('images'):
+            db.create_collection('images', edge=True)
         if not db.has_collection('groups'):
             db.create_collection('groups', edge=True)
 

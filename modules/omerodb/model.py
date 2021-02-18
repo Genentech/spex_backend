@@ -2,6 +2,7 @@ import omero
 from omero.gateway import BlitzGateway
 from os import getenv
 from io import BytesIO
+import pathlib
 try:
     from PIL import Image
 except ImportError:
@@ -11,7 +12,8 @@ except ImportError:
 
 def connect(username, password):
     hostname = getenv('OMERO_HOST')
-    print(hostname)
+    # username = getenv('OMERO_USERNAME')
+    # password = getenv('OMERO_PASSWORD')
 
     conn = BlitzGateway(username, password, host=hostname, secure=True)
     conn.connect()
@@ -24,32 +26,38 @@ def disconnect(conn):
 
 
 def print_obj(obj, indent=0):
-    res = """%s%s:%s  Name:"%s" (owner=%s)""" % (
+    res = """%s%s:%s  Name:"%s" (ownerName=%s) (ownerFullName=%s) (ownerType=%s)""" % (
         " " * indent,
         obj.OMERO_CLASS,
         obj.getId(),
         obj.getName(),
-        obj.getOwnerOmeName())
+        obj.getOwnerOmeName(),
+        obj.getOwnerFullName(),
+        obj.getOwner())
 
-    print(res)
     return res
 
 
+def returnObj(obj, indent=0):
+    data = {obj.OMERO_CLASS: obj.getId(), 'Name': obj.getName(), 'ownerName': obj.getOwnerOmeName(), 'ownerFullName': obj.getOwnerFullName(),
+            'indent': indent}
+    return data
+
+
 def getData():
-    print("0")
-    conn = connect("localhost", "root", "omero")
+    conn = connect("root", "omero")
     # my_exp_id = conn.getUser().getId()
     # default_group_id = conn.getEventContext().groupId
-    # for project in conn.getObjects("Project", opts={'owner': my_exp_id,
+
+    # for dataset in conn.getObjects("Dataset", opts={'owner': my_exp_id,
     #                                                 'group': default_group_id,
     #                                                 'order_by': 'lower(obj.name)',
     #                                                 'limit': 5, 'offset': 0}):
-    #     print_obj(project)
-    #     # We can get Datasets with listChildren, since we have the Project already.
-    #     # Or conn.getObjects("Dataset", opts={'project', id}) if we have Project ID
-    #     for dataset in project.listChildren():
-    # print_obj(dataset, 2)
-    image = conn.getObject("Image", "52")
+    #     print_obj(dataset)
+    #     for project in dataset.listChildren():
+    #         print_obj(project, 2)
+
+    image = conn.getObject("Image", "1")
 
     try:
         # for imageF in dataset.listChildren():
@@ -64,10 +72,13 @@ def getData():
         for orig_file in fileset.listFiles():
             name = orig_file.getName()
             path = orig_file.getPath()
+
             print(path, name)
             print("Downloading...", name)
-            dir = ".\\tmp\\"
+            dir = "./data/" + path
             name = dir + name
+            pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
+
             with open(name, "wb") as f:
                 for chunk in orig_file.getFileInChunks(buf=2621440):
                     f.write(chunk)
@@ -79,6 +90,34 @@ def getData():
 
 
 # getData()
+
+def saveImage(id, conn):
+    image = conn.getObject("Image", id)
+
+    try:
+        fileset = image.getFileset()
+        fs_id = fileset.getId()
+        fileset = conn.getObject("Fileset", fs_id)
+
+        for orig_file in fileset.listFiles():
+            name = orig_file.getName()
+            path = orig_file.getPath()
+
+            print("Downloading...", name)
+            dir = "./data/" + path
+            name = dir + name
+            pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
+
+            with open(name, "wb") as f:
+                for chunk in orig_file.getFileInChunks(buf=2621440):
+                    f.write(chunk)
+
+        return name
+        disconnect(conn)
+    except AttributeError as ae:
+        disconnect(conn)
+        raise ae
+    return ''
 
 # conn = connect("localhost", "root", "omero")
 # disconnect(conn)
@@ -315,6 +354,6 @@ def testRenderImage(conn, imageId):
         disconnect(conn)
         raise ae
 
-
-conn = connect('root', 'omero')
-testRenderImage(conn, 52)
+# test render
+# conn = connect('root', 'omero')
+# testRenderImage(conn, 52)

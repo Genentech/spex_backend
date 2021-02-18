@@ -18,6 +18,9 @@ flask-cors = "*"
 python-dotenv = "*"
 werkzeug="*"
 omero-py = "*"
+pandas = "*"
+aicsimageio = "*"
+scikit-image = "*"
 
 [dev-packages]
 flake8 = "*"
