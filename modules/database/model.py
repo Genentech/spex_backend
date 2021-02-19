@@ -41,11 +41,11 @@ class ArangoDB:
         db = self.instance
 
         if not db.has_collection('users'):
-            db.create_collection('users', edge=True)
+            db.create_collection('users')
         if not db.has_collection('images'):
-            db.create_collection('images', edge=True)
+            db.create_collection('images')
         if not db.has_collection('groups'):
-            db.create_collection('groups', edge=True)
+            db.create_collection('groups')
 
     def insert(self, collection, data):
         return self.instance.insert_document(collection, data, True)

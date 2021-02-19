@@ -2,6 +2,7 @@ from flask_restx import Namespace, Resource
 from flask import request, send_file, abort
 from .models import responses, omero
 import modules.omerodb.model as omerodb
+import services.Image as ImageService
 import io
 
 
@@ -10,6 +11,35 @@ namespace.add_model(omero.omero_tree_model.name, omero.omero_tree_model)
 namespace.add_model(omero.omero_thumbnail.name, omero.omero_thumbnail)
 namespace.add_model(omero.omero_download_model.name, omero.omero_download_model)
 namespace.add_model(responses.error_response.name, responses.error_response)
+
+
+def walk_by_structure(item):
+    result = {
+        'id': item.getId(),
+        'type': item.OMERO_CLASS,
+        'name': item.getName(),
+        'owner': item.getOwnerOmeName(),
+        'description': item.getDescription(),
+        'date': int(item.getDate().timestamp()*1000),
+    }
+
+    try:
+        children = []
+        for child in item.listChildren():
+            children.append(walk_by_structure(child))
+
+        result['children'] = children
+    except NotImplementedError:
+        pass
+
+    return result
+
+
+def project_to_json(project):
+    if project is None:
+        return {}
+
+    return walk_by_structure(project)
 
 
 @namespace.route('/getProjectTree')
@@ -22,24 +52,17 @@ class getProjectTree(Resource):
     @namespace.response(404, 'Connect problems', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     def post(self):
-        res = []
+        res = {}
         body = request.json
         conn = omerodb.connect(body['login'], body['password'])
         my_exp_id = conn.getUser().getId()
         default_group_id = conn.getEventContext().groupId
         for project in conn.getObjects("Project", opts={'owner': my_exp_id,
                                                         'group': default_group_id,
-                                                        'order_by': 'lower(obj.name)',
-                                                        'limit': 5, 'offset': 0}):
-            res.append(omerodb.returnObj(project))
-            # We can get Datasets with listChildren, since we have the Project already.
-            # Or conn.getObjects("Dataset", opts={'project', id}) if we have Project ID
-            for dataset in project.listChildren():
-                res.append(omerodb.returnObj(dataset, 2))
-                for image in dataset.listChildren():
-                    res.append(omerodb.returnObj(image, 4))
+                                                        'order_by': 'lower(obj.name)'}):  # , 'limit': 5, 'offset': 0
+            res = project_to_json(project)
 
-            omerodb.disconnect(conn)
+        omerodb.disconnect(conn)
 
         return {'success': True, 'data': res}, 200
 
@@ -74,8 +97,13 @@ class downloadFromOmero(Resource):
     @namespace.response(401, 'Unauthorized', responses.error_response)
     def post(self):
         body = request.json
+        has_img = ImageService.select(body['imageId'])
+        if has_img:
+            return {'success': True, 'data': has_img.to_json()}, 200
+
         conn = omerodb.connect(body['login'], body['password'])
         path = omerodb.saveImage(body['imageId'], conn)
         if path != '':
-            return {'success': True, 'path': path}, 200
+            result = ImageService.insert({"omeroId": body['imageId'], "path": path})
+            return {'success': True, 'data': result.to_json()}, 200
         abort(401, 'Unable to save image')

@@ -291,7 +291,7 @@ def render_big_image_region(conn, image, panel, z, t, region, max_width):
     return pil_img
 
 
-def testRenderImage(conn, imageId):
+def testRenderImage(conn, imageId, width, height):
     try:
         image = conn.getObject("Image", imageId)
         print(image.getName(), image.getDescription())
@@ -311,7 +311,7 @@ def testRenderImage(conn, imageId):
         # render the first timepoint, mid Z section
         z = image.getSizeZ() / 2
         t = 0
-        viewport_region = {'x': 0, 'y': 0, 'width': 300, 'height': 300}
+        viewport_region = {'x': 0, 'y': 0, 'width': width, 'height': height}
         vp_x = viewport_region['x']
         vp_y = viewport_region['y']
         vp_w = viewport_region['width']
@@ -354,6 +354,7 @@ def testRenderImage(conn, imageId):
         disconnect(conn)
         raise ae
 
+
 # test render
 # conn = connect('root', 'omero')
-# testRenderImage(conn, 52)
+# testRenderImage(conn, "1")

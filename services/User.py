@@ -73,5 +73,5 @@ def isAdmin(id):
 
 def count():
 
-    arr = database.count('users', '')
+    arr = database.count(collection, '')
     return arr[0]
