@@ -1,9 +1,10 @@
 from flask_restx import Namespace, Resource
-from flask import request, send_file, abort
+from flask import request, send_file, abort, Response
 from .models import responses, omero
 import modules.omerodb.model as omerodb
 import services.Image as ImageService
 import io
+import requests
 
 
 namespace = Namespace('Omero', description='Omera operations')
@@ -107,3 +108,28 @@ class downloadFromOmero(Resource):
             result = ImageService.insert({"omeroId": body['imageId'], "path": path})
             return {'success': True, 'data': result.to_json()}, 200
         abort(401, 'Unable to save image')
+
+
+@namespace.route('/px/<path:path>')
+class webGateway(Resource):
+    @namespace.doc('omero/px')
+    @namespace.response(404, 'Connect problems', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    def get(self, path):
+        SITE_NAME = 'http://localhost:4080/'
+        # TODO repayr parse url
+        HOST_URL = request.host_url + 'api/v1/omero/px/'
+        resp = requests.request(
+            method=request.method,
+            url=request.url.replace(HOST_URL, SITE_NAME),
+            # url=SITE_NAME,
+            headers={key: value for (key, value) in request.headers if key != 'Host'},
+            data=request.get_data(),
+            cookies=request.cookies,
+            allow_redirects=False)
+
+        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
+        headers = [(name, value) for (name, value) in resp.raw.headers.items() if name.lower() not in excluded_headers]
+
+        response = Response(resp.content, resp.status_code, headers)
+        return response

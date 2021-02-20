@@ -355,6 +355,6 @@ def testRenderImage(conn, imageId, width, height):
         raise ae
 
 
-# test render
+# # test render
 # conn = connect('root', 'omero')
-# testRenderImage(conn, "1")
+# testRenderImage(conn, "52", 300, 300)
