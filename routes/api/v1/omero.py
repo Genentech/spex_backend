@@ -5,6 +5,7 @@ import modules.omerodb.model as omerodb
 import services.Image as ImageService
 import io
 import requests
+# from os import getenv
 
 
 namespace = Namespace('Omero', description='Omera operations')
@@ -116,20 +117,37 @@ class webGateway(Resource):
     @namespace.response(404, 'Connect problems', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     def get(self, path):
-        SITE_NAME = 'http://localhost:4080/'
-        # TODO repayr parse url
-        HOST_URL = request.host_url + 'api/v1/omero/px/'
-        resp = requests.request(
-            method=request.method,
-            url=request.url.replace(HOST_URL, SITE_NAME),
-            # url=SITE_NAME,
-            headers={key: value for (key, value) in request.headers if key != 'Host'},
-            data=request.get_data(),
-            cookies=request.cookies,
-            allow_redirects=False)
+        # SITE_NAME = getenv('OMERO_PROXY_PATH') + path
 
-        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-        headers = [(name, value) for (name, value) in resp.raw.headers.items() if name.lower() not in excluded_headers]
+        session = loginOmeroProxy('root', 'omero')
+        path = request.url.replace('8080/api/v1/omero/px', '4080')
+        response = session.get(path)
+        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection', ]
+        headers = [(name, value) for (name, value) in response.raw.headers.items() if name.lower() not in excluded_headers]
 
-        response = Response(resp.content, resp.status_code, headers)
-        return response
+        return Response(response.content, response.status_code, headers)
+
+
+def loginOmeroProxy(username, password, server='1'):
+
+    headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+    client = requests.session()
+    URL = 'http://127.0.0.1:4080/webclient/login/'
+    client.get(URL)
+
+    if 'csrftoken' in client.cookies:
+        # Django 1.6 and up
+        csrftoken = client.cookies['csrftoken']
+    else:
+        # older versions
+        csrftoken = client.cookies['csrf']
+
+    data = {'username': username,
+            'password': password,
+            'server': server,
+            'csrfmiddlewaretoken': csrftoken}
+
+    response = client.post(URL, headers=headers, data=data)
+    if response.status_code == 200:
+        return client
+    return None
