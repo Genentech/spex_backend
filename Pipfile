@@ -21,6 +21,7 @@ omero-py = "*"
 pandas = "*"
 aicsimageio = "*"
 scikit-image = "*"
+basicauth = "*"
 
 [dev-packages]
 flake8 = "*"

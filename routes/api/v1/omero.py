@@ -1,12 +1,15 @@
 from flask_restx import Namespace, Resource
+from modules.omeroweb import omeroweb
 from flask import request, send_file, abort, Response
 from .models import responses, omero
 import modules.omerodb.model as omerodb
 import services.Image as ImageService
 import io
-import requests
-# from os import getenv
+from basicauth import decode
+# from flask_jwt_extended import jwt_required
 
+
+# from os import getenv
 
 namespace = Namespace('Omero', description='Omera operations')
 namespace.add_model(omero.omero_tree_model.name, omero.omero_tree_model)
@@ -116,38 +119,16 @@ class webGateway(Resource):
     @namespace.doc('omero/px')
     @namespace.response(404, 'Connect problems', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
+    @namespace.header('Authorization', 'Basic')
+    # @jwt_required(locations=['headers'])
     def get(self, path):
         # SITE_NAME = getenv('OMERO_PROXY_PATH') + path
-
-        session = loginOmeroProxy('root', 'omero')
+        authentication = request.headers['Authorization']
+        username, password = decode(authentication)
+        omeroweb.createFind(username, password)
         path = request.url.replace('8080/api/v1/omero/px', '4080')
-        response = session.get(path)
+        response = omeroweb.client.get(path)
         excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection', ]
         headers = [(name, value) for (name, value) in response.raw.headers.items() if name.lower() not in excluded_headers]
 
         return Response(response.content, response.status_code, headers)
-
-
-def loginOmeroProxy(username, password, server='1'):
-
-    headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-    client = requests.session()
-    URL = 'http://127.0.0.1:4080/webclient/login/'
-    client.get(URL)
-
-    if 'csrftoken' in client.cookies:
-        # Django 1.6 and up
-        csrftoken = client.cookies['csrftoken']
-    else:
-        # older versions
-        csrftoken = client.cookies['csrf']
-
-    data = {'username': username,
-            'password': password,
-            'server': server,
-            'csrfmiddlewaretoken': csrftoken}
-
-    response = client.post(URL, headers=headers, data=data)
-    if response.status_code == 200:
-        return client
-    return None
