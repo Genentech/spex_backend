@@ -2,23 +2,27 @@ import requests
 
 
 class Proxy():
-    client: None
+    client:  dict()
 
     def __init__(
         self,
-        client,
-        username: str = '',
+        client:  dict = {},
+        login: str = '',
         password: str = '',
     ):
         self.client = client
-        self.username = username
+        self.login = login
         self.password = password
 
-    def createFind(self, username, password):
-        if self.client is None:
-            self.loginOmeroProxy(username, password)
+    def createFind(self, login, password):
 
-    def loginOmeroProxy(self, username, password, server='1'):
+        if self.client.get(login) is None:
+            self.loginOmeroProxy(login, password)
+            return self.client.get(login)
+        elif self.client.get(login) is not None:
+            return self.client.get(login)
+
+    def loginOmeroProxy(self, login, password, server='1'):
 
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
         client = requests.session()
@@ -32,13 +36,13 @@ class Proxy():
             # older versions
             csrftoken = client.cookies['csrf']
 
-        data = {'username': username,
+        data = {'username': login,
                 'password': password,
                 'server': server,
                 'csrfmiddlewaretoken': csrftoken}
 
         response = client.post(URL, headers=headers, data=data)
         if response.status_code == 200:
-            self.client = client
+            self.client[login] = client
         else:
-            self.client = None
+            del self.client[login]

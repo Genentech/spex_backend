@@ -10,12 +10,12 @@ except ImportError:
 # import tempfile
 
 
-def connect(username, password):
+def connect(login, password):
     hostname = getenv('OMERO_HOST')
-    # username = getenv('OMERO_USERNAME')
+    # login = getenv('OMERO_USERNAME')
     # password = getenv('OMERO_PASSWORD')
 
-    conn = BlitzGateway(username, password, host=hostname, secure=True)
+    conn = BlitzGateway(login, password, host=hostname, secure=True)
     conn.connect()
     conn.c.enableKeepAlive(60)
     return conn

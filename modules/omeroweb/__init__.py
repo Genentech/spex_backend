@@ -1,3 +1,3 @@
 from modules.omeroweb.model import Proxy
 
-omeroweb = Proxy(client=None)
+omeroweb = Proxy(client=dict())

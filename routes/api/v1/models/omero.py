@@ -13,6 +13,29 @@ omero_tree_model = Model('OmeroTree', {
     )
 })
 
+user_model = Model('UserOmeroBase', {
+    'login': fields.String(
+        required=True,
+        description='login'
+    ),
+    'password': fields.String(
+        description='Password',
+    )
+})
+
+
+login_model = Model('UserLoginOmero', {
+    'login': fields.String(
+        required=True,
+        description='Login'
+    ),
+    'password': fields.String(
+        required=True,
+        description='User password',
+        help='password cannot be empty.'
+    )
+})
+
 omero_thumbnail = Model('getThumbnail', {
     'login': fields.String(
         required=True,
@@ -52,6 +75,9 @@ omero_download_model = Model('OmeroDownloadImage', {
 })
 
 
-# omero_tree_response = response.inherit('jsonTree', {
-#     'data': {}
-# })
+login_responce = Model('omero Login responce', {
+    'Authorization': fields.String(
+        required=True,
+        description='Bearer token'
+    )
+})

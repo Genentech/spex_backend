@@ -5,8 +5,8 @@ from .models import responses, omero
 import modules.omerodb.model as omerodb
 import services.Image as ImageService
 import io
-from basicauth import decode
-# from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identity
+import datetime
 
 
 # from os import getenv
@@ -15,6 +15,8 @@ namespace = Namespace('Omero', description='Omera operations')
 namespace.add_model(omero.omero_tree_model.name, omero.omero_tree_model)
 namespace.add_model(omero.omero_thumbnail.name, omero.omero_thumbnail)
 namespace.add_model(omero.omero_download_model.name, omero.omero_download_model)
+namespace.add_model(omero.login_model.name, omero.login_model)
+namespace.add_model(omero.login_responce.name, omero.login_responce)
 namespace.add_model(responses.error_response.name, responses.error_response)
 
 
@@ -120,15 +122,37 @@ class webGateway(Resource):
     @namespace.response(404, 'Connect problems', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @namespace.header('Authorization', 'Basic')
-    # @jwt_required(locations=['headers'])
+    @jwt_required(locations=['headers'])
     def get(self, path):
         # SITE_NAME = getenv('OMERO_PROXY_PATH') + path
-        authentication = request.headers['Authorization']
-        username, password = decode(authentication)
-        omeroweb.createFind(username, password)
+        current_user = get_jwt_identity()
+        client = omeroweb.createFind(current_user['login'], current_user['password'])
         path = request.url.replace('8080/api/v1/omero/px', '4080')
-        response = omeroweb.client.get(path)
+        response = client.get(path)
         excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection', ]
         headers = [(name, value) for (name, value) in response.raw.headers.items() if name.lower() not in excluded_headers]
 
         return Response(response.content, response.status_code, headers)
+
+
+@namespace.route('/login')
+class Login(Resource):
+    @namespace.doc('omero/login')
+    @namespace.expect(omero.login_model)
+    @namespace.marshal_with(omero.login_responce)
+    @namespace.header('Authorization', 'JWT token')
+    @namespace.response(200, 'Logged user', omero.login_responce)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    def post(self):
+        body = request.json
+        login = body['login']
+        password = body['password']
+        client = omeroweb.createFind(login, password)
+        if client is None:
+            abort(401, 'Unable to login user')
+
+        expires = datetime.timedelta(days=7)
+        access_token = create_access_token(identity={'login': login, 'password': password}, expires_delta=expires)
+        print(access_token)
+        return {'success': True, 'Authorization': access_token}, 200, \
+               {'AuthorizationOmero': access_token}
