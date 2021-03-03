@@ -1,4 +1,5 @@
 import requests
+from os import getenv
 
 
 class Proxy():
@@ -26,7 +27,8 @@ class Proxy():
 
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
         client = requests.session()
-        URL = 'http://127.0.0.1:4080/webclient/login/'
+
+        URL = f'{getenv("OMERO_PROXY_PATH")}/webclient/login/'
         client.get(URL)
 
         if 'csrftoken' in client.cookies:

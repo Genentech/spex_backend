@@ -7,6 +7,8 @@ import services.Image as ImageService
 import io
 from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identity
 import datetime
+import urllib
+from os import getenv
 
 
 # from os import getenv
@@ -121,15 +123,22 @@ class webGateway(Resource):
     @namespace.doc('omero/px')
     @namespace.response(404, 'Connect problems', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
-    @namespace.header('Authorization', 'Basic')
     @jwt_required(locations=['headers'])
     def get(self, path):
         # SITE_NAME = getenv('OMERO_PROXY_PATH') + path
         current_user = get_jwt_identity()
         client = omeroweb.createFind(current_user['login'], current_user['password'])
-        path = request.url.replace('8080/api/v1/omero/px', '4080')
+
+        pathToReplace = getPath(request)
+        parsedurl = urllib.parse.urlparse(getenv('OMERO_PROXY_PATH'))
+        port = str(parsedurl.port)
+        if port == '0':
+            port = ''
+
+        path = request.url.replace(pathToReplace, port)
+
         response = client.get(path)
-        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection', ]
+        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection', 'Authorization', ]
         headers = [(name, value) for (name, value) in response.raw.headers.items() if name.lower() not in excluded_headers]
 
         return Response(response.content, response.status_code, headers)
@@ -156,3 +165,18 @@ class Login(Resource):
         print(access_token)
         return {'success': True, 'Authorization': access_token}, 200, \
                {'AuthorizationOmero': access_token}
+
+
+def getPath(request):
+    arr = request.url_rule.rule.lower().split('/')
+    arr = list(filter(None, arr))
+    index2 = -1
+    for item in arr:
+        if item.find('<') != -1 or item.find('>') != -1 or item.find(':') != -1:
+            index2 = arr.index(item)
+            break
+    if index2 != -1:
+        del arr[index2]
+    if request.environ.get('SERVER_PORT') is not None:
+        arr = [request.environ.get('SERVER_PORT')] + arr
+        return '/'.join(arr)
