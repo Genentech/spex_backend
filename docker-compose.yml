@@ -1,0 +1,20 @@
+version: "3.7"
+services:
+  arangodb:
+    image: arangodb:latest
+    restart: always
+    ports:
+      - 8529:8529
+    environment:
+      ARANGO_ROOT_PASSWORD: pass
+    volumes:
+      - /home/arangodb_data:/var/lib/arangodb3
+  app:
+    ports:
+      - 8080:8080      
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - arangodb
+      

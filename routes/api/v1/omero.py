@@ -130,12 +130,13 @@ class webGateway(Resource):
         client = omeroweb.createFind(current_user['login'], current_user['password'])
 
         pathToReplace = getPath(request)
+
         parsedurl = urllib.parse.urlparse(getenv('OMERO_PROXY_PATH'))
         port = str(parsedurl.port)
         if port == '0':
             port = ''
 
-        path = request.url.replace(pathToReplace, port)
+        path = request.url.replace(request.host_url + pathToReplace, getenv('OMERO_PROXY_PATH'))
 
         response = client.get(path)
         excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection', 'Authorization', ]
@@ -162,7 +163,7 @@ class Login(Resource):
 
         expires = datetime.timedelta(days=7)
         access_token = create_access_token(identity={'login': login, 'password': password}, expires_delta=expires)
-        print(access_token)
+
         return {'success': True, 'Authorization': access_token}, 200, \
                {'AuthorizationOmero': access_token}
 
@@ -170,6 +171,7 @@ class Login(Resource):
 def getPath(request):
     arr = request.url_rule.rule.lower().split('/')
     arr = list(filter(None, arr))
+    print(arr)
     index2 = -1
     for item in arr:
         if item.find('<') != -1 or item.find('>') != -1 or item.find(':') != -1:
@@ -177,6 +179,6 @@ def getPath(request):
             break
     if index2 != -1:
         del arr[index2]
-    if request.environ.get('SERVER_PORT') is not None:
-        arr = [request.environ.get('SERVER_PORT')] + arr
+    # if request.environ.get('SERVER_PORT') is not None:
+        # arr = [request.environ.get('SERVER_PORT')] + arr
         return '/'.join(arr)
