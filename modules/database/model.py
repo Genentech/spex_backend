@@ -46,6 +46,8 @@ class ArangoDB:
             db.create_collection('images')
         if not db.has_collection('groups'):
             db.create_collection('groups')
+        if not db.has_collection('jobs'):
+            db.create_collection('jobs')
 
     def insert(self, collection, data):
         return self.instance.insert_document(collection, data, True)

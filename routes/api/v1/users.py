@@ -66,7 +66,7 @@ class Login(Resource):
     @namespace.expect(users.login_model)
     @namespace.marshal_with(users.a_user_response)
     @namespace.header('Authorization', 'JWT token')
-    @namespace.response(200, 'Created user', users.a_user_response)
+    @namespace.response(200, 'Logged user', users.a_user_response)
     @namespace.response(404, 'User not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     def post(self):
@@ -88,7 +88,7 @@ class Login(Resource):
 
 @namespace.route('/<string:id>')
 class Item(Resource):
-    @namespace.doc('user')
+    @namespace.doc('user/get')
     @namespace.marshal_with(users.a_user_response)
     @namespace.response(404, 'User not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)

@@ -2,6 +2,7 @@ from flask_restx import Api
 from werkzeug.exceptions import HTTPException
 from .users import namespace as users
 from .omero import namespace as omero
+from .jobs import namespace as jobs
 
 api = Api(
     version='1.0',
@@ -28,3 +29,4 @@ def default_error_handler(error):
 
 api.add_namespace(users, '{}/users'.format(prefix))
 api.add_namespace(omero, '{}/omero'.format(prefix))
+api.add_namespace(jobs,  '{}/jobs'.format(prefix))
