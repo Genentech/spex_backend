@@ -11,8 +11,6 @@ import urllib
 from os import getenv
 
 
-# from os import getenv
-
 namespace = Namespace('Omero', description='Omera operations')
 namespace.add_model(omero.omero_tree_model.name, omero.omero_tree_model)
 namespace.add_model(omero.omero_thumbnail.name, omero.omero_thumbnail)

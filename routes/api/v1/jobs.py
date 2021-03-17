@@ -1,9 +1,8 @@
 import services.Job as JobService
-import datetime
 from flask_restx import Namespace, Resource
 from flask import request, abort
-from models.Job import Job
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+# from models.Job import Job
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import jobs, responses
 
 namespace = Namespace('Jobs', description='Jobs CRUD operations')
@@ -16,32 +15,31 @@ namespace.add_model(jobs.list_jobs_response.name, jobs.list_jobs_response)
 
 
 @namespace.route('/')
-class Items(Resource):
+class JobCreateGetPost(Resource):
     @namespace.doc('jobs/create')
     @namespace.expect(jobs.jobs_model)
-    @namespace.marshal_with(jobs.a_jobs_response)
+    # @namespace.marshal_with(jobs.a_jobs_response)
     @namespace.response(200, 'Created job', jobs.a_jobs_response)
     @namespace.response(400, 'Message about reason of error', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
-    @jwt_required
+    @jwt_required()
     def post(self):
         body = request.json
-
+        body['author'] = get_jwt_identity()
         result = JobService.insert(body)
-        return {'success': True, 'data': result}, 200
+        return {'success': True, 'data': result.to_json()}, 200
 
     @namespace.doc('job/get')
-    @namespace.marshal_with(jobs.a_jobs_response)
+    # @namespace.marshal_with(jobs.list_jobs_response)
+    @namespace.response(200, 'list jobs current user', jobs.list_jobs_response)
     @namespace.response(404, 'jobs not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
-    @jwt_required
+    @jwt_required()
     def get(self):
-        if id == 'login':
-            abort(404, 'User with id:{} not found'.format(id))
+        author = get_jwt_identity()
+        result = JobService.select_jobs(author)
 
-        jobs = JobService.select_jobs()
-
-        if jobs is None:
+        if result is None:
             abort(404, 'jobs not found')
 
-        return {'success': True, 'data': jobs}, 200
+        return {'success': True, 'data': result}, 200

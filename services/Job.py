@@ -14,11 +14,14 @@ def select(id):
     return job(items[0]) if not items[0] is None else None
 
 
-def select_jobs():
-    items = database.select(collection)
+def select_jobs(author):
+    value = author
+    search = 'FILTER doc.author == @value'
+
+    items = database.select(collection, search, value=value)
     if len(items) == 0:
         return None
-    return [job(items[0]) for item in items]
+    return [job(item).to_json() for item in items]
 
 
 def update(id, data=None):
