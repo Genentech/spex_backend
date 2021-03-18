@@ -1,4 +1,5 @@
 import services.Job as JobService
+import services.Task as TaskService
 from flask_restx import Namespace, Resource
 from flask import request, abort
 # from models.Job import Job
@@ -8,6 +9,7 @@ from .models import jobs, responses
 namespace = Namespace('Jobs', description='Jobs CRUD operations')
 
 namespace.add_model(jobs.jobs_model.name, jobs.jobs_model)
+namespace.add_model(jobs.job_get_model.name, jobs.job_get_model)
 namespace.add_model(responses.response.name, responses.response)
 namespace.add_model(jobs.a_jobs_response.name, jobs.a_jobs_response)
 namespace.add_model(responses.error_response.name, responses.error_response)
@@ -27,7 +29,10 @@ class JobCreateGetPost(Resource):
         body = request.json
         body['author'] = get_jwt_identity()
         result = JobService.insert(body)
-        return {'success': True, 'data': result.to_json()}, 200
+        Tasks = TaskService.createTasks(body, result)
+        res = result.to_json()
+        res['tasks'] = Tasks
+        return {'success': True, 'data': res}, 200
 
     @namespace.doc('job/get')
     # @namespace.marshal_with(jobs.list_jobs_response)

@@ -18,4 +18,4 @@ application.register_blueprint(blueprint)
 
 if __name__ == '__main__':
     database.initialize()
-    application.run()
+    application.run(host='0.0.0.0', port='8080')
