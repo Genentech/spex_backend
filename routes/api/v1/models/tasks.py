@@ -16,8 +16,12 @@ a_tasks_response = response.inherit('TasksResponse', {
 task_get_model = tasks_model.inherit('Task get', {
     'id': fields.String(
         required=True,
-        description='User id'
+        description='Task id'
     )
+})
+
+task_post_model = tasks_model.inherit('Task post', {
+    'ids': fields.List(fields.String, required=True, description='Task id')
 })
 
 

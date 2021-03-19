@@ -54,7 +54,7 @@ class Items(Resource):
     @namespace.marshal_list_with(users.list_user_response)
     @namespace.response(200, 'List of users', users.list_user_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
-    @jwt_required
+    @jwt_required()
     def get(self):
         items = UserService.select_users()
         return {'success': True, 'data': items}, 200
@@ -92,7 +92,7 @@ class Item(Resource):
     @namespace.marshal_with(users.a_user_response)
     @namespace.response(404, 'User not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
-    @jwt_required
+    @jwt_required()
     def get(self, id):
         if id == 'login':
             abort(404, 'User with id:{} not found'.format(id))
@@ -109,7 +109,7 @@ class Item(Resource):
     @namespace.response(200, 'Updated user', users.a_user_response)
     @namespace.response(404, 'User not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
-    @jwt_required
+    @jwt_required()
     def put(self, id):
         current_user = get_jwt_identity()
 
@@ -182,7 +182,7 @@ class Item(Resource):
     @namespace.response(204, 'User deleted')
     @namespace.response(404, 'User not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
-    @jwt_required
+    @jwt_required()
     def delete(self, id):
 
         current_user = get_jwt_identity()

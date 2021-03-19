@@ -19,7 +19,6 @@ def select_tasks(**kwargs):
     search = 'FILTER '
     count = 0
     for key, value in kwargs.items():
-        # doc.name == @name && doc.content == @content && doc.omeroId == @omeroId
         count = count + 1
         search = search + 'doc.' + key + ' == @' + key
         if count != len(kwargs.items()):
@@ -70,6 +69,8 @@ def createTasks(body, job):
         arg['content'] = body['content']
         arg['omeroId'] = omeroId
         tasks = select_tasks(**arg)
+        if tasks is None:
+            tasks = []
         if len(tasks) > 0:
             arrRes.append(tasks[0])
         else:
@@ -79,6 +80,6 @@ def createTasks(body, job):
             data['status'] = 0
             del data['omeroIds']
             newTask = database.insert(collection, data)
-            arrRes.append(newTask['new'])
+            arrRes.append(task(newTask['new']).to_json())
 
     return arrRes

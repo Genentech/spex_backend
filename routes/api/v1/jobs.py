@@ -43,6 +43,10 @@ class JobCreateGetPost(Resource):
     def get(self):
         author = get_jwt_identity()
         result = JobService.select_jobs(author)
+        for job in result['omeroIds']:
+            for omeroId in job['omeroIds']:
+                print(omeroId)
+        # TaskService.select_tasks('')
 
         if result is None:
             abort(404, 'jobs not found')
