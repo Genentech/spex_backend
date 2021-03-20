@@ -23,6 +23,10 @@ class Proxy():
         elif self.client.get(login) is not None:
             return self.client.get(login)
 
+    def find(self, login):
+
+        return self.client.get(login)
+
     def loginOmeroProxy(self, login, password, server='1'):
 
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}

@@ -125,7 +125,9 @@ class webGateway(Resource):
     def get(self, path):
         # SITE_NAME = getenv('OMERO_PROXY_PATH') + path
         current_user = get_jwt_identity()
-        client = omeroweb.createFind(current_user['login'], current_user['password'])
+        client = omeroweb.find(current_user['login'])
+        if client is None:
+            abort(401, 'Unauthorized')
 
         pathToReplace = getPath(request)
 
@@ -160,7 +162,7 @@ class Login(Resource):
             abort(401, 'Unable to login user')
 
         expires = datetime.timedelta(days=7)
-        access_token = create_access_token(identity={'login': login, 'password': password}, expires_delta=expires)
+        access_token = create_access_token(identity={'login': login}, expires_delta=expires)
 
         return {'success': True, 'Authorization': access_token}, 200, \
                {'AuthorizationOmero': access_token}
