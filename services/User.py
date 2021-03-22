@@ -21,7 +21,7 @@ def select_users():
     items = database.select(collection)
     if len(items) == 0:
         return None
-    return [user(items[0]) for item in items]
+    return [user(item) for item in items]
 
 
 def update(username='', id=None, data=None):
@@ -57,9 +57,7 @@ def insert(data):
 
 
 def isAdmin(id):
-
     search = 'FILTER doc._key == @value LIMIT 1'
-
     items = database.select(collection, search, value=id)
     if len(items) == 0:
         return False
