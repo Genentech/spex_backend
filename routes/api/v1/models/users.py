@@ -2,32 +2,22 @@ from flask_restx import fields, Model
 from .responses import response
 
 user_model = Model('UserBase', {
-    'email': fields.String(
+    'username': fields.String(
         required=True,
-        description='Email'
+        description='Username'
+    ),
+    'omeroUserId': fields.String(
+        required=True,
+        description='User Id in Omero'
+    ),
+    'email': fields.String(
+        description='User email'
     ),
     'firstName': fields.String(
         description='Firstname',
     ),
     'lastName': fields.String(
         description='Lastname',
-    )
-})
-
-signup_model = user_model.inherit('UserSignup', {
-    'email': fields.String(
-        required=True,
-        description='email and key'
-    ),
-    'password': fields.String(
-        required=True,
-        description='User password',
-        help="password cannot be empty."
-    ),
-    'confirmation': fields.String(
-        required=True,
-        description='Confirmation password cannot be empty',
-        help='Confirmation password cannot be empty.'
     )
 })
 
@@ -39,7 +29,7 @@ user_get_model = user_model.inherit('User', {
 })
 
 login_model = Model('UserLogin', {
-    'email': fields.String(
+    'username': fields.String(
         required=True,
         description='Email'
     ),

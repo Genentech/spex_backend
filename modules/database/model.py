@@ -28,15 +28,27 @@ class ArangoDB:
             serializer=ujson.dumps,
             deserializer=ujson.loads,
         )
-        self.instance = self.client.db(database, username, password)
-        self.async_instance = self.instance.begin_async_execution(return_result=True)
+        self.username = username
+        self.password = password
+        self.database = database
 
     def initialize(self):
-        # TODO to env login root login passw
-        sys_db = self.client.db('_system', username='root', password='pass')
+        sys_db = self.client.db(
+            '_system',
+            username=self.username,
+            password=self.password
+        )
 
-        if not sys_db.has_database('genentechdb'):
-            sys_db.create_database('genentechdb')
+        if not sys_db.has_database(self.database):
+            sys_db.create_database(self.database)
+
+        self.instance = self.client.db(
+            self.database,
+            self.username,
+            self.password
+        )
+        self.password = None
+        self.async_instance = self.instance.begin_async_execution(return_result=True)
 
         db = self.instance
 
@@ -56,7 +68,7 @@ class ArangoDB:
 
     def select(self, collection, search='', **kwargs):
         task = self.async_instance.aql.execute(
-            'FOR doc IN {} {} RETURN doc'.format(collection, search),
+            f'FOR doc IN {collection} {search} RETURN doc',
             bind_vars={
                 **kwargs
             }
@@ -64,10 +76,11 @@ class ArangoDB:
         return receive_async_response(task)
 
     def update(self, collection, data, search='', **kwargs):
-
         task = self.async_instance.aql.execute(
-            'FOR doc IN {} {} UPDATE doc WITH {} IN {} LET updated = NEW Return  UNSET(updated, "_key", "_id", "_rev", "password")'
-            .format(collection, search, data, collection),
+            f'FOR doc IN {collection} {search}'
+            f' UPDATE doc WITH {data} IN {collection}'
+            f' LET updated = NEW'
+            f' Return UNSET(updated, "_key", "_id", "_rev", "password")',
             bind_vars={
                 **kwargs
             }
@@ -76,8 +89,10 @@ class ArangoDB:
 
     def delete(self, collection, search='', **kwargs):
         task = self.async_instance.aql.execute(
-            'FOR doc IN  {} {} REMOVE doc IN {} LET deleted = OLD RETURN UNSET(deleted, "_key", "_id", "_rev", "password")'
-            .format(collection, search, collection),
+            f'FOR doc IN  {collection} {collection}'
+            f' REMOVE doc IN {search}'
+            f' LET deleted = OLD'
+            f' RETURN UNSET(deleted, "_key", "_id", "_rev", "password")',
             bind_vars={
                 **kwargs
             }
@@ -86,8 +101,7 @@ class ArangoDB:
 
     def count(self, collection, search='', **kwargs):
         task = self.async_instance.aql.execute(
-            'FOR doc IN {} {} COLLECT WITH COUNT INTO length RETURN length'
-            .format(collection, search),
+            f'FOR doc IN {collection} {search} COLLECT WITH COUNT INTO length RETURN length',
             bind_vars={
                 **kwargs
             }

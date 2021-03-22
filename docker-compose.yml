@@ -9,12 +9,20 @@ services:
       ARANGO_ROOT_PASSWORD: pass
     volumes:
       - /home/arangodb_data:/var/lib/arangodb3
+  memcached:
+    image: memcached:latest
+    restart: always
+    ports:
+      - 12121:12121
+    entrypoint:
+      - memcached
+      - -m 64
   app:
     ports:
-      - 8080:8080      
+      - 8080:8080
     build:
       context: .
       dockerfile: Dockerfile
     depends_on:
       - arangodb
-      
+      - memcached

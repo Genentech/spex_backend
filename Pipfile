@@ -20,6 +20,7 @@ pandas = "*"
 aicsimageio = "*"
 scikit-image = "*"
 basicauth = "*"
+pymemcache = "*"
 
 [dev-packages]
 flake8 = "*"

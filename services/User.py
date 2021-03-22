@@ -4,9 +4,9 @@ from models.User import user
 collection = 'users'
 
 
-def select(email='', id=None):
-    value = email
-    search = 'FILTER doc.email == @value LIMIT 1'
+def select(username='', id=None):
+    value = username
+    search = 'FILTER doc.username == @value LIMIT 1'
     if id:
         value = id
         search = 'FILTER doc._key == @value LIMIT 1'
@@ -24,9 +24,9 @@ def select_users():
     return [user(items[0]) for item in items]
 
 
-def update(email='', id=None, data=None):
-    value = email
-    search = 'FILTER doc.email == @value LIMIT 1'
+def update(username='', id=None, data=None):
+    value = username
+    search = 'FILTER doc.username == @value LIMIT 1'
     if id:
         value = id
         search = 'FILTER doc._key == @value LIMIT 1'
@@ -37,9 +37,9 @@ def update(email='', id=None, data=None):
     return user(items[0]) if not items[0] is None else None
 
 
-def delete(email='', id=None):
-    value = email
-    search = 'FILTER doc.email == @value '
+def delete(username='', id=None):
+    value = username
+    search = 'FILTER doc.username == @value '
     if id:
         value = id
         search = 'FILTER doc._key == @value '
@@ -52,7 +52,8 @@ def delete(email='', id=None):
 
 def insert(data):
     item = database.insert(collection, data)
-    return user(item)
+
+    return user(item['new'])
 
 
 def isAdmin(id):

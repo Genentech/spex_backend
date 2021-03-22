@@ -1,54 +1,106 @@
-import requests
+from datetime import datetime
+from urllib import parse
+from requests import Session
 from os import getenv
+from services.Cache import CacheService
 
 
-class Proxy():
-    client:  dict()
+__all__ = ['get', 'get_or_create', 'OmeroSession']
 
-    def __init__(
-        self,
-        client:  dict = {},
-        login: str = '',
-        password: str = '',
-    ):
-        self.client = client
-        self.login = login
-        self.password = password
 
-    def createFind(self, login, password):
+class OmeroSession(Session):
+    def __init__(self, session_id=None, token=None, context=None):
+        super().__init__()
+        self.__attrs__.extend([
+            'omero_session_id',
+            'omero_token',
+            'omero_context'
+        ])
+        self.omero_session_id = session_id
+        self.omero_token = token
+        self.omero_context = context
 
-        if self.client.get(login) is None:
-            self.loginOmeroProxy(login, password)
-            return self.client.get(login)
-        elif self.client.get(login) is not None:
-            return self.client.get(login)
+        if session_id:
+            self.cookies.setdefault('sessionid', session_id)
 
-    def find(self, login):
+        if token:
+            self.headers.setdefault('X-CSRFToken', token)
 
-        return self.client.get(login)
+    def request(self, method: str, url: str, **kwargs):
+        result = parse.urlparse(url)
 
-    def loginOmeroProxy(self, login, password, server='1'):
+        if not result.netloc or not result.scheme:
+            url = parse.urljoin(getenv("OMERO_PROXY_PATH"), url)
 
-        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-        client = requests.session()
+        return super(OmeroSession, self).request(
+            method,
+            url,
+            **kwargs
+        )
 
-        URL = f'{getenv("OMERO_PROXY_PATH")}/webclient/login/'
-        client.get(URL)
 
-        if 'csrftoken' in client.cookies:
-            # Django 1.6 and up
-            csrftoken = client.cookies['csrftoken']
-        else:
-            # older versions
-            csrftoken = client.cookies['csrf']
+def _login_omero_web(login, password, server='1'):
+    client = OmeroSession()
 
-        data = {'username': login,
-                'password': password,
-                'server': server,
-                'csrfmiddlewaretoken': csrftoken}
+    response = client.get('/api/v0/token/')
 
-        response = client.post(URL, headers=headers, data=data)
-        if response.status_code == 200:
-            self.client[login] = client
-        else:
-            del self.client[login]
+    data = response.json()
+
+    csrf_token = data['data']
+
+    data = {
+        'username': login,
+        'password': password,
+        'server': server
+    }
+
+    url = '/api/v0/login/'
+    headers = {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-CSRFToken': csrf_token
+    }
+    response = client.post(url, headers=headers, data=data)
+
+    data = response.json()
+
+    if response.status_code == 200 and data['success']:
+        session = OmeroSession(
+            response.cookies['sessionid'],
+            csrf_token,
+            data['eventContext']
+        )
+
+        CacheService.set(login, session)
+    else:
+        CacheService.delete(login)
+
+    return get(login)
+
+
+def get(login):
+    session = CacheService.get(login)
+
+    if not session:
+        return None
+
+    timestamp = int(datetime.timestamp(datetime.now()) * 1000)
+
+    url = f'/webclient/keepalive_ping/?_={timestamp}'
+    response = session.get(url)
+
+    if response.status_code == 200:
+        return session
+
+    CacheService.delete(login)
+
+    return None
+
+
+def get_or_create(login, password):
+    session = get(login)
+
+    if not session:
+        session = _login_omero_web(login, password)
+
+    return session
+

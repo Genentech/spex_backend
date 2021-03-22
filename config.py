@@ -3,8 +3,13 @@ from dotenv import dotenv_values
 
 mode = environ.get('MODE')
 
-file = '.env{}'.format('.{}'.format(mode) if mode else '')
-local = '{}.local'.format(file)
+file = f'.{mode}' if mode else ''
+
+file = path.join(
+    path.dirname(__file__),
+    f'.env{file}'
+)
+local = f'{file}.local'
 
 config = {
     **dotenv_values(local if path.exists(local) else file)
