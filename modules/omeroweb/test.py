@@ -15,7 +15,7 @@ class OmeroWebTest(unittest.TestCase):
         CacheService.flush_all()
 
     def test_get_or_create(self):
-        session = omero_web.get_or_create('root', 'omero')
+        session = omero_web.create('root', 'omero')
 
         self.assertIsNotNone(session)
         self.assertIsInstance(session, omero_web.OmeroSession)

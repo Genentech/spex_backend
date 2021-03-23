@@ -5,7 +5,7 @@ from os import getenv
 from services.Cache import CacheService
 
 
-__all__ = ['get', 'get_or_create', 'OmeroSession']
+__all__ = ['get', 'create', 'OmeroSession']
 
 
 class OmeroSession(Session):
@@ -96,11 +96,6 @@ def get(login):
     return None
 
 
-def get_or_create(login, password):
-    session = get(login)
-
-    if not session:
-        session = _login_omero_web(login, password)
-
-    return session
+def create(login, password):
+    return _login_omero_web(login, password)
 

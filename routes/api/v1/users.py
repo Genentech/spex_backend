@@ -4,7 +4,10 @@ import modules.omeroweb as omeroweb
 
 from flask_restx import Namespace, Resource
 from flask import request, abort
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import \
+    create_access_token, \
+    jwt_required, \
+    get_jwt_identity
 from .models import users, responses
 
 namespace = Namespace('Users', description='Users CRUD operations')
@@ -53,7 +56,7 @@ class Login(Resource):
 
         login = body['username']
         password = body['password']
-        client = omeroweb.get_or_create(login, password)
+        client = omeroweb.create(login, password)
         if not client:
             abort(401, 'Unable to login user')
 

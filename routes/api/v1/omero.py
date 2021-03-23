@@ -49,13 +49,13 @@ class WebGateway(Resource):
     @namespace.doc('omero')
     @namespace.response(404, 'Connect problems', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
-    @jwt_required(locations=['headers'])
+    @jwt_required(locations=['headers', 'cookies'])
     def get(self, path):
         return _request(path)
 
     @namespace.doc('omero')
     @namespace.response(404, 'Connect problems', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
-    @jwt_required(locations=['headers'])
+    @jwt_required(locations=['headers', 'cookies'])
     def post(self, path):
         return _request(path, 'post')

@@ -53,7 +53,8 @@ class ArangoDB:
         db = self.instance
 
         if not db.has_collection('users'):
-            db.create_collection('users')
+            collection = db.create_collection('users')
+            collection.add_hash_index(fields=["username"], unique=True)
         if not db.has_collection('images'):
             db.create_collection('images')
         if not db.has_collection('groups'):
