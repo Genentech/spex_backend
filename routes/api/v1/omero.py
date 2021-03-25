@@ -11,11 +11,12 @@ namespace.add_model(omero.login_responce.name, omero.login_responce)
 namespace.add_model(responses.error_response.name, responses.error_response)
 
 excluded_headers = [
-    'content-encoding',
-    'content-length',
-    'transfer-encoding',
-    'connection',
-    'Authorization'
+    # 'content-encoding',
+    # 'content-length',
+    # 'transfer-encoding',
+    # 'connection',
+    'set-cookie',
+    'authorization'
 ]
 
 

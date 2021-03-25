@@ -1,18 +1,46 @@
-from flask_restx import Api
+from flask import url_for, request
+from flask_restx import Api, apidoc
+from urllib import parse
 from werkzeug.exceptions import HTTPException
 from .users import namespace as users
 from .omero import namespace as omero
 from .jobs import namespace as jobs
 from .tasks import namespace as tasks
 
-api = Api(
+
+class OverrideApi(Api):
+    @property
+    def specs_url(self):
+        specs_url = super(OverrideApi, self).specs_url
+        origin = request.headers.get('X-Original-Request')
+
+        if origin:
+            origin = f'{origin}swagger.json'
+
+        return origin if origin else specs_url
+
+
+prefix = ''
+
+api = OverrideApi(
     version='1.0',
     title='Genentech API',
     description='Genentech API',
     validate=True,
 )
 
-prefix = '/api/v1'
+
+@apidoc.apidoc.add_app_template_global
+def swagger_static(filename):
+    path = url_for("restx_doc.static", filename=filename)
+
+    url = parse.urlparse(request.url)
+    sub_path = url_for(api.endpoint("root"), _external=False)
+
+    if url.path == sub_path:
+        return f'..{path}'
+
+    return path
 
 
 @api.errorhandler
