@@ -9,18 +9,18 @@ __all__ = ['get', 'create', 'OmeroSession']
 
 
 class OmeroSession(Session):
-    def __init__(self, session_id=None, token=None, context=None, active_to=None):
+    def __init__(self, session_id=None, token=None, context=None, active_until=None):
         super().__init__()
         self.__attrs__.extend([
             'omero_session_id',
             'omero_token',
             'omero_context',
-            'active_to'
+            'active_until'
         ])
         self.omero_session_id = session_id
         self.omero_token = token
         self.omero_context = context
-        self.active_to = active_to
+        self.active_until = active_until
 
         if session_id:
             self.cookies.setdefault('sessionid', session_id)
@@ -42,7 +42,7 @@ class OmeroSession(Session):
 
 
 def _login_omero_web(login, password, server='1'):
-    client = OmeroSession(active_to=datetime.now() + timedelta(hours=int(getenv('MEMCACHED_SESSION_ALIVE_H'))))
+    client = OmeroSession(active_until=datetime.now() + timedelta(hours=int(getenv('MEMCACHED_SESSION_ALIVE_H'))))
 
     response = client.get('/api/v0/token/')
 
