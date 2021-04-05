@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib import parse
 from requests import Session
 from os import getenv
@@ -9,16 +9,18 @@ __all__ = ['get', 'create', 'OmeroSession']
 
 
 class OmeroSession(Session):
-    def __init__(self, session_id=None, token=None, context=None):
+    def __init__(self, session_id=None, token=None, context=None, active_to=None):
         super().__init__()
         self.__attrs__.extend([
             'omero_session_id',
             'omero_token',
-            'omero_context'
+            'omero_context',
+            'active_to'
         ])
         self.omero_session_id = session_id
         self.omero_token = token
         self.omero_context = context
+        self.active_to = active_to
 
         if session_id:
             self.cookies.setdefault('sessionid', session_id)
@@ -40,7 +42,7 @@ class OmeroSession(Session):
 
 
 def _login_omero_web(login, password, server='1'):
-    client = OmeroSession()
+    client = OmeroSession(active_to=datetime.now() + timedelta(hours=int(getenv('MEMCACHED_SESSION_ALIVE_H'))))
 
     response = client.get('/api/v0/token/')
 
@@ -67,7 +69,8 @@ def _login_omero_web(login, password, server='1'):
         session = OmeroSession(
             response.cookies['sessionid'],
             csrf_token,
-            data['eventContext']
+            data['eventContext'],
+            datetime.now() + timedelta(hours=int(getenv('MEMCACHED_SESSION_ALIVE_H')))
         )
 
         CacheService.set(login, session)
@@ -98,4 +101,3 @@ def get(login):
 
 def create(login, password):
     return _login_omero_web(login, password)
-
