@@ -82,7 +82,9 @@ def _login_omero_web(login, password, server='1'):
 
 def get(login):
     session = CacheService.get(login)
-
+    if session is not None:
+        session.active_until = datetime.now() + timedelta(hours=int(getenv('MEMCACHED_SESSION_ALIVE_H')))
+        CacheService.set(login, session)
     if not session:
         return None
 
