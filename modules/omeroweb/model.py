@@ -82,18 +82,20 @@ def _login_omero_web(login, password, server='1'):
 
 def get(login):
     session = CacheService.get(login)
-    if session is not None:
-        session.active_until = datetime.now() + timedelta(hours=int(getenv('MEMCACHED_SESSION_ALIVE_H')))
-        CacheService.set(login, session)
+
     if not session:
         return None
 
     timestamp = int(datetime.timestamp(datetime.now()) * 1000)
 
     url = f'/webclient/keepalive_ping/?_={timestamp}'
+    result = parse.urlparse(url)
+
+    if not result.netloc or not result.scheme:
+        url = parse.urljoin(getenv("OMERO_PROXY_PATH"), url)
     response = session.get(url)
 
-    if response.status_code == 200:
+    if response.status_code == 200 and response.content.decode('utf8').lower() != 'connection failed':
         return session
 
     CacheService.delete(login)

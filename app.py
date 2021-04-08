@@ -6,6 +6,7 @@ from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from routes import blueprint
 
+
 application = Flask(__name__)
 application.config.from_mapping(config)
 
