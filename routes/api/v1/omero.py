@@ -3,6 +3,10 @@ from flask_restx import Namespace, Resource
 from flask import request, abort, Response
 from .models import responses, omero
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from modules.omeroweb import OmeroSession
+from services.Cache import CacheService
+from datetime import datetime, timedelta
+from os import getenv
 
 
 namespace = Namespace('Omero', description='Omera operations')
@@ -41,6 +45,14 @@ def _request(path, method='get', **kwargs):
         for (name, value) in response.raw.headers.items()
         if name.lower() not in excluded_headers
     ]
+
+    session = OmeroSession(
+        client.omero_session_id,
+        client.omero_token,
+        client.omero_context,
+        datetime.now() + timedelta(hours=int(getenv('MEMCACHED_SESSION_ALIVE_H')))
+    )
+    CacheService.set(current_user['login'], session)
 
     return Response(response.content, response.status_code, headers)
 
