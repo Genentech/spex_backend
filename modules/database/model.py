@@ -63,6 +63,8 @@ class ArangoDB:
             db.create_collection('jobs')
         if not db.has_collection('tasks'):
             db.create_collection('tasks')
+        if not db.has_collection('projects'):
+            db.create_collection('projects')
 
     def insert(self, collection, data):
         return self.instance.insert_document(collection, data, True)
@@ -90,10 +92,11 @@ class ArangoDB:
 
     def delete(self, collection, search='', **kwargs):
         task = self.async_instance.aql.execute(
-            f'FOR doc IN  {collection} {collection}'
-            f' REMOVE doc IN {search}'
-            f' LET deleted = OLD'
-            f' RETURN UNSET(deleted, "_key", "_id", "_rev", "password")',
+            f'FOR doc IN  {collection} '
+            f'{search} '
+            f' REMOVE doc IN {collection} '
+            f' LET deleted = OLD '
+            f' RETURN UNSET(deleted, "_key", "_id", "_rev", "password") ',
             bind_vars={
                 **kwargs
             }
@@ -108,3 +111,13 @@ class ArangoDB:
             }
         )
         return receive_async_response(task)
+
+    def get_search(self, **kwargs):
+        search = 'FILTER '
+        count = 0
+        for key, value in kwargs.items():
+            count = count + 1
+            search = search + 'doc.' + key + ' == @' + key
+            if count != len(kwargs.items()):
+                search = search + " && "
+        return search

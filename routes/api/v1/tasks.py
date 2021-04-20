@@ -72,7 +72,7 @@ class TaskPost(Resource):
     @jwt_required()
     def get(self):
         author = get_jwt_identity()
-        result = TaskService.select_tasks(author)
+        result = TaskService.select_tasks(author=author)
 
         if result is None:
             abort(404, 'tasks not found')
