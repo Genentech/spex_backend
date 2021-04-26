@@ -1,0 +1,87 @@
+version: "3.7"
+
+networks:
+  genentech:
+
+services:
+
+  memcached:
+    container_name: memcached
+    image: 'bitnami/memcached:latest'
+    networks:
+      genentech:
+    ports:
+      - '11211:11211'
+    environment:
+      - MEMCACHED_CACHE_SIZE=64
+
+  redis_json:
+    container_name: redis-json
+    networks:
+      genentech:
+        aliases:
+          - redis-json
+    ports: 
+      - '6379:6379'
+    build: 
+      context: ./redis
+      dockerfile: Dockerfile
+
+
+  ms_ome_session_refresher:
+    container_name: roche-ms-ome-session-refresher
+    networks:
+      genentech:
+        aliases:
+          - roche-ms-ome-session-refresher
+    env_file:
+      - ./ms-session-refresher/.env
+    build: 
+      context: ./ms-session-refresher
+      dockerfile: Dockerfile
+  
+  ms_splitter:
+    container_name: roche-ms-splitter
+    networks:
+      genentech:
+        aliases:
+          - roche-ms-splitter
+    volumes:
+      - type: bind
+        source: C:\\temp\\DATA_STORAGE 
+        target: /DATA_STORAGE
+    env_file:
+      - ./ms-splitter/.env
+    build: 
+      context: ./ms-splitter
+      dockerfile: Dockerfile
+  
+  ms_task_runner:
+    container_name: roche-ms-task-runner
+    networks:
+      genentech:
+        aliases:
+          - roche-ms-task-runner
+    volumes_from:
+      - ms_splitter     
+    env_file:
+      - ./ms-task-runner/.env
+    build: 
+      context: ./ms-task-runner
+      dockerfile: Dockerfile
+
+  ms_collector:
+    container_name: roche-ms-collector
+    networks:
+      genentech:
+        aliases:
+          - roche-ms-collector
+    volumes_from:
+      - ms_splitter     
+    env_file:
+      - ./ms-collector/.env
+    build: 
+      context: ./ms-collector
+      dockerfile: Dockerfile
+
+ 
