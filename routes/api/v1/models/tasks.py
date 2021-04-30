@@ -9,16 +9,12 @@ tasks_model = Model('TasksBase', {
     'status': fields.Integer
 })
 
-a_tasks_response = response.inherit('TasksResponse', {
-    'data': fields.Nested(tasks_model)
-})
-
 task_get_model = tasks_model.inherit('Task get', {
     'id': fields.String(
         required=True,
         description='Task id'
     ),
-    'csvdata': fields.Wildcard(fields.List(fields.Integer()))
+    'csvdata': fields.Wildcard(fields.List(fields.List(fields.String())))
 })
 
 task_post_model = tasks_model.inherit('Task post', {
@@ -27,5 +23,9 @@ task_post_model = tasks_model.inherit('Task post', {
 
 
 list_tasks_response = response.inherit('TaskListResponse', {
+    'data': fields.List(fields.Nested(task_get_model))
+})
+
+a_tasks_response = response.inherit('TasksResponse', {
     'data': fields.List(fields.Nested(task_get_model))
 })

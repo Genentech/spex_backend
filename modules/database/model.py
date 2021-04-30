@@ -65,6 +65,8 @@ class ArangoDB:
             db.create_collection('tasks')
         if not db.has_collection('projects'):
             db.create_collection('projects')
+        if not db.has_collection('jobs-tasks'):
+            db.create_collection('jobs-tasks', edge=True)
 
     def insert(self, collection, data):
         return self.instance.insert_document(collection, data, True)
@@ -111,6 +113,22 @@ class ArangoDB:
             }
         )
         return receive_async_response(task)
+
+    def insert_edge(self, collection, _from='', _to=''):
+
+        request_text = f'insert (_from: "{_from}", _to: "{_to}") into "{collection}"'.replace("(", "{").replace(")", "}")
+        data = self.async_instance.aql.execute(request_text)
+        return receive_async_response(data)
+
+    def select_edge(self, collection, inboud, _key):
+        if inboud is True:
+            inboud = 'inbound'
+        else:
+            inboud = 'outbound'
+
+        request_text = f'for doc in {inboud} "{_key}" @collection return doc '
+        data = self.async_instance.aql.execute(request_text, bind_vars={'collection': collection})
+        return receive_async_response(data)
 
     def get_search(self, **kwargs):
         search = 'FILTER '

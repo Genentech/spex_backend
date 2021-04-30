@@ -14,11 +14,17 @@ def select(id):
     return job(items[0]) if not items[0] is None else None
 
 
-def select_jobs(author):
-    value = author
-    search = 'FILTER doc.author == @value'
+def select_jobs(**kwargs):
 
-    items = database.select(collection, search, value=value)
+    search = 'FILTER '
+    count = 0
+    for key, value in kwargs.items():
+        count = count + 1
+        search = search + 'doc.' + key + ' == @' + key
+        if count != len(kwargs.items()):
+            search = search + " && "
+
+    items = database.select(collection, search, **kwargs)
     if len(items) == 0:
         return None
     return [job(item).to_json() for item in items]

@@ -22,6 +22,7 @@ class TaskGetPut(Resource):
     @namespace.doc('tasks/getone')
     @namespace.response(404, 'Task not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
+    @namespace.marshal_with(tasks.a_tasks_response)
     @jwt_required()
     def get(self, id):
         task = TaskService.select(id=id)
@@ -66,6 +67,7 @@ class TaskPost(Resource):
         return {'success': True, 'data': arr}, 200
 
     @namespace.doc('task/get')
+    @namespace.marshal_with(tasks.list_tasks_response)
     @namespace.response(200, 'list tasks current user', tasks.list_tasks_response)
     @namespace.response(404, 'tasks not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)

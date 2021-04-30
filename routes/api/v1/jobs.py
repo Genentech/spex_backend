@@ -20,7 +20,7 @@ namespace.add_model(jobs.list_jobs_response.name, jobs.list_jobs_response)
 class JobCreateGetPost(Resource):
     @namespace.doc('jobs/create')
     @namespace.expect(jobs.jobs_model)
-    # @namespace.marshal_with(jobs.a_jobs_response)
+    @namespace.marshal_with(jobs.a_jobs_response)
     @namespace.response(200, 'Created job', jobs.a_jobs_response)
     @namespace.response(400, 'Message about reason of error', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
@@ -35,20 +35,36 @@ class JobCreateGetPost(Resource):
         return {'success': True, 'data': res}, 200
 
     @namespace.doc('job/get')
-    # @namespace.marshal_with(jobs.list_jobs_response)
+    @namespace.marshal_with(jobs.list_jobs_response)
     @namespace.response(200, 'list jobs current user', jobs.list_jobs_response)
     @namespace.response(404, 'jobs not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
     def get(self):
-        author = get_jwt_identity()
-        result = JobService.select_jobs(author)
-        for job in result['omeroIds']:
-            for omeroId in job['omeroIds']:
-                print(omeroId)
-        # TaskService.select_tasks('')
+
+        result = JobService.select_jobs(**{'author': get_jwt_identity()})
+        for job in result:
+            job['tasks'] = TaskService.select_tasks_edge(job.get('_id'))
 
         if result is None:
             abort(404, 'jobs not found')
 
         return {'success': True, 'data': result}, 200
+
+
+@namespace.route('/<string:id>')
+class Item(Resource):
+    @namespace.doc('job/get')
+    @namespace.marshal_with(jobs.a_jobs_response)
+    @namespace.response(404, 'job not found', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @jwt_required(locations=['headers'])
+    def get(self, id):
+
+        result = JobService.select_jobs(**{'author': get_jwt_identity(), '_key': id})
+        if result is None or result == []:
+            abort(404, 'job not found')
+        for job in result:
+            job['tasks'] = TaskService.select_tasks_edge(job.get('_id'))
+
+        return {'success': True, 'data': result[0]}, 200

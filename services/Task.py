@@ -30,6 +30,13 @@ def select_tasks(**kwargs):
     return [task(item).to_json() for item in items]
 
 
+def select_tasks_edge(_key):
+    items = database.select_edge(collection='jobs-tasks', inboud=False, _key=_key)
+    if len(items) == 0:
+        return []
+    return [task(item).to_json() for item in items]
+
+
 def update(id, data=None):
     value = id
     search = 'FILTER doc._key == @value LIMIT 1 '
@@ -81,5 +88,7 @@ def createTasks(body, job):
             del data['omeroIds']
             newTask = database.insert(collection, data)
             arrRes.append(task(newTask['new']).to_json())
+    for item in arrRes:
+        database.insert_edge('jobs-tasks', _from=job._id, _to=item.get('_id'))
 
     return arrRes

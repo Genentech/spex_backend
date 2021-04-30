@@ -9,6 +9,7 @@ class Task:
         self.parent = kwargs.get('parent', '')
         self.status = kwargs.get('status', 0)
         self.id = kwargs.get('_key', '')
+        self._id = kwargs.get('_id', '')
         self.csvdata = kwargs.get('csvdata', [])
 
     def to_json(self):
@@ -20,7 +21,8 @@ class Task:
                 'parent': self.parent,
                 'status': self.status,
                 'csvdata': self.csvdata,
-                'id': self.id
+                'id': self.id,
+                '_id': self._id
                  }
 
 

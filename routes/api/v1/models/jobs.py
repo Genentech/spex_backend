@@ -1,5 +1,6 @@
 from flask_restx import fields, Model
 from .responses import response
+from .tasks import task_get_model
 
 jobs_model = Model('JobBase', {
     'name': fields.String(
@@ -20,7 +21,8 @@ job_get_model = jobs_model.inherit('JobsGet', {
     'id': fields.String(
         required=True,
         description='User id'
-    )
+    ),
+    'tasks': fields.List(fields.Nested(task_get_model))
 })
 
 
