@@ -67,13 +67,17 @@ class ArangoDB:
             db.create_collection('projects')
         if not db.has_collection('jobs-tasks'):
             db.create_collection('jobs-tasks', edge=True)
+        if not db.has_collection('task-result'):
+            db.create_collection('task-result')
+        if not db.has_collection('pipeline'):
+            db.create_collection('pipeline', edge=True)
 
-    def insert(self, collection, data):
-        return self.instance.insert_document(collection, data, True)
+    def insert(self, collection, data, overwrite_mode=None):
+        return self.instance.insert_document(collection, data, True, overwrite_mode=overwrite_mode)
 
-    def select(self, collection, search='', **kwargs):
+    def select(self, collection, search='', fields='doc', **kwargs):
         task = self.async_instance.aql.execute(
-            f'FOR doc IN {collection} {search} RETURN doc',
+            f'FOR doc IN {collection} {search} RETURN {fields}',
             bind_vars={
                 **kwargs
             }

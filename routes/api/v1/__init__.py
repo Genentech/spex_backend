@@ -7,6 +7,7 @@ from .omero import namespace as omero
 from .jobs import namespace as jobs
 from .tasks import namespace as tasks
 from .projects import namespace as projects
+from .pipeline import namespace as pipeline
 
 
 class OverrideApi(Api):
@@ -62,3 +63,4 @@ api.add_namespace(omero, '{}/omero'.format(prefix))
 api.add_namespace(jobs,  '{}/jobs'.format(prefix))
 api.add_namespace(tasks, '{}/tasks'.format(prefix))
 api.add_namespace(projects, '{}/projects'.format(prefix))
+api.add_namespace(pipeline, '{}/pipeline'.format(prefix))
