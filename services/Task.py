@@ -14,7 +14,7 @@ def select(id):
     return task(items[0]) if not items[0] is None else None
 
 
-def select_tasks(**kwargs):
+def select_tasks(condition=None, **kwargs):
 
     search = 'FILTER '
     count = 0
@@ -23,6 +23,8 @@ def select_tasks(**kwargs):
         search = search + 'doc.' + key + ' == @' + key
         if count != len(kwargs.items()):
             search = search + " && "
+    if condition is not None:
+        search = search.replace('==',  condition)
 
     items = database.select(collection, search, **kwargs)
     if len(items) == 0:

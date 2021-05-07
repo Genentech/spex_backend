@@ -5,7 +5,7 @@ from models.Pipeline import pipeline
 collection = 'pipeline'
 
 
-def select(id):
+def select(id, collection='pipeline'):
     value = id
     search = 'FILTER doc._key == @value LIMIT 1'
     items = database.select(collection, search, value=value)
@@ -14,7 +14,7 @@ def select(id):
     return pipeline(items[0]) if not items[0] is None else None
 
 
-def select_pipeline(**kwargs):
+def select_pipeline(condition=None, **kwargs):
 
     search = 'FILTER '
     count = 0
@@ -23,6 +23,8 @@ def select_pipeline(**kwargs):
         search = search + 'doc.' + key + ' == @' + key
         if count != len(kwargs.items()):
             search = search + " && "
+    if condition is not None:
+        search = search.replace('==',  condition)
 
     items = database.select(collection, search, **kwargs)
     if len(items) == 0:
@@ -56,7 +58,7 @@ def delete(id):
     return pipeline(items[0]) if not items[0] is None else None
 
 
-def insert(data):
+def insert(data, collection='pipeline'):
     item = database.insert(collection, data)
     return pipeline(item['new'])
 
