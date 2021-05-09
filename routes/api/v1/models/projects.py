@@ -6,13 +6,13 @@ projects_model = Model('ProjectBase', {
         required=True,
         description='Project name'
     ),
-    'content': fields.String(
+    'description': fields.String(
         required=True,
         description='long description'
     ),
     'omeroIds': fields.List(
         fields.Integer,
-        required=True,
+        required=False,
         description='image id'),
 })
 
