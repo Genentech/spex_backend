@@ -18,7 +18,7 @@ namespace.add_model(pipeline.list_pipeline_response.name, pipeline.list_pipeline
 namespace.add_model(pipeline.pipeline_get_model.name, pipeline.pipeline_get_model)
 
 
-@namespace.route('/')
+@namespace.route('')
 class PipelineCreateGetPost(Resource):
     @namespace.doc('pipeline/insert')
     @namespace.expect(pipeline.pipeline_model)

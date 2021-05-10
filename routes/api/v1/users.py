@@ -30,7 +30,7 @@ def merge_user_and_omero_user(user, omero_user):
     }
 
 
-@namespace.route('/')
+@namespace.route('')
 class Items(Resource):
     @namespace.doc('users/list')
     @namespace.marshal_list_with(users.list_user_response)

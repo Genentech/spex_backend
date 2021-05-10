@@ -16,7 +16,7 @@ namespace.add_model(responses.error_response.name, responses.error_response)
 namespace.add_model(jobs.list_jobs_response.name, jobs.list_jobs_response)
 
 
-@namespace.route('/')
+@namespace.route('')
 class JobCreateGetPost(Resource):
     @namespace.doc('jobs/create')
     @namespace.expect(jobs.jobs_model)

@@ -14,7 +14,7 @@ namespace.add_model(responses.error_response.name, responses.error_response)
 namespace.add_model(projects.list_projects_response.name, projects.list_projects_response)
 
 
-@namespace.route('/')
+@namespace.route('')
 class ProjectsCreateGetPost(Resource):
     @namespace.doc('projects/create')
     @namespace.expect(projects.projects_model)
@@ -40,7 +40,7 @@ class ProjectsCreateGetPost(Resource):
         result = ProjectService.select_projects(author=author)
 
         if result is None:
-            abort(404, 'projects not found')
+            return {'success': True, 'data': []}, 200
 
         return {'success': True, 'data': result}, 200
 

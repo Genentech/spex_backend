@@ -47,7 +47,7 @@ class TaskGetPut(Resource):
         return {'success': True, 'data': task.to_json()}, 200
 
 
-@namespace.route('/')
+@namespace.route('')
 class TaskPost(Resource):
     @namespace.doc('tasks/update')
     @namespace.expect(tasks.task_post_model)
