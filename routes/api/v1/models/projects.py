@@ -7,7 +7,7 @@ projects_model = Model('ProjectBase', {
         description='Project name'
     ),
     'description': fields.String(
-        required=True,
+        required=False,
         description='long description'
     ),
     'omeroIds': fields.List(
