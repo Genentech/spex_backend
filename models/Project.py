@@ -2,7 +2,7 @@
 
 class Project:
     def __init__(self, **kwargs):
-        self.id = kwargs.get('_key', None)
+        self.id = kwargs.get('_key', '')
         self.name = kwargs.get('name', '')
         self.description = kwargs.get('description', '')
         self.omeroIds = kwargs.get('omeroIds', [])

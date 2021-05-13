@@ -91,7 +91,7 @@ class ArangoDB:
             f'FOR doc IN {collection} {search}'
             f' UPDATE doc WITH {data} IN {collection}'
             f' LET updated = NEW'
-            f' Return UNSET(updated, "_key", "_id", "_rev", "password")',
+            f' Return UNSET(updated, "_rev", "password")',
             bind_vars={
                 **kwargs
             }

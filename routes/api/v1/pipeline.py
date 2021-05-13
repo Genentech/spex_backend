@@ -1,5 +1,7 @@
 import services.Pipeline as PipelineService
 import services.Task as TaskService
+import services.Task as TaskService
+
 from flask_restx import Namespace, Resource
 from flask import request, abort
 # from models.Job import Job
@@ -64,12 +66,22 @@ class PipelineCreateGetPost(Resource):
     @jwt_required()
     def get(self):
         author = get_jwt_identity()
-        boxes = PipelineService.select_pipeline(condition='LIKE', author=author, _from='%box%', _to='%box%')
-        arr_boxes = []
-        for edge in boxes:
-            arr_boxes.append(edge.get('parent'))
-            arr_boxes.append(edge.get('child'))
-        
+        pipe_tasks = PipelineService.select_pipeline(condition='LIKE', author=author, _from='%tasks%', _to='%box%')
+        pipe_boxes = PipelineService.select_pipeline(condition='LIKE', author=author, _from='%box%', _to='%box%')
+        boxes = []
+        tasks = []
+        for p_box in pipe_boxes:
+            box = PipelineService.select_pipeline(collection='box', _id=p_box.get('_from'))
+            boxes.append(box)
+            box = PipelineService.select_pipeline(collection='box', _id=p_box.get('_to'))
+            boxes.append(box)
+
+        for p_task in pipe_tasks:
+            task = TaskService.select_tasks(_id=p_task.get('_from'))
+            tasks.append(task)
+        boxes = set(boxes)
+        tasks = set(tasks)
+        print(tasks, boxes)
 
         return {'success': True, 'author': author}, 200
 
@@ -97,7 +109,7 @@ class BoxCreateGetPost(Resource):
             new = False
             parent = PipelineService.select(id=p_id, collection='box')
             if parent is None:
-                abort(404, f'box with id: {p_id} not found')
+                return {'success': True, 'message': f'box with id: {p_id} not found'}, 200
             # else:
             #     childs = PipelineService.select_pipeline_edge(parent.id)
 

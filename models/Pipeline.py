@@ -4,8 +4,8 @@ class Pipeline:
     def __init__(self, **kwargs):
         self.name = kwargs.get('name', '')
         self.author = kwargs.get('author', '')
-        self.parent = kwargs.get('_from', '')
-        self.child = kwargs.get('_to', '')
+        self._from = kwargs.get('_from', '')
+        self._to = kwargs.get('_to', '')
         self.startnext = kwargs.get('startnext', 0)
         self.pipeline = kwargs.get('pipeline', '')
         self.id = kwargs.get('_key', '')
@@ -15,8 +15,8 @@ class Pipeline:
         return {
                 'name': self.name,
                 'author': self.author,
-                'parent': self.parent,
-                'child': self.child,
+                '_from': self._from,
+                '_to': self._to,
                 'startnext': self.startnext,
                 'id': self.id,
                 '_id': self._id,

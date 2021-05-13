@@ -1,6 +1,6 @@
 import services.Project as ProjectService
 from flask_restx import Namespace, Resource
-from flask import request, abort
+from flask import request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import projects, responses
 
@@ -58,7 +58,7 @@ class ProjectGetById(Resource):
         result = ProjectService.select_projects(_key=id, author=author)  # only author projects show
 
         if result is None:
-            abort(404, 'projects not found')
+            return {'success': False, 'message': 'project not found'}, 200
 
         return {'success': True, 'data': result[0]}, 200
 
@@ -72,7 +72,7 @@ class ProjectGetById(Resource):
         author = get_jwt_identity()
         project = ProjectService.select_projects(_key=id, author=author)   # only author projects show
         if project is None:
-            abort(404, 'project not found')
+            return {'success': False, 'message': 'project not found'}, 200
         body = request.json
         project = ProjectService.update(id=id, data=body)
 
@@ -88,7 +88,8 @@ class ProjectGetById(Resource):
         author = get_jwt_identity()
         project = ProjectService.select_projects(_key=id, author=author)   # only author projects show
         if project is None:
-            abort(404, 'project not found')
+            return {'success': False, 'message': 'project not found'}, 200
+
         project = ProjectService.delete(_key=id)
 
         return {'success': True, 'data': project.to_json()}, 200

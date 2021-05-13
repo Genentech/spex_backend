@@ -14,7 +14,7 @@ def select(id, collection='pipeline'):
     return pipeline(items[0]) if not items[0] is None else None
 
 
-def select_pipeline(condition=None, **kwargs):
+def select_pipeline(condition=None, collection='pipeline', **kwargs):
 
     search = 'FILTER '
     count = 0
