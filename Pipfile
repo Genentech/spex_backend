@@ -21,6 +21,7 @@ basicauth = "0.4.1"
 pymemcache = "3.4.1"
 requests = "2.25.1"
 python-arango = "7.1.0"
+importlib = "*"
 
 [dev-packages]
 flake8 = "3.9.0"

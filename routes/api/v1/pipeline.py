@@ -1,12 +1,11 @@
 import services.Pipeline as PipelineService
 import services.Task as TaskService
-import services.Task as TaskService
-
 from flask_restx import Namespace, Resource
-from flask import request, abort
+from flask import request
 # from models.Job import Job
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import pipeline, responses
+from modules.database import database
 
 namespace = Namespace('Pipeline', description='Pipeline CRUD operations')
 
@@ -18,6 +17,41 @@ namespace.add_model(pipeline.a_pipeline_response.name, pipeline.a_pipeline_respo
 namespace.add_model(responses.error_response.name, responses.error_response)
 namespace.add_model(pipeline.list_pipeline_response.name, pipeline.list_pipeline_response)
 namespace.add_model(pipeline.pipeline_get_model.name, pipeline.pipeline_get_model)
+
+
+def recursionQuery(itemId, tree, depth):
+
+    text = 'FOR d IN box ' + \
+          f'FILTER d._id == "{itemId}" ' + \
+           'LET boxes = (' + \
+          f'FOR b IN 1..1 OUTBOUND "{itemId}"' + ' GRAPH "pipeline" FILTER b._id LIKE "box/%"  RETURN {"name": b.name, "id": b._key, "status": b.complete } )' + \
+           'LET tasks = (' + \
+          f'FOR t IN 1..1 INBOUND "{itemId}"' + ' GRAPH "pipeline" FILTER t._id LIKE "tasks/%" RETURN {"name": t.name, "id": t._key, "status": t.status } )' + \
+           ' RETURN MERGE({"id": d._key, "name": d.name, "status": d.complete}, {"boxes": boxes, "tasks": tasks})'
+
+    result = database.query(text)
+    if len(result) > 0:
+        tree = result[0]
+    else:
+        return
+
+    i = 0
+    if depth < 10:
+        if (result[0]['boxes'] is not None and len(result[0]['boxes']) > 0):
+            while i < len(result[0]['boxes']):
+                id = 'box/' + str(result[0]['boxes'][i]['id'])
+                tree['boxes'][i] = recursionQuery(id, tree['boxes'][i], depth + 1)
+                i += 1
+    return tree
+
+
+def searchInArrDict(key, value, arr):
+    founded = []
+    for item in arr:
+        item_value = item.get(key)
+        if value is not None and item_value == value:
+            founded.append(arr.index(item))
+    return founded
 
 
 @namespace.route('')
@@ -36,24 +70,32 @@ class PipelineCreateGetPost(Resource):
         c_id_arr = body.get('child_ids')
         parent = PipelineService.select(id=p_id, collection='box')
         if parent is None:
-            abort(404, f'box with id: {p_id} not found')
-        foundedC = TaskService.select_tasks(condition='in', _id=c_id_arr)
+            message = f'box with id: {p_id} not found'
+            return {'success': False, message: message}, 200
+        foundedC = TaskService.select_tasks(condition='in', _key=c_id_arr)
         if foundedC is None:
-            abort(404, 'childs not found')
+            foundedC = PipelineService.select_pipeline(collection='box', condition='in', _key=c_id_arr)
+            if foundedC is None:
+                message = 'childs not found'
+                return {'success': False, message: message}, 200
 
         arr_founded_id = []
+        existed = []
         for item in foundedC:
-            c_id = item.get('_id')
-            arr_founded_id.append(c_id)
+            c_id = item.get('id')
             f_t = {}
-            f_t.update({'_from': str(c_id)})
+            f_t.update({'_from': str(item.get('_id'))})
             f_t.update({'_to': 'box/'+str(p_id)})
             f_t.update({'author': author})
-            has = PipelineService.select_pipeline(_from=str(c_id), _to='box/'+str(p_id), author=author)
+            has = PipelineService.select_pipeline(_from=str(str(item.get('_id'))), _to='box/'+str(p_id), author=author)
             if has is None:
                 PipelineService.insert(f_t)
-        notFoundedC = list(set(c_id_arr) - set(arr_founded_id))
-        result = {'Added': arr_founded_id, 'NotFounded': notFoundedC}
+                arr_founded_id.append(c_id)
+            else:
+                existed.append(c_id)
+
+        notFoundedC = list(set(c_id_arr) - set(arr_founded_id) - set(existed))
+        result = {'Added': arr_founded_id, 'NotFounded': notFoundedC, 'Existed': existed}
 
         return {'success': True, 'data': result}, 200
 
@@ -66,24 +108,21 @@ class PipelineCreateGetPost(Resource):
     @jwt_required()
     def get(self):
         author = get_jwt_identity()
-        pipe_tasks = PipelineService.select_pipeline(condition='LIKE', author=author, _from='%tasks%', _to='%box%')
         pipe_boxes = PipelineService.select_pipeline(condition='LIKE', author=author, _from='%box%', _to='%box%')
-        boxes = []
-        tasks = []
-        for p_box in pipe_boxes:
-            box = PipelineService.select_pipeline(collection='box', _id=p_box.get('_from'))
-            boxes.append(box)
-            box = PipelineService.select_pipeline(collection='box', _id=p_box.get('_to'))
-            boxes.append(box)
+        result = None
+        lines = []
+        for box in pipe_boxes:
+            box_copy = pipe_boxes.copy()
+            box_copy.remove(box)
+            if len(searchInArrDict('_to', box['_from'], box_copy)) == 0:
+                lines.append(box)
+        arrLines = []
+        for box in lines:
+            arrLines.append(recursionQuery(box['_from'], {}, 0))
 
-        for p_task in pipe_tasks:
-            task = TaskService.select_tasks(_id=p_task.get('_from'))
-            tasks.append(task)
-        boxes = set(boxes)
-        tasks = set(tasks)
-        print(tasks, boxes)
+        result = {"pipelines": arrLines}
 
-        return {'success': True, 'author': author}, 200
+        return {'success': True, 'data': result}, 200
 
 
 @namespace.route('/box')
@@ -110,8 +149,6 @@ class BoxCreateGetPost(Resource):
             parent = PipelineService.select(id=p_id, collection='box')
             if parent is None:
                 return {'success': True, 'message': f'box with id: {p_id} not found'}, 200
-            # else:
-            #     childs = PipelineService.select_pipeline_edge(parent.id)
 
         data.update({'complete': 0})
         box = PipelineService.insert(data, collection='box')

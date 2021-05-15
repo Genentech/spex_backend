@@ -86,6 +86,15 @@ class ArangoDB:
         )
         return receive_async_response(task)
 
+    def query(self, query, **kwargs):
+        task = self.async_instance.aql.execute(
+            query,
+            bind_vars={
+                **kwargs
+            }
+        )
+        return receive_async_response(task)
+
     def update(self, collection, data, search='', **kwargs):
         task = self.async_instance.aql.execute(
             f'FOR doc IN {collection} {search}'
