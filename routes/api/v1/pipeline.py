@@ -1,5 +1,6 @@
 import services.Pipeline as PipelineService
 import services.Task as TaskService
+import services.Project as ProjectService
 from flask_restx import Namespace, Resource
 from flask import request
 # from models.Job import Job
@@ -54,27 +55,34 @@ def searchInArrDict(key, value, arr):
     return founded
 
 
-@namespace.route('')
+@namespace.route('/<string:project_id>')
 class PipelineCreateGetPost(Resource):
     @namespace.doc('pipeline/insert')
     @namespace.expect(pipeline.pipeline_model)
     # @namespace.marshal_with(projects.a_project_response)
-    @namespace.response(200, 'Created project', pipeline.a_pipeline_response)
+    @namespace.response(200, 'Created connection', pipeline.a_pipeline_response)
     @namespace.response(400, 'Message about reason of error', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
-    def post(self):
+    def post(self, project_id):
         body = request.json
         author = get_jwt_identity()
         p_id = body.get('parent_id')
         c_id_arr = body.get('child_ids')
-        parent = PipelineService.select(id=p_id, collection='box')
+        parent = PipelineService.select_pipeline(collection='box', _key=p_id, author=author, project=project_id)
+        if parent is not None:
+            if len(parent) > 0:
+                parent = parent[0]
+            else:
+                parent = None
+
         if parent is None:
             message = f'box with id: {p_id} not found'
             return {'success': False, message: message}, 200
+
         foundedC = TaskService.select_tasks(condition='in', _key=c_id_arr)
         if foundedC is None:
-            foundedC = PipelineService.select_pipeline(collection='box', condition='in', _key=c_id_arr)
+            foundedC = PipelineService.select_pipeline(collection='box', condition='in', _key=c_id_arr, project=[project_id], author=[author])
             if foundedC is None:
                 message = 'childs not found'
                 return {'success': False, message: message}, 200
@@ -87,7 +95,8 @@ class PipelineCreateGetPost(Resource):
             f_t.update({'_from': str(item.get('_id'))})
             f_t.update({'_to': 'box/'+str(p_id)})
             f_t.update({'author': author})
-            has = PipelineService.select_pipeline(_from=str(str(item.get('_id'))), _to='box/'+str(p_id), author=author)
+            f_t.update({'project': project_id})
+            has = PipelineService.select_pipeline(_from=str(str(item.get('_id'))), _to='box/'+str(p_id), author=author, project=project_id)
             if has is None:
                 PipelineService.insert(f_t)
                 arr_founded_id.append(c_id)
@@ -106,26 +115,22 @@ class PipelineCreateGetPost(Resource):
     @namespace.response(400, 'Message about reason of error', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
-    def get(self):
+    def get(self, project_id):
         author = get_jwt_identity()
-        pipe_boxes = PipelineService.select_pipeline(condition='LIKE', author=author, _from='%box%', _to='%box%')
+        if ProjectService.select_projects(_key=project_id, author=author) is None:
+            return {'success': False, 'message': f'project with id: {project_id} not found'}, 200
+
+        pipe_boxes = PipelineService.select_pipeline(author=author, _from='projects/'+project_id)
         result = None
         lines = []
         for box in pipe_boxes:
-            box_copy = pipe_boxes.copy()
-            box_copy.remove(box)
-            if len(searchInArrDict('_to', box['_from'], box_copy)) == 0:
-                lines.append(box)
-        arrLines = []
-        for box in lines:
-            arrLines.append(recursionQuery(box['_from'], {}, 0))
-
-        result = {"pipelines": arrLines}
+            lines.append(recursionQuery(box['_to'], {}, 0))
+        result = {"pipelines": lines}
 
         return {'success': True, 'data': result}, 200
 
 
-@namespace.route('/box')
+@namespace.route('/box/<string:project_id>')
 class BoxCreateGetPost(Resource):
     @namespace.doc('box/insert')
     @namespace.expect(pipeline.box_model)
@@ -134,7 +139,7 @@ class BoxCreateGetPost(Resource):
     @namespace.response(400, 'Message about reason of error', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
-    def post(self):
+    def post(self, project_id):
         body = request.json
         author = get_jwt_identity()
         new = True
@@ -148,9 +153,13 @@ class BoxCreateGetPost(Resource):
             new = False
             parent = PipelineService.select(id=p_id, collection='box')
             if parent is None:
-                return {'success': True, 'message': f'box with id: {p_id} not found'}, 200
+                return {'success': False, 'message': f'box with id: {p_id} not found'}, 200
+
+        if ProjectService.select_projects(_key=project_id, author=author) is None:
+            return {'success': False, 'message': f'project with id: {project_id} not found'}, 200
 
         data.update({'complete': 0})
+        data.update({'project': project_id})
         box = PipelineService.insert(data, collection='box')
         if box is not None:
             box = box.to_json()
@@ -159,6 +168,15 @@ class BoxCreateGetPost(Resource):
             f_t.update({'_from': parent._id})
             f_t.update({'_to': box.get('_id')})
             f_t.update({'author': author})
+            f_t.update({'project': project_id})
+            pipeline = PipelineService.insert(f_t)
+            box.update({'nested': pipeline.to_json()})
+        else:
+            f_t = {}
+            f_t.update({'_from': 'projects/'+project_id})
+            f_t.update({'_to': box.get('_id')})
+            f_t.update({'author': author})
+            f_t.update({'project': project_id})
             pipeline = PipelineService.insert(f_t)
             box.update({'nested': pipeline.to_json()})
 
