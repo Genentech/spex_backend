@@ -37,7 +37,7 @@ def recursionQuery(itemId, tree, depth):
         return
 
     i = 0
-    if depth < 10:
+    if depth < 50:
         if (result[0]['boxes'] is not None and len(result[0]['boxes']) > 0):
             while i < len(result[0]['boxes']):
                 id = 'box/' + str(result[0]['boxes'][i]['id'])
@@ -108,7 +108,7 @@ class PipelineCreateGetPost(Resource):
 
         return {'success': True, 'data': result}, 200
 
-    @namespace.doc('box/get')
+    @namespace.doc('pipelines/get')
     # @namespace.expect(projects.projects_model)
     # @namespace.marshal_with(projects.a_project_response)
     @namespace.response(200, 'Get pipeline and childs', pipeline.a_pipeline_response)
@@ -123,6 +123,8 @@ class PipelineCreateGetPost(Resource):
         pipe_boxes = PipelineService.select_pipeline(author=author, _from='projects/'+project_id)
         result = None
         lines = []
+        if pipe_boxes is None:
+            return {'success': True, 'data': {"pipelines": lines}}, 200
         for box in pipe_boxes:
             lines.append(recursionQuery(box['_to'], {}, 0))
         result = {"pipelines": lines}
