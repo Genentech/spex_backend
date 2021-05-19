@@ -72,10 +72,12 @@ class ArangoDB:
         if not db.has_collection('box'):
             db.create_collection('box')
         if not db.has_collection('pipeline'):
-            db.create_collection('pipeline', edge=True)
+            db.create_collection('pipeline')
+        if not db.has_collection('pipeline_direction'):
+            db.create_collection('pipeline_direction', edge=True)
         if not db.has_graph('pipeline'):
             pipeline = db.create_graph('pipeline')
-            pipeline.create_edge_definition(edge_collection='pipeline', from_vertex_collections=['box'], to_vertex_collections=['tasks'])
+            pipeline.create_edge_definition(edge_collection='pipeline_direction', from_vertex_collections=['box', 'pipeline', 'projects'], to_vertex_collections=['tasks', 'box', 'pipeline'])
 
     def insert(self, collection, data, overwrite_mode=None):
         return self.instance.insert_document(collection, data, True, overwrite_mode=overwrite_mode)

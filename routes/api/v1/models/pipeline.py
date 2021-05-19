@@ -2,12 +2,10 @@ from flask_restx import fields, Model
 from .responses import response
 
 pipeline_model = Model('PipelineBase', {
-    'parent_id': fields.String(required=True, description='parent pipe _id like: "collection name/id'),
     'child_ids': fields.List(fields.String(required=True, description='task or job or another collectiond id that we connect to pipe'), required=True)
 })
 
 box_model = Model('BoxBase', {
-    'parent_id': fields.String(required=False, description='parent pipe id'),
     'name': fields.String(required=True, description='empty box name')
 })
 
