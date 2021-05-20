@@ -20,14 +20,14 @@ jobs_model = Model('JobBase', {
 job_get_model = jobs_model.inherit('JobsGet', {
     'id': fields.String(
         required=True,
-        description='User id'
+        description='Task id'
     ),
     'tasks': fields.List(fields.Nested(task_get_model))
 })
 
 
 a_jobs_response = response.inherit('JobsResponse', {
-    'data': fields.Nested(job_get_model)
+    'data': fields.Nested(jobs_model)
 })
 
 list_jobs_response = response.inherit('JobsListResponse', {

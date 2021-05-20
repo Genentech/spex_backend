@@ -6,6 +6,7 @@ from flask import request, abort
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import jobs, responses
 
+
 namespace = Namespace('Jobs', description='Jobs CRUD operations')
 
 namespace.add_model(jobs.jobs_model.name, jobs.jobs_model)
@@ -58,13 +59,12 @@ class Item(Resource):
     @namespace.marshal_with(jobs.a_jobs_response)
     @namespace.response(404, 'job not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
-    @jwt_required(locations=['headers'])
+    @jwt_required()
     def get(self, id):
 
         result = JobService.select_jobs(**{'author': get_jwt_identity(), '_key': id})
         if result is None or result == []:
-            abort(404, 'job not found')
+            return {'success': False, 'message': 'job not found', 'data': {}}, 200
         for job in result:
             job['tasks'] = TaskService.select_tasks_edge(job.get('_id'))
-
         return {'success': True, 'data': result[0]}, 200

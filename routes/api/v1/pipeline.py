@@ -149,7 +149,9 @@ class PipelineGet(Resource):
             res = []
             boxes = PipelineService.select_pipeline(author=author, _from=pipeline_.get('_id'))
             if boxes is None:
-                pass
+                pipeline_.update({'boxes': res})
+                lines.append(pipeline_)
+                break
             for box in boxes:
                 res.append(recursionQuery(box['_to'], {}, 0))
 
@@ -282,8 +284,10 @@ class pipelineDelete(Resource):
 
         boxes = PipelineService.select_pipeline(author=author, _from=pipeline_.get('_id'))
         res = []
-        for box in boxes:
-            res.append(recursionQuery(box['_to'], {}, 0))
+        if boxes is not None:
+            for box in boxes:
+                res.append(recursionQuery(box['_to'], {}, 0))
+
         pipeline_.update({'boxes': res})
         childs_to_delete = getBoxes(pipeline_.get('boxes'))
         for child in reversed(childs_to_delete):
@@ -291,4 +295,5 @@ class pipelineDelete(Resource):
             PipelineService.delete(_to=child)
             PipelineService.delete(collection='box', _key=child)
         PipelineService.delete(collection=pipeline_.get('_id').replace('/'+pipeline_.get('id'), ''), _key=pipeline_.get('id'))
+        PipelineService.delete(_to=pipeline_.get('_id'))
         return {'success': True, 'data': pipeline_}, 200
