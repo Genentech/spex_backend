@@ -5,7 +5,7 @@ from models.Task import task
 collection = 'tasks'
 
 
-def select(id):
+def select(id, collection='tasks'):
     value = id
     search = 'FILTER doc._key == @value LIMIT 1'
     items = database.select(collection, search, value=value)
@@ -14,7 +14,7 @@ def select(id):
     return task(items[0]) if not items[0] is None else None
 
 
-def select_tasks(condition=None, **kwargs):
+def select_tasks(condition=None, collection='tasks', **kwargs):
 
     search = 'FILTER '
     count = 0
@@ -43,7 +43,7 @@ def select_tasks_edge(_key):
     return [task(item).to_json() for item in items]
 
 
-def update(id, data=None):
+def update(id, data=None, collection='tasks'):
     value = id
     search = 'FILTER doc._key == @value LIMIT 1 '
 
