@@ -59,14 +59,14 @@ def _request(path, method='get', **kwargs):
 
 @namespace.route('/<path:path>')
 class WebGateway(Resource):
-    @namespace.doc('omero')
+    @namespace.doc('omero', security='Bearer')
     @namespace.response(404, 'Connect problems', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required(locations=['headers', 'cookies'])
     def get(self, path):
         return _request(path)
 
-    @namespace.doc('omero')
+    @namespace.doc('omero', security='Bearer')
     @namespace.response(404, 'Connect problems', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required(locations=['headers', 'cookies'])

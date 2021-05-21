@@ -6,8 +6,8 @@ class Pipeline:
         self.author = kwargs.get('author', '')
         self._from = kwargs.get('_from', '')
         self._to = kwargs.get('_to', '')
-        self.startnext = kwargs.get('startnext', 0)
-        self.pipeline = kwargs.get('pipeline', '')
+        self.status = kwargs.get('complete', 0)
+        self.project = kwargs.get('project', '')
         self.id = kwargs.get('_key', '')
         self._id = kwargs.get('_id', '')
 
@@ -17,10 +17,10 @@ class Pipeline:
                 'author': self.author,
                 '_from': self._from,
                 '_to': self._to,
-                'startnext': self.startnext,
+                'status': self.status,
                 'id': self.id,
                 '_id': self._id,
-                'pipeline': self.pipeline
+                'project': self.project
                  }
 
 

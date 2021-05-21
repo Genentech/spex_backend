@@ -24,11 +24,22 @@ class OverrideApi(Api):
 
 prefix = ''
 
+authorizations = {
+    'Bearer': {
+        'type': 'apiKey',
+        'in': 'header',
+        'name': 'Authorization',
+        'description': "Type in the *'Value'* input box below: **'Bearer &lt;JWT&gt;'**, where JWT is the token"
+    }
+}
+
 api = OverrideApi(
     version='1.0',
     title='Genentech API',
     description='Genentech API',
     validate=True,
+    security='Bearer Auth',
+    authorizations=authorizations
 )
 
 

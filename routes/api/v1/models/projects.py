@@ -14,6 +14,14 @@ projects_model = Model('ProjectBase', {
         fields.Integer,
         required=False,
         description='image id'),
+    'taskIds': fields.List(
+        fields.Integer,
+        required=False,
+        description='Tasks id'),
+    'taskResultIds': fields.List(
+        fields.Integer,
+        required=False,
+        description='Tasks results id'),
 })
 
 project_get_model = projects_model.inherit('ProjectsGet', {

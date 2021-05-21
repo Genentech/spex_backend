@@ -4,15 +4,9 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-flask = "1.1.2"
-flask-restx = "0.2.0"
-flask-bcrypt = "0.7.1"
 asyncio = "3.4.3"
 ujson = "4.0.2"
-flask-jwt-extended = "4.1.0"
-flask-cors = "3.0.10"
 python-dotenv = "0.15.0"
-werkzeug="1.0.1"
 omero-py = "5.9.1"
 pandas = "1.2.3"
 aicsimageio = "3.3.4"
@@ -22,9 +16,17 @@ pymemcache = "3.4.1"
 requests = "2.25.1"
 python-arango = "7.1.0"
 importlib = "*"
+flask-jwt-extended = "*"
+flask-bcrypt = "*"
+flask-cors = "*"
+flask-restx = "==0.3.0"
+flask = "==1.1.2"
 
 [dev-packages]
 flake8 = "3.9.0"
 
 [requires]
 python_version = "3.9"
+
+[pipenv]
+allow_prereleases = false

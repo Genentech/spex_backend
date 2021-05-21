@@ -19,7 +19,7 @@ namespace.add_model(jobs.list_jobs_response.name, jobs.list_jobs_response)
 
 @namespace.route('')
 class JobCreateGetPost(Resource):
-    @namespace.doc('jobs/create')
+    @namespace.doc('jobs/create', security='Bearer')
     @namespace.expect(jobs.jobs_model)
     @namespace.marshal_with(jobs.a_jobs_response)
     @namespace.response(200, 'Created job', jobs.a_jobs_response)
@@ -35,7 +35,7 @@ class JobCreateGetPost(Resource):
         res['tasks'] = Tasks
         return {'success': True, 'data': res}, 200
 
-    @namespace.doc('job/get')
+    @namespace.doc('job/get', security='Bearer')
     @namespace.marshal_with(jobs.list_jobs_response)
     @namespace.response(200, 'list jobs current user', jobs.list_jobs_response)
     @namespace.response(404, 'jobs not found', responses.error_response)
@@ -55,7 +55,7 @@ class JobCreateGetPost(Resource):
 
 @namespace.route('/<string:id>')
 class Item(Resource):
-    @namespace.doc('job/get')
+    @namespace.doc('job/get', security='Bearer')
     @namespace.marshal_with(jobs.a_jobs_response)
     @namespace.response(404, 'job not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)

@@ -16,7 +16,7 @@ namespace.add_model(projects.list_projects_response.name, projects.list_projects
 
 @namespace.route('')
 class ProjectsCreateGetPost(Resource):
-    @namespace.doc('projects/create')
+    @namespace.doc('projects/create', security='Bearer')
     @namespace.expect(projects.projects_model)
     @namespace.marshal_with(projects.a_project_response)
     @namespace.response(200, 'Created project', projects.a_project_response)
@@ -29,7 +29,7 @@ class ProjectsCreateGetPost(Resource):
         result = ProjectService.insert(body)
         return {'success': True, 'data': result}, 200
 
-    @namespace.doc('project/get')
+    @namespace.doc('project/get', security='Bearer')
     @namespace.marshal_with(projects.list_projects_response)
     @namespace.response(200, 'list projects current user', projects.list_projects_response)
     @namespace.response(404, 'projects not found', responses.error_response)
@@ -47,7 +47,7 @@ class ProjectsCreateGetPost(Resource):
 
 @namespace.route('/<string:id>')
 class ProjectGetById(Resource):
-    @namespace.doc('project/getbyid')
+    @namespace.doc('project/getbyid', security='Bearer')
     @namespace.marshal_with(projects.a_project_response)
     @namespace.response(200, 'project by id', projects.a_project_response)
     @namespace.response(404, 'projects not found', responses.error_response)
@@ -62,9 +62,9 @@ class ProjectGetById(Resource):
 
         return {'success': True, 'data': result[0]}, 200
 
-    @namespace.doc('project/updateone')
+    @namespace.doc('project/updateone', security='Bearer')
     @namespace.marshal_with(projects.a_project_response)
-    # @namespace.expect(projects.projects_model)
+    @namespace.expect(projects.projects_model)
     @namespace.response(404, 'Project not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
@@ -78,9 +78,8 @@ class ProjectGetById(Resource):
 
         return {'success': True, 'data': project.to_json()}, 200
 
-    @namespace.doc('project/deleteone')
+    @namespace.doc('project/deleteone', security='Bearer')
     @namespace.marshal_with(projects.a_project_response)
-    # @namespace.expect(projects.projects_model)
     @namespace.response(404, 'Project not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()

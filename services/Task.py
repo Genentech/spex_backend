@@ -36,6 +36,10 @@ def select_tasks_edge(_key):
     items = database.select_edge(collection='jobs-tasks', inboud=False, _key=_key)
     if len(items) == 0:
         return []
+    for x in items:
+        if x is None:
+            items.remove(x)
+
     return [task(item).to_json() for item in items]
 
 

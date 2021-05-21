@@ -2,19 +2,27 @@ from flask_restx import fields, Model
 from .responses import response
 
 pipeline_model = Model('PipelineBase', {
-    'child_ids': fields.List(fields.String(required=True, description='task or job or another collectiond id that we connect to pipe'), required=True)
+    'name': fields.String(required=True, description='pipeline name'),
+    'id': fields.String(
+        required=False,
+        description='id'
+    ),
+    'status': fields.Integer(
+        required=False,
+        description='status'
+    ),
+    'project': fields.String(
+        required=False,
+        description='project id'
+    )
 })
 
-box_model = Model('BoxBase', {
-    'name': fields.String(required=True, description='empty box name')
-})
 
 pipeline_get_model = pipeline_model.inherit('Pipeline get', {
-    'id': fields.String(
+    '_id': fields.String(
         required=True,
-        description='pipeline id'
-    ),
-    'csvdata': fields.Wildcard(fields.List(fields.List(fields.String())))
+        description='pipeline db id'
+    )
 })
 
 pipeline_post_model = pipeline_model.inherit('Pipeline post', {
@@ -27,5 +35,5 @@ list_pipeline_response = response.inherit('PipelineListResponse', {
 })
 
 a_pipeline_response = response.inherit('PipelineResponse', {
-    'data': fields.List(fields.Nested(pipeline_get_model))
+    'data': fields.Nested(pipeline_get_model)
 })

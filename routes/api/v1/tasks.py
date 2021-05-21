@@ -19,7 +19,7 @@ namespace.add_model(tasks.task_get_model.name, tasks.task_get_model)
 @namespace.route('/<id>')
 @namespace.param('id', 'task id')
 class TaskGetPut(Resource):
-    @namespace.doc('tasks/getone')
+    @namespace.doc('tasks/getone', security='Bearer')
     @namespace.response(404, 'Task not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @namespace.marshal_with(tasks.a_tasks_response)
@@ -31,7 +31,7 @@ class TaskGetPut(Resource):
 
         return {'success': True, 'data': task.to_json()}, 200
 
-    @namespace.doc('tasks/updateone')
+    @namespace.doc('tasks/updateone', security='Bearer')
     @namespace.marshal_with(tasks.a_tasks_response)
     @namespace.expect(tasks.tasks_model)
     @namespace.response(404, 'Task not found', responses.error_response)
@@ -49,7 +49,7 @@ class TaskGetPut(Resource):
 
 @namespace.route('')
 class TaskPost(Resource):
-    @namespace.doc('tasks/update')
+    @namespace.doc('tasks/update', security='Bearer')
     @namespace.expect(tasks.task_post_model)
     @namespace.marshal_with(tasks.list_tasks_response)
     @namespace.response(404, 'Task not found', responses.error_response)
@@ -66,7 +66,7 @@ class TaskPost(Resource):
                 arr.append(task.to_json())
         return {'success': True, 'data': arr}, 200
 
-    @namespace.doc('task/get')
+    @namespace.doc('task/get', security='Bearer')
     @namespace.marshal_with(tasks.list_tasks_response)
     @namespace.response(200, 'list tasks current user', tasks.list_tasks_response)
     @namespace.response(404, 'tasks not found', responses.error_response)

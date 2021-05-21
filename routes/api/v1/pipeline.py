@@ -1,5 +1,3 @@
-# from models.Pipeline import Pipeline
-# from models.Project import project
 import services.Pipeline as PipelineService
 import services.Task as TaskService
 import services.Project as ProjectService
@@ -13,7 +11,6 @@ from modules.database import database
 namespace = Namespace('Pipeline', description='Pipeline CRUD operations')
 
 namespace.add_model(pipeline.pipeline_model.name, pipeline.pipeline_model)
-namespace.add_model(pipeline.box_model.name, pipeline.box_model)
 namespace.add_model(pipeline.pipeline_post_model.name, pipeline.pipeline_post_model)
 namespace.add_model(responses.response.name, responses.response)
 namespace.add_model(pipeline.a_pipeline_response.name, pipeline.a_pipeline_response)
@@ -77,9 +74,10 @@ def searchInArrDict(key, value, arr):
     return founded
 
 
+# directions between pipelines boxes tasks
 @namespace.route('/<string:project_id>/<string:parent_id>')
 class PipelineCreatePost(Resource):
-    @namespace.doc('pipeline_directions/insert')
+    @namespace.doc('pipeline_directions/insert', security='Bearer')
     @namespace.expect(pipeline.pipeline_model)
     # @namespace.marshal_with(projects.a_project_response)
     @namespace.response(200, 'Created connection', pipeline.a_pipeline_response)
@@ -124,11 +122,13 @@ class PipelineCreatePost(Resource):
         result = {'Added': arr_founded_id, 'NotFounded': notFoundedC, 'Existed': existed}
 
         return {'success': True, 'data': result}, 200
+# directions between pipelines boxes tasks
 
 
+# get pipeline list with childs
 @namespace.route('/<string:project_id>')
 class PipelineGet(Resource):
-    @namespace.doc('pipelines/get')
+    @namespace.doc('pipelines/get', security='Bearer')
     # @namespace.expect(projects.projects_model)
     # @namespace.marshal_with(projects.a_project_response)
     @namespace.response(200, 'Get pipeline and childs', pipeline.a_pipeline_response)
@@ -149,25 +149,30 @@ class PipelineGet(Resource):
             res = []
             boxes = PipelineService.select_pipeline(author=author, _from=pipeline_.get('_id'))
             if boxes is None:
+                pipeline_.pop('_from', None)
+                pipeline_.pop('_to', None)
                 pipeline_.update({'boxes': res})
                 lines.append(pipeline_)
                 break
             for box in boxes:
                 res.append(recursionQuery(box['_to'], {}, 0))
-
+            pipeline_.pop('_from', None)
+            pipeline_.pop('_to', None)
             pipeline_.update({'boxes': res})
             lines.append(pipeline_)
 
         result = {"pipelines": lines}
 
         return {'success': True, 'data': result}, 200
+# get pipeline list with childs
 
 
+# insert new box to another box, or to pipeline
 @namespace.route('/box/<string:project_id>/<string:parent_id>')
 class BoxCreate(Resource):
-    @namespace.doc('box/insert')
-    @namespace.expect(pipeline.box_model)
-    # @namespace.marshal_with(projects.a_project_response)
+    @namespace.doc('box/insert', security='Bearer')
+    @namespace.expect(pipeline.pipeline_model)
+    @namespace.marshal_with(pipeline.a_pipeline_response)
     @namespace.response(200, 'Created box', pipeline.a_pipeline_response)
     @namespace.response(400, 'Message about reason of error', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
@@ -203,13 +208,15 @@ class BoxCreate(Resource):
         box.update({'nested': pipeline.to_json()})
 
         return {'success': True, 'data': box}, 200
+# insert new box to another box, or to pipeline
 
 
+# insert pipeline to project
 @namespace.route('/create/<string:project_id>')
 class pipelineCreate(Resource):
-    @namespace.doc('pipeline/insert')
-    @namespace.expect(pipeline.box_model)
-    # @namespace.marshal_with(projects.a_project_response)
+    @namespace.doc('pipeline/insert', security='Bearer')
+    @namespace.expect(pipeline.pipeline_model)
+    @namespace.marshal_with(pipeline.a_pipeline_response)
     @namespace.response(200, 'Created pipeline', pipeline.a_pipeline_response)
     @namespace.response(400, 'Message about reason of error', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
@@ -237,13 +244,15 @@ class pipelineCreate(Resource):
         pipeline.update({'nested': pipeline_direction.to_json()})
 
         return {'success': True, 'data': pipeline}, 200
+# insert pipeline to project
 
 
+# update pipeline data
 @namespace.route('/update/<string:project_id>/<string:pipeline_id>')
 class pipelineGetUpdate(Resource):
-    @namespace.doc('pipeline/update')
-    @namespace.expect(pipeline.box_model)
-    # @namespace.marshal_with(projects.a_project_response)
+    @namespace.doc('pipeline/update', security='Bearer')
+    @namespace.expect(pipeline.pipeline_model)
+    @namespace.marshal_with(pipeline.a_pipeline_response)
     @namespace.response(200, 'Update pipeline', pipeline.a_pipeline_response)
     @namespace.response(400, 'Message about reason of error', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
@@ -261,13 +270,13 @@ class pipelineGetUpdate(Resource):
         pipeline_ = PipelineService.update(collection='pipeline', id=pipeline_id, data=body)
 
         return {'success': True, 'data': pipeline_.to_json()}, 200
+# update pipeline data
 
 
 @namespace.route('/delete/<string:project_id>/<string:pipeline_id>')
 class pipelineDelete(Resource):
-    @namespace.doc('pipeline_boxes/delete')
-    # @namespace.marshal_with(projects.a_project_response)
-    # @namespace.expect(projects.projects_model)
+    @namespace.doc('pipeline_boxes/delete', security='Bearer')
+    @namespace.marshal_with(pipeline.a_pipeline_response)
     @namespace.response(404, 'Object not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()

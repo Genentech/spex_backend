@@ -32,7 +32,7 @@ def merge_user_and_omero_user(user, omero_user):
 
 @namespace.route('')
 class Items(Resource):
-    @namespace.doc('users/list')
+    @namespace.doc('users/list', security='Bearer')
     @namespace.marshal_list_with(users.list_user_response)
     @namespace.response(200, 'List of users', users.list_user_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
@@ -96,7 +96,7 @@ class Login(Resource):
 
 @namespace.route('/<string:id>')
 class Item(Resource):
-    @namespace.doc('user/get')
+    @namespace.doc('user/get', security='Bearer')
     @namespace.marshal_with(users.a_user_response)
     @namespace.response(404, 'User not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
@@ -129,12 +129,12 @@ class Item(Resource):
 
         return {'success': True, 'data': user}, 200
 
-    @namespace.doc('user/delete')
+    @namespace.doc('user/delete', security='Bearer')
     @namespace.marshal_with(responses.response)
     @namespace.response(204, 'User deleted')
     @namespace.response(404, 'User not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
-    @jwt_required(locations=['headers'])
+    @jwt_required()
     def delete(self, id):
 
         current_user = get_jwt_identity()
