@@ -5,7 +5,7 @@ from models.Job import job
 collection = 'jobs'
 
 
-def select(id):
+def select(id, collection='jobs'):
     value = id
     search = 'FILTER doc._key == @value LIMIT 1'
     items = database.select(collection, search, value=value)
@@ -14,7 +14,7 @@ def select(id):
     return job(items[0]) if not items[0] is None else None
 
 
-def select_jobs(**kwargs):
+def select_jobs(collection='jobs', condition=None, **kwargs):
 
     search = 'FILTER '
     count = 0
@@ -23,6 +23,8 @@ def select_jobs(**kwargs):
         search = search + 'doc.' + key + ' == @' + key
         if count != len(kwargs.items()):
             search = search + " && "
+    if condition is not None:
+        search = search.replace('==',  condition)
 
     items = database.select(collection, search, **kwargs)
     if len(items) == 0:
@@ -30,7 +32,7 @@ def select_jobs(**kwargs):
     return [job(item).to_json() for item in items]
 
 
-def update(id, data=None):
+def update(id, collection='jobs', data=None):
     value = id
     search = 'FILTER doc._key == @value LIMIT 1 '
 
@@ -40,7 +42,7 @@ def update(id, data=None):
     return job(items[0]) if not items[0] is None else None
 
 
-def delete(id):
+def delete(id, collection='jobs'):
     value = id
     search = 'FILTER doc._key == @value LIMIT 1 '
     items = database.delete(collection, search, value=value)
@@ -49,11 +51,11 @@ def delete(id):
     return job(items[0]) if not items[0] is None else None
 
 
-def insert(data):
+def insert(data, collection='jobs'):
     item = database.insert(collection, data)
     return job(item['new'])
 
 
-def count():
+def count(collection='jobs'):
     arr = database.count(collection, '')
     return arr[0]

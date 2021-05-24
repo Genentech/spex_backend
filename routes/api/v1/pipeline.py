@@ -1,5 +1,6 @@
 import services.Pipeline as PipelineService
 import services.Task as TaskService
+import services.Job as JobService
 import services.Project as ProjectService
 from flask_restx import Namespace, Resource
 from flask import request
@@ -17,6 +18,7 @@ namespace.add_model(pipeline.a_pipeline_response.name, pipeline.a_pipeline_respo
 namespace.add_model(responses.error_response.name, responses.error_response)
 namespace.add_model(pipeline.list_pipeline_response.name, pipeline.list_pipeline_response)
 namespace.add_model(pipeline.pipeline_get_model.name, pipeline.pipeline_get_model)
+namespace.add_model(pipeline.task_resource_image_connect_to_box.name, pipeline.task_resource_image_connect_to_box)
 
 
 def recursionQuery(itemId, tree, depth):
@@ -25,9 +27,11 @@ def recursionQuery(itemId, tree, depth):
           f'FILTER d._id == "{itemId}" ' + \
            'LET boxes = (' + \
           f'FOR b IN 1..1 OUTBOUND "{itemId}"' + ' GRAPH "pipeline" FILTER b._id LIKE "box/%"  RETURN {"name": b.name, "id": b._key, "status": b.complete } )' + \
+           'LET resources = (' + \
+          f'FOR b IN 1..1 INBOUND "{itemId}"' + ' GRAPH "pipeline" FILTER b._id LIKE "resource/%"  RETURN {"name": b.name, "id": b._key, "status": 0 } )' + \
            'LET tasks = (' + \
           f'FOR t IN 1..1 INBOUND "{itemId}"' + ' GRAPH "pipeline" FILTER t._id LIKE "tasks/%" RETURN {"name": t.name, "id": t._key, "status": t.status } )' + \
-           ' RETURN MERGE({"id": d._key, "name": d.name, "status": d.complete}, {"boxes": boxes, "tasks": tasks})'
+           ' RETURN MERGE({"id": d._key, "name": d.name, "status": d.complete}, {"boxes": boxes, "tasks": tasks, "resources": resources})'
 
     result = database.query(text)
     if len(result) > 0:
@@ -78,7 +82,7 @@ def searchInArrDict(key, value, arr):
 @namespace.route('/<string:project_id>/<string:parent_id>')
 class PipelineCreatePost(Resource):
     @namespace.doc('pipeline_directions/insert', security='Bearer')
-    @namespace.expect(pipeline.pipeline_model)
+    @namespace.expect(pipeline.task_resource_image_connect_to_box)
     # @namespace.marshal_with(projects.a_project_response)
     @namespace.response(200, 'Created connection', pipeline.a_pipeline_response)
     @namespace.response(400, 'Message about reason of error', responses.error_response)
@@ -87,21 +91,51 @@ class PipelineCreatePost(Resource):
     def post(self, project_id, parent_id):
         body = request.json
         author = get_jwt_identity()
-        c_id_arr = body.get('child_ids')
+        t_id_arr = body.get('tasks_ids')
+        r_id_arr = body.get('resource_ids')
+        b_id_arr = body.get('box_ids')
+        project = ProjectService.select(project_id)
+        if t_id_arr is not None:
+            notFoundedInProject = list(set(t_id_arr) - set(project.taskIds))
+            if len(notFoundedInProject) > 0:
+                message = f'tasks with ids: {notFoundedInProject} not found in project data'
+                return {'success': False, "message": message}, 200
+
+        if r_id_arr is not None:
+            notFoundedInProject = list(set(r_id_arr) - set(project.resource_ids))
+            if len(notFoundedInProject) > 0:
+                message = f'resource with ids: {notFoundedInProject} not found in project data'
+                return {'success': False, "message": message}, 200
+
         parent = PipelineService.select_pipeline(collection='pipeline', _key=parent_id, author=author, project=project_id, one=True)
         if parent is None:
             parent = PipelineService.select_pipeline(collection='box', _key=parent_id, author=author, project=project_id, one=True)
             if parent is None:
                 message = f'box or pipeline with id: {parent_id} not found'
-                return {'success': False, message: message}, 200
+                return {'success': False, "message": message}, 200
 
-        foundedC = TaskService.select_tasks(condition='in', _key=c_id_arr)
-        if foundedC is None:
-            foundedC = PipelineService.select_pipeline(collection='box', condition='in', _key=c_id_arr, project=[project_id], author=[author])
-            if foundedC is None:
-                message = 'childs not found'
-                return {'success': False, message: message}, 200
+        if t_id_arr is not None:
+            foundedT = TaskService.select_tasks(condition='in', _key=t_id_arr)
+            if foundedT is None:
+                foundedT = []
+                message = f'tasks not found {t_id_arr}'
+                return {'success': False, "message": message}, 200
 
+        if r_id_arr is not None:
+            foundedR = JobService.select_jobs(condition='in', _key=r_id_arr, collection='resource')
+            if foundedR is None:
+                foundedR = []
+                message = f'resources not found {r_id_arr}'
+                return {'success': False, "message": message}, 200
+
+        if b_id_arr is not None:
+            foundedB = PipelineService.select_pipeline(collection='box', _key=b_id_arr, condition='in', author=[author])
+            if foundedB is None:
+                message = f'boxes not found {b_id_arr}'
+                foundedB = []
+                return {'success': False, "message": message}, 200
+
+        foundedC = list(foundedT + foundedR + foundedB)
         arr_founded_id = []
         existed = []
         for item in foundedC:
@@ -118,7 +152,7 @@ class PipelineCreatePost(Resource):
             else:
                 existed.append(c_id)
 
-        notFoundedC = list(set(c_id_arr) - set(arr_founded_id) - set(existed))
+        notFoundedC = list(set(t_id_arr) - set(arr_founded_id) - set(existed))
         result = {'Added': arr_founded_id, 'NotFounded': notFoundedC, 'Existed': existed}
 
         return {'success': True, 'data': result}, 200

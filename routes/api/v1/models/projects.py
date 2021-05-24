@@ -11,17 +11,17 @@ projects_model = Model('ProjectBase', {
         description='long description'
     ),
     'omeroIds': fields.List(
-        fields.Integer,
+        fields.String,
         required=False,
         description='image id'),
     'taskIds': fields.List(
-        fields.Integer,
+        fields.String,
         required=False,
         description='Tasks id'),
-    'taskResultIds': fields.List(
-        fields.Integer,
+    'resource_ids': fields.List(
+        fields.String,
         required=False,
-        description='Tasks results id'),
+        description='Tasks results (resource)id'),
 })
 
 project_get_model = projects_model.inherit('ProjectsGet', {

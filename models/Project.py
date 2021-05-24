@@ -7,7 +7,7 @@ class Project:
         self.description = kwargs.get('description', '')
         self.omeroIds = kwargs.get('omeroIds', [])
         self.taskIds = kwargs.get('taskIds', [])
-        self.taskResultIds = kwargs.get('taskResultIds', [])
+        self.resource_ids = kwargs.get('resource_ids', [])
         self.author = kwargs.get('author', '')
 
     def to_json(self):
@@ -18,7 +18,7 @@ class Project:
                 'author': self.author,
                 'omeroIds': self.omeroIds,
                 'taskIds': self.taskIds,
-                'taskResultIds': self.taskResultIds
+                'resource_ids': self.resource_ids
                  }
 
 

@@ -31,11 +31,14 @@ user_get_model = user_model.inherit('User', {
 login_model = Model('UserLogin', {
     'username': fields.String(
         required=True,
-        description='Email'
+        description='Email',
+        example='root'
+
     ),
     'password': fields.String(
         required=True,
         description='User password',
+        example='omero',
         help='password cannot be empty.'
     )
 })
