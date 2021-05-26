@@ -26,5 +26,6 @@ list_images_response = response.inherit('ImageListResponse', {
 })
 
 a_images_response = response.inherit('ImagesResponse', {
-    'data': fields.List(fields.Nested(image_get_model))
+    'data': fields.List(fields.Nested(image_get_model), required=False),
+    'message': fields.String(required=False)
 })

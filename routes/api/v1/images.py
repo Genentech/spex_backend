@@ -59,6 +59,7 @@ def del_data_fromImg(data, format):
 @namespace.param('format', 'file format JPEG/PNG/TIF default TIF')
 class ImgGet(Resource):
     @namespace.doc('image/getone', security='Bearer')
+    @namespace.response(200, 'image by id', image.a_images_response)
     @namespace.response(404, 'Image not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @namespace.marshal_with(image.a_images_response)
@@ -110,6 +111,9 @@ class ImgGet(Resource):
             image = ImageService.select_images(omeroId=id)
             image = image[0] if image is not None else None
             if image is None:
+                return {'success': False, 'message': "image not found"}, 200
+            image = del_data_fromImg(image, format)
+            if len(image.get('paths')) == 0:
                 return {'success': False, 'message': "image not found"}, 200
 
         return {'success': True, 'data': del_data_fromImg(image, format)}, 200
