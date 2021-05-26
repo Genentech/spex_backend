@@ -14,11 +14,22 @@ def select(id):
     return image(items[0]) if not items[0] is None else None
 
 
-def select_images():
-    items = database.select(collection)
+def select_images(condition=None, collection='images', **kwargs):
+
+    search = 'FILTER '
+    count = 0
+    for key, value in kwargs.items():
+        count = count + 1
+        search = search + 'doc.' + key + ' == @' + key
+        if count != len(kwargs.items()):
+            search = search + " && "
+    if condition is not None:
+        search = search.replace('==',  condition)
+
+    items = database.select(collection, search, **kwargs)
     if len(items) == 0:
         return None
-    return [image(items[0]) for item in items]
+    return [image(item).to_json() for item in items]
 
 
 def update(id, data=None):

@@ -3,13 +3,15 @@ from flask_restx import Namespace, Resource
 from flask import request, abort, Response
 from .models import responses, omero
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from modules.omeroweb import OmeroSession
 from services.Cache import CacheService
 from datetime import datetime, timedelta
 from os import getenv
+from urllib.parse import unquote
+from services.Utils import download_file
 
 
 namespace = Namespace('Omero', description='Omera operations')
+namespace.add_model(omero.omero_download_model.name, omero.omero_download_model)
 namespace.add_model(omero.login_model.name, omero.login_model)
 namespace.add_model(omero.login_responce.name, omero.login_responce)
 namespace.add_model(responses.error_response.name, responses.error_response)
@@ -28,13 +30,15 @@ def _request(path, method='get', **kwargs):
     current_user = get_jwt_identity()
 
     client = omeroweb.get(current_user['login'])
+    path = unquote(path)
 
     if client is None:
         abort(401, 'Unauthorized')
-
-    index = request.url.index(path) - 1
-
-    path = request.url[index:]
+    try:
+        index = request.url.index(path) - 1
+        path = request.url[index:]
+    except ValueError:
+        pass
 
     method = getattr(client, method)
 
@@ -46,7 +50,7 @@ def _request(path, method='get', **kwargs):
         if name.lower() not in excluded_headers
     ]
 
-    session = OmeroSession(
+    session = omeroweb(
         client.omero_session_id,
         client.omero_token,
         client.omero_context,
@@ -72,3 +76,18 @@ class WebGateway(Resource):
     @jwt_required(locations=['headers', 'cookies'])
     def post(self, path):
         return _request(path, 'post')
+
+
+@namespace.route('/<string:imageId>')
+class DownloadImageReturnPath(Resource):
+    @namespace.doc('omero/ImageDownload', security='Bearer')
+    @namespace.response(404, 'Connect problems', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @jwt_required()
+    def get(self, imageId, format='tif'):
+        author = get_jwt_identity()['login']
+        session = omeroweb.get(author)
+        path = getenv('OMERO_PROXY_PATH') + '/webclient/render_image_download/' + str(imageId) + '/?format=' + format
+        relativePath = download_file(path, client=session, imgId=imageId)
+        if relativePath is not None:
+            return {'success': True, 'path': relativePath}, 200
