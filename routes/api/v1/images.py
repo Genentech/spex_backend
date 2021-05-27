@@ -1,4 +1,4 @@
-from services.Utils import download_file
+from services.Utils import download_file, del_file
 import services.Image as ImageService
 from flask_restx import Namespace, Resource
 from flask import request
@@ -54,11 +54,32 @@ def del_data_fromImg(data, format):
 
 
 @namespace.route('/<string:id>')
-@namespace.param('id', 'resource id')
-@namespace.param('download', 'Try to download True False')
-@namespace.param('format', 'file format JPEG/PNG/TIF default TIF')
-class ImgGet(Resource):
+@namespace.param('id', 'omero image id')
+class ImgGetDel(Resource):
+    @namespace.doc('image/delone', security='Bearer')
+    @namespace.response(200, 'image by id', image.a_images_response)
+    @namespace.response(404, 'Image not found', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @namespace.marshal_with(image.a_images_response)
+    @jwt_required()
+    def delete(self, id):
+        image = ImageService.select_images(omeroId=id)
+        image = image[0] if image is not None else None
+        if image is None:
+            return {'success': False, 'message': 'Image not found'}, 200
+        else:
+            for path in image.get('paths'):
+                print(del_file(path.get('path')))
+                break
+        deleted = ImageService.delete(id)
+        if deleted is None:
+            return {'success': False, 'message': 'cannot delete'}, 200
+        else:
+            return {'success': True, 'data': deleted}, 200
+
     @namespace.doc('image/getone', security='Bearer')
+    @namespace.param('download', 'Try to download True False')
+    @namespace.param('format', 'file format JPEG/PNG/TIF default TIF')
     @namespace.response(200, 'image by id', image.a_images_response)
     @namespace.response(404, 'Image not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
@@ -117,3 +138,19 @@ class ImgGet(Resource):
                 return {'success': False, 'message': "image not found"}, 200
 
         return {'success': True, 'data': del_data_fromImg(image, format)}, 200
+
+
+@namespace.route('/')
+class ImgesGet(Resource):
+    @namespace.doc('image/getall', security='Bearer')
+    @namespace.response(200, 'images', image.list_images_response)
+    @namespace.response(404, 'Images not found', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @namespace.marshal_with(image.list_images_response)
+    @jwt_required()
+    def get(self):
+        images = ImageService.select_images()
+        if images is None:
+            return {'success': False, 'message': 'Images not found'}, 200
+        else:
+            return {'success': True, 'data': images}, 200

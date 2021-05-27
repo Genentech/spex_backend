@@ -25,6 +25,8 @@ def select_images(condition=None, collection='images', **kwargs):
             search = search + " && "
     if condition is not None:
         search = search.replace('==',  condition)
+    if search == 'FILTER ':
+        search = ''
 
     items = database.select(collection, search, **kwargs)
     if len(items) == 0:

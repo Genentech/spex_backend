@@ -80,6 +80,8 @@ def searchInArrDict(key, value, arr):
 
 # directions between pipelines boxes tasks
 @namespace.route('/<string:project_id>/<string:parent_id>')
+@namespace.param('project_id', 'project id')
+@namespace.param('parent_id', 'who is daddy')
 class PipelineCreatePost(Resource):
     @namespace.doc('pipeline_directions/insert', security='Bearer')
     @namespace.expect(pipeline.task_resource_image_connect_to_box)
@@ -161,6 +163,7 @@ class PipelineCreatePost(Resource):
 
 # get pipeline list with childs
 @namespace.route('/<string:project_id>')
+@namespace.param('project_id', 'project id')
 class PipelineGet(Resource):
     @namespace.doc('pipelines/get', security='Bearer')
     # @namespace.expect(projects.projects_model)
@@ -203,6 +206,8 @@ class PipelineGet(Resource):
 
 # insert new box to another box, or to pipeline
 @namespace.route('/box/<string:project_id>/<string:parent_id>')
+@namespace.param('project_id', 'project id')
+@namespace.param('parent_id', 'who is daddy pipeline or another box')
 class BoxCreate(Resource):
     @namespace.doc('box/insert', security='Bearer')
     @namespace.expect(pipeline.pipeline_model)
@@ -247,6 +252,7 @@ class BoxCreate(Resource):
 
 # insert pipeline to project
 @namespace.route('/create/<string:project_id>')
+@namespace.param('project_id', 'project id')
 class pipelineCreate(Resource):
     @namespace.doc('pipeline/insert', security='Bearer')
     @namespace.expect(pipeline.pipeline_model)
@@ -283,6 +289,8 @@ class pipelineCreate(Resource):
 
 # update pipeline data
 @namespace.route('/update/<string:project_id>/<string:pipeline_id>')
+@namespace.param('project_id', 'project id')
+@namespace.param('pipeline_id', 'pipeline id')
 class pipelineGetUpdate(Resource):
     @namespace.doc('pipeline/update', security='Bearer')
     @namespace.expect(pipeline.pipeline_model)
@@ -308,6 +316,8 @@ class pipelineGetUpdate(Resource):
 
 
 @namespace.route('/delete/<string:project_id>/<string:pipeline_id>')
+@namespace.param('project_id', 'project id')
+@namespace.param('pipeline_id', 'pipeline id')
 class pipelineDelete(Resource):
     @namespace.doc('pipeline_boxes/delete', security='Bearer')
     @namespace.marshal_with(pipeline.a_pipeline_response)

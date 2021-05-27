@@ -1,6 +1,7 @@
 import re
 from os import getenv, path
 import pathlib
+import shutil
 
 
 excluded_headers = [
@@ -54,3 +55,15 @@ def download_file(path_, imgId, method='get', client=None):
                 f.write(chunk)
     f.close()
     return relative_dir+filename
+
+
+def del_file(path_):
+
+    _path = getAbsoluteRelative(path_, absolute=True)
+    _rmDir(_path)
+
+    return _path
+
+
+def _rmDir(_path):
+    shutil.rmtree(path.dirname(_path), ignore_errors=True)
