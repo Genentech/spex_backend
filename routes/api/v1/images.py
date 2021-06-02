@@ -35,7 +35,7 @@ def image_by_id_format(id, format):
         result = database.query(query)
 
         if len(result) > 0:
-            image = im(result[0])
+            image = im(result[0]).to_json()
         else:
             image = None
         return image
@@ -133,11 +133,11 @@ class ImgGetDel(Resource):
             image = image[0] if image is not None else None
             if image is None:
                 return {'success': False, 'message': "image not found"}, 200
-            image = del_data_fromImg(image, format)
+            image = del_data_fromImg(image.to_json(), format)
             if len(image.get('paths')) == 0:
                 return {'success': False, 'message': "image not found"}, 200
 
-        return {'success': True, 'data': del_data_fromImg(image, format)}, 200
+        return {'success': True, 'data': del_data_fromImg(image.to_json(), format)}, 200
 
 
 @namespace.route('/')

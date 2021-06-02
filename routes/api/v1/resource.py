@@ -57,7 +57,7 @@ class TaskResPost(Resource):
     @namespace.response(404, 'resource not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
-    def post(self):
+    def put(self):
         body = request.json
         arr = []
         for id in body['ids']:
@@ -67,6 +67,18 @@ class TaskResPost(Resource):
             if resource is not None:
                 arr.append(resource.to_json())
         return {'success': True, 'data': arr}, 200
+
+    @namespace.doc('resource/insertone', security='Bearer')
+    @namespace.expect(_resource.task_post_model)
+    # @namespace.marshal_with(_resource.list_tasks_response)
+    @namespace.response(404, 'resource not found', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    def post(self):
+        body = request.json
+        data = dict(body)
+        resource = JobService.insert(data=data, collection='resource')
+
+        return {'success': True, 'data': resource.to_json()}, 200
 
     @namespace.doc('resource/getmany', security='Bearer')
     @namespace.marshal_with(_resource.list_tasks_response)
