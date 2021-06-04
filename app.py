@@ -14,6 +14,7 @@ bcrypt = Bcrypt(application)
 jwt = JWTManager(application)
 CORS(application, supports_credentials=True)
 
+
 application.register_blueprint(blueprint)
 
 if __name__ == '__main__':

@@ -109,11 +109,11 @@ class ImgGetDel(Resource):
             if relativePath is not None:
                 path = {'path': relativePath, 'format': format, 'date': date.today().isoformat()}
                 if image is not None:
-                    for path in image.paths:
+                    for path in image['paths']:
                         if path.get('format') == format:
                             path['path'] = relativePath
                             path['date'] = date.today().isoformat()
-                    image = ImageService.update(id, image.to_json()).to_json()
+                    image = ImageService.update(id, image).to_json()
                 elif image is None and im_without_format is not None:
                     image = im_without_format
                     if image.get('paths') is not None:
@@ -137,7 +137,7 @@ class ImgGetDel(Resource):
             if len(image.get('paths')) == 0:
                 return {'success': False, 'message': "image not found"}, 200
 
-        return {'success': True, 'data': del_data_fromImg(image.to_json(), format)}, 200
+        return {'success': True, 'data': del_data_fromImg(image, format)}, 200
 
 
 @namespace.route('/')
