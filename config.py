@@ -21,9 +21,12 @@ falses = ['false', 'no']
 for key, value in config.items():
     environ[key] = value
     if value:
-        if value.lower() in trues:
+        if type(value) is str and value.lower() in trues:
             value = True
             config[key] = value
-        elif value.lower() in falses:
+        elif type(value) is str and value.lower() in falses:
             value = False
             config[key] = value
+
+if config.get('MAX_CONTENT_LENGTH') is not None:
+    config["MAX_CONTENT_LENGTH"] = int(config.get('MAX_CONTENT_LENGTH'))

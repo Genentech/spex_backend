@@ -10,6 +10,7 @@ from routes import blueprint
 application = Flask(__name__)
 application.config.from_mapping(config)
 
+
 bcrypt = Bcrypt(application)
 jwt = JWTManager(application)
 CORS(application, supports_credentials=True)
