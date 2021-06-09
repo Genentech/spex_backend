@@ -1,50 +1,34 @@
-from modules.database import database
-from models.Files import file
+import os
 
 
-collection = 'files'
+def user_folder(author=None, folder=None):
 
-
-def select(id, **kwargs):
-    value = id
-    search = 'FILTER doc._key == @value LIMIT 1'
-    items = database.select(collection, search, value=value)
-    if len(items) == 0:
+    destination = os.path.join(os.getenv('UPLOAD_FOLDER')) + '\\' + str(author.get('id')) + '\\'
+    if folder is not None:
+        destination = destination + folder + '\\'
+    if not os.path.exists(destination):
+        os.makedirs(destination)
+    if not os.path.exists(destination):
         return None
-    return file(items[0]) if not items[0] is None else None
+    else:
+        return destination
 
 
-def select_files(**kwargs):
-    search = database.get_search(**kwargs)
-    items = database.select(collection, search, **kwargs)
-    if len(items) == 0:
-        return None
-    return [file(item).to_json() for item in items]
+def check_path(author, path):
+    destination = os.path.join(os.getenv('UPLOAD_FOLDER')) + '\\' + str(author.get('id')) + '\\'
+    if path is not None:
+        destination = destination + path
+    if not os.path.exists(destination):
+        return None, True
+    else:
+        return destination, not os.path.isfile(destination)
 
 
-def update(id, data=None):
-    value = id
-    search = 'FILTER doc._key == @value LIMIT 1 '
-
-    items = database.update(collection, data, search, value=value)
-    if len(items) == 0:
-        return None
-    return file(items[0]) if not items[0] is None else None
-
-
-def delete(**kwargs):
-    search = database.get_search(**kwargs)
-    items = database.delete(collection, search, **kwargs)
-    if len(items) == 0:
-        return None
-    return file(items[0]) if not items[0] is None else None
-
-
-def insert(data):
-    item = database.insert(collection, data)
-    return file(item['new'])
-
-
-def count():
-    arr = database.count(collection, '')
-    return arr[0]
+def path_to_dict(path):
+    d = {os.path.basename(path): {}}
+    if os.path.isdir(path):
+        d[os.path.basename(path)]['type'] = "directory"
+        d[os.path.basename(path)]['children'] = [path_to_dict(os.path.join(path, x)) for x in os.listdir(path)]
+    else:
+        d[os.path.basename(path)]['type'] = "file"
+    return d
