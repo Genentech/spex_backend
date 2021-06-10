@@ -24,8 +24,8 @@ namespace.add_model(responses.error_response.name, responses.error_response)
 # TODO @namespace.param(name='filenames', _in='formData', description='Upload file', required=True, type='array', items={'type': 'file'}, collectionFormat='multi') multi uploading
 
 @namespace.route('')
-class TaskResPost(Resource):
-    @namespace.doc('resource/uploadone', security='Bearer')
+class FileResPost(Resource):
+    @namespace.doc('file/uploadone', security='Bearer')
     @namespace.expect(upload_parser)
     # @namespace.marshal_with(_resource.list_tasks_response)
     @namespace.response(404, 'file not found', responses.error_response)
@@ -40,7 +40,7 @@ class TaskResPost(Resource):
 
         return {'success': 'True', 'filename': file.filename}, 200
 
-    @namespace.doc('resource/getfiletree', security='Bearer')
+    @namespace.doc('file/getfiletree', security='Bearer')
     # @namespace.expect(upload_parser)
     # @namespace.marshal_with(_resource.list_tasks_response)
     @namespace.response(404, 'file not found', responses.error_response)
@@ -51,7 +51,7 @@ class TaskResPost(Resource):
         tree = fileService.path_to_dict(fileService.user_folder(author=get_jwt_identity()))
         return {'success': 'True', 'tree': tree}, 200
 
-    @namespace.doc('resource/deletefilefolder', security='Bearer')
+    @namespace.doc('file/deletefilefolder', security='Bearer')
     # @namespace.expect(upload_parser)
     # @namespace.marshal_with(_resource.list_tasks_response)
     @namespace.response(404, 'file not found', responses.error_response)

@@ -2,6 +2,7 @@ import re
 from os import getenv, path
 import pathlib
 import shutil
+from .Files import user_folder
 
 
 excluded_headers = [
@@ -67,3 +68,11 @@ def del_file(path_):
 
 def _rmDir(_path):
     shutil.rmtree(path.dirname(_path), ignore_errors=True)
+
+
+def copy_file(_path, _path2='', author=None):
+    _path = getAbsoluteRelative(_path, absolute=True)
+    if author is not None:
+        _path2 = user_folder(author)
+    shutil.copyfile(_path, _path2 + path.basename(_path))
+    return getAbsoluteRelative(_path2)

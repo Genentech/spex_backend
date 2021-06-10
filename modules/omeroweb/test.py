@@ -1,12 +1,10 @@
-import os
-
-os.environ['MODE'] = 'test'
-
 # noinspection PyUnresolvedReferences
-import config
+import os
+# import config
 import unittest
 import modules.omeroweb as omero_web
 from services.Cache import CacheService
+os.environ['MODE'] = 'test'
 
 
 class OmeroWebTest(unittest.TestCase):

@@ -1,4 +1,4 @@
-from services.Utils import download_file, del_file
+from services.Utils import download_file, del_file, copy_file
 import services.Image as ImageService
 from flask_restx import Namespace, Resource
 from flask import request
@@ -80,6 +80,7 @@ class ImgGetDel(Resource):
     @namespace.doc('image/getone', security='Bearer')
     @namespace.param('download', 'Try to download True False')
     @namespace.param('format', 'file format JPEG/PNG/TIF default TIF')
+    @namespace.param('copy', 'Copy to user folder true false', requred=False)
     @namespace.response(200, 'image by id', image.a_images_response)
     @namespace.response(404, 'Image not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
@@ -89,6 +90,7 @@ class ImgGetDel(Resource):
         author = get_jwt_identity()
         download = bool(request.args.get('download'))
         format = request.args.get('format')
+        copy = bool(request.args.get('copy'))
 
         if format is None:
             format = 'tif'
@@ -107,6 +109,8 @@ class ImgGetDel(Resource):
             path = os.getenv('OMERO_PROXY_PATH') + '/webclient/render_image_download/' + str(id) + '/?format=' + format
             relativePath = download_file(path, client=session, imgId=id)
             if relativePath is not None:
+                if copy:
+                    copy_file(_path=relativePath, author=author)
                 path = {'path': relativePath, 'format': format, 'date': date.today().isoformat()}
                 if image is not None:
                     for path in image['paths']:
