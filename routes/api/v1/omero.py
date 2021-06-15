@@ -50,7 +50,7 @@ def _request(path, method='get', **kwargs):
         if name.lower() not in excluded_headers
     ]
 
-    session = omeroweb(
+    session = omeroweb.OmeroSession(
         client.omero_session_id,
         client.omero_token,
         client.omero_context,
