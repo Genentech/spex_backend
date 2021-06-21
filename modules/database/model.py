@@ -65,8 +65,8 @@ class ArangoDB:
             db.create_collection('tasks')
         if not db.has_collection('projects'):
             db.create_collection('projects')
-        if not db.has_collection('jobs-tasks'):
-            db.create_collection('jobs-tasks', edge=True)
+        if not db.has_collection('jobs_tasks'):
+            db.create_collection('jobs_tasks', edge=True)
         if not db.has_collection('resource'):
             db.create_collection('resource')
         if not db.has_collection('box'):

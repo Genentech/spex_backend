@@ -27,5 +27,5 @@ list_tasks_response = response.inherit('TaskListResponse', {
 })
 
 a_tasks_response = response.inherit('TasksResponse', {
-    'data': fields.List(fields.Nested(task_get_model))
+    'data': (fields.Nested(task_get_model))
 })

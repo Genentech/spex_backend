@@ -33,7 +33,7 @@ def select_tasks(condition=None, collection='tasks', **kwargs):
 
 
 def select_tasks_edge(_key):
-    items = database.select_edge(collection='jobs-tasks', inboud=False, _key=_key)
+    items = database.select_edge(collection='jobs_tasks', inboud=False, _key=_key)
     if len(items) == 0:
         return []
     for x in items:
@@ -95,6 +95,6 @@ def createTasks(body, job):
             newTask = database.insert(collection, data)
             arrRes.append(task(newTask['new']).to_json())
     for item in arrRes:
-        database.insert_edge('jobs-tasks', _from=job._id, _to=item.get('_id'))
+        database.insert_edge('jobs_tasks', _from=job._id, _to=item.get('_id'))
 
     return arrRes

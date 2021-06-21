@@ -1,6 +1,7 @@
 import services.Task as TaskService
+import services.Job as JobService
 from flask_restx import Namespace, Resource
-from flask import request, abort
+from flask import request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import tasks, responses
 
@@ -26,7 +27,7 @@ class TaskGetPut(Resource):
     def get(self, id):
         task = TaskService.select(id=id)
         if task is None:
-            abort(404, 'task not found')
+            return {'success': False, 'message': 'task not found', 'data': {}}, 200
 
         return {'success': True, 'data': task.to_json()}, 200
 
@@ -39,11 +40,26 @@ class TaskGetPut(Resource):
     def put(self, id):
         task = TaskService.select(id=id)
         if task is None:
-            abort(404, 'task not found')
+            return {'success': False, 'message': 'task not found', 'data': {}}, 200
         body = request.json
         task = TaskService.update(id=id, data=body)
 
         return {'success': True, 'data': task.to_json()}, 200
+
+    @namespace.doc('task/delete', security='Bearer')
+    @namespace.marshal_with(tasks.a_tasks_response)
+    @namespace.response(404, 'task not found', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @jwt_required()
+    def delete(self, id):
+
+        task = TaskService.select(id=id)
+        if task is None:
+            return {'success': False, 'message': 'task not found', 'data': {}}, 200
+
+        JobService.delete_connection(_to=task._id)
+        deleted = TaskService.delete(task.id).to_json()
+        return {'success': True, 'data': deleted}, 200
 
 
 @namespace.route('')
@@ -76,6 +92,6 @@ class TaskPost(Resource):
         result = TaskService.select_tasks(author=author)
 
         if result is None:
-            abort(404, 'tasks not found')
+            return {'success': False, 'message': 'tasks not found', 'data': {}}, 200
 
         return {'success': True, 'data': result}, 200

@@ -17,6 +17,17 @@ jobs_model = Model('JobBase', {
         description='image id'),
 })
 
+jobs_update_model = Model('JobUpdate', {
+    'name': fields.String(
+        description='job name',
+        required=False,
+    ),
+    'content': fields.String(
+        description='That we do',
+        required=False,
+    ),
+})
+
 job_get_model = jobs_model.inherit('JobsGet', {
     'id': fields.String(
         required=True,
@@ -27,7 +38,7 @@ job_get_model = jobs_model.inherit('JobsGet', {
 
 
 a_jobs_response = response.inherit('JobsResponse', {
-    'data': fields.Nested(jobs_model)
+    'data': fields.Nested(job_get_model)
 })
 
 list_jobs_response = response.inherit('JobsListResponse', {
