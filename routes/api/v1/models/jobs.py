@@ -31,16 +31,16 @@ jobs_update_model = Model('JobUpdate', {
 job_get_model = jobs_model.inherit('JobsGet', {
     'id': fields.String(
         required=True,
-        description='Task id'
+        description='Job id'
     ),
-    'tasks': fields.List(fields.Nested(task_get_model))
+    'tasks': fields.List(fields.Nested(task_get_model)),
+})
+
+list_jobs_response = response.inherit('JobsListResponse', {
+    'data': fields.Nested(job_get_model, as_list=True),
 })
 
 
 a_jobs_response = response.inherit('JobsResponse', {
-    'data': fields.Nested(job_get_model)
-})
-
-list_jobs_response = response.inherit('JobsListResponse', {
-    'data': fields.List(fields.Nested(job_get_model))
+    'data': fields.Nested(job_get_model),
 })
