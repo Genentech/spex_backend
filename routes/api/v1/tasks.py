@@ -1,9 +1,11 @@
 import services.Task as TaskService
 import services.Job as JobService
 from flask_restx import Namespace, Resource
-from flask import request
+from flask import request, send_file
+import services.Utils as Utils
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import tasks, responses
+import os
 
 namespace = Namespace('Tasks', description='Tasks CRUD operations')
 
@@ -60,6 +62,30 @@ class TaskGetPut(Resource):
         JobService.delete_connection(_to=task._id)
         deleted = TaskService.delete(task.id).to_json()
         return {'success': True, 'data': deleted}, 200
+
+
+@namespace.route('/im/<id>')
+@namespace.param('id', 'task id')
+class TasksGetIm(Resource):
+    @namespace.doc('tasks/getim', security='Bearer')
+    @namespace.response(404, 'Task not found', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    # @namespace.marshal_with(tasks.a_tasks_response)
+    @jwt_required()
+    def get(self, id):
+        task = TaskService.select(id=id)
+        if task is None:
+            return {'success': False, 'message': 'task not found', 'data': {}}, 200
+        task = task.to_json()
+        if task.get('impath') is None:
+            return {'success': False, 'message': 'image not found', 'data': {}}, 200
+
+        path = task.get('impath')
+        path = Utils.getAbsoluteRelative(path, absolute=True)
+        if not os.path.exists(path):
+            return {'success': False, 'message': 'image not found', 'data': {}}, 200
+
+        return send_file(path, mimetype='image/png')
 
 
 @namespace.route('')
