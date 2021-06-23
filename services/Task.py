@@ -36,9 +36,9 @@ def select_tasks_edge(_key):
     items = database.select_edge(collection='jobs_tasks', inboud=False, _key=_key)
     if len(items) == 0:
         return []
-    for x in items:
-        if x is None:
-            items.remove(x)
+
+    Not_none_values = filter(None.__ne__, items)
+    items = list(Not_none_values)
 
     return [task(item).to_json() for item in items]
 

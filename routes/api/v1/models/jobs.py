@@ -26,6 +26,10 @@ jobs_update_model = Model('JobUpdate', {
         description='That we do',
         required=False,
     ),
+    'omeroIds': fields.List(
+        fields.Integer,
+        required=False,
+        description='image id'),
 })
 
 job_get_model = jobs_model.inherit('JobsGet', {
