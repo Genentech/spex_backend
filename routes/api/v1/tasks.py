@@ -88,6 +88,20 @@ class TasksGetIm(Resource):
         return send_file(path, mimetype='image/png')
 
 
+@namespace.route('/list')
+class TaskListPost(Resource):
+    @namespace.doc('tasks/getlist', security='Bearer')
+    @namespace.expect(tasks.task_post_model)
+    @namespace.marshal_with(tasks.list_tasks_response)
+    @namespace.response(404, 'Tasks not found', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @jwt_required()
+    def post(self):
+        body = request.json
+        tasks = TaskService.select_tasks(condition='in', _key=body['ids'])
+        return {'success': True, 'data': tasks}, 200
+
+
 @namespace.route('')
 class TaskPost(Resource):
     @namespace.doc('tasks/update', security='Bearer')
