@@ -99,6 +99,8 @@ class TaskListPost(Resource):
     def post(self):
         body = request.json
         tasks = TaskService.select_tasks(condition='in', _key=body['ids'])
+        if tasks is None:
+            return {'success': False, 'data': []}, 200
         return {'success': True, 'data': tasks}, 200
 
 
