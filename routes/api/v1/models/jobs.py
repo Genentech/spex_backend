@@ -12,7 +12,7 @@ jobs_model = Model('JobBase', {
         description='That we do'
     ),
     'omeroIds': fields.List(
-        fields.Integer,
+        fields.String,
         required=True,
         description='image id'),
 })
@@ -27,7 +27,7 @@ jobs_update_model = Model('JobUpdate', {
         required=False,
     ),
     'omeroIds': fields.List(
-        fields.Integer,
+        fields.String,
         required=False,
         description='image id'),
 })
