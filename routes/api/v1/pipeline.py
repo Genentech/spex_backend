@@ -1,3 +1,4 @@
+from flask_restx.fields import Boolean
 import services.Pipeline as PipelineService
 import services.Task as TaskService
 import services.Job as JobService
@@ -162,7 +163,7 @@ class PipelineCreatePost(Resource):
 
 
 # get pipeline list with childs
-@namespace.route('/<string:project_id>')
+@namespace.route('/<string:project_id>/<string:listview>')
 @namespace.param('project_id', 'project id')
 class PipelineGet(Resource):
     @namespace.doc('pipelines/get', security='Bearer')
@@ -172,7 +173,8 @@ class PipelineGet(Resource):
     @namespace.response(400, 'Message about reason of error', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
-    def get(self, project_id):
+    def get(self, project_id, listview):
+        listview = Boolean(listview)
         author = get_jwt_identity()
         if ProjectService.select_projects(_key=project_id, author=author) is None:
             return {'success': False, 'message': f'project with id: {project_id} not found'}, 200
@@ -192,7 +194,7 @@ class PipelineGet(Resource):
                 lines.append(pipeline_)
                 break
             for box in boxes:
-                res.append(recursionQuery(box['_to'], {}, 0))
+                res.append(recursionQuery(box['_to'], {}, 0, listview=listview))
             pipeline_.pop('_from', None)
             pipeline_.pop('_to', None)
             pipeline_.update({'boxes': res})
@@ -201,7 +203,42 @@ class PipelineGet(Resource):
         result = {"pipelines": lines}
 
         return {'success': True, 'data': result}, 200
-# get pipeline list with childs
+
+
+# get pipeline list as list with childs
+@namespace.route('/list/<string:project_id>')
+@namespace.param('project_id', 'project id')
+class PipelineGetList(Resource):
+    @namespace.doc('pipelines/get', security='Bearer')
+    # @namespace.expect(projects.projects_model)
+    # @namespace.marshal_with(projects.a_project_response)
+    @namespace.response(200, 'Get pipeline and childs as list', pipeline.a_pipeline_response)
+    @namespace.response(400, 'Message about reason of error', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @jwt_required()
+    def get(self, project_id):
+        author = get_jwt_identity()
+        if ProjectService.select_projects(_key=project_id, author=author) is None:
+            return {'success': False, 'message': f'project with id: {project_id} not found'}, 200
+
+        text = 'For d in pipeline_direction filter d.project == @project_id Return MERGE({"source": d._from, "target": d._to})'
+        lines = database.query(query=text, project_id=project_id)
+        data = []
+        for line in lines:
+            data.append(line['source'])
+            data.append(line['target'])
+        data = list(set(data))
+        result = {'lines': lines}
+        arr = []
+        for item in data:
+            temp_array = item.split('/')
+            text = f'for d in {temp_array[0]} filter d._id == @id ' + \
+                ' return MERGE({"name": d.name, "id": d._id}) '
+            element = database.query(query=text, id=item)
+            if len(element) > 0:
+                arr.append(element[0])
+        result.update({'items': arr})
+        return {'success': True, 'data': result}, 200
 
 
 # insert new box to another box, or to pipeline
