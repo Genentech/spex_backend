@@ -1,4 +1,3 @@
-from flask_restx.fields import Boolean
 import services.Pipeline as PipelineService
 import services.Task as TaskService
 import services.Job as JobService
@@ -163,7 +162,7 @@ class PipelineCreatePost(Resource):
 
 
 # get pipeline list with childs
-@namespace.route('/<string:project_id>/<string:listview>')
+@namespace.route('/<string:project_id>')
 @namespace.param('project_id', 'project id')
 class PipelineGet(Resource):
     @namespace.doc('pipelines/get', security='Bearer')
@@ -173,8 +172,8 @@ class PipelineGet(Resource):
     @namespace.response(400, 'Message about reason of error', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
-    def get(self, project_id, listview):
-        listview = Boolean(listview)
+    def get(self, project_id):
+
         author = get_jwt_identity()
         if ProjectService.select_projects(_key=project_id, author=author) is None:
             return {'success': False, 'message': f'project with id: {project_id} not found'}, 200
@@ -192,9 +191,9 @@ class PipelineGet(Resource):
                 pipeline_.pop('_to', None)
                 pipeline_.update({'boxes': res})
                 lines.append(pipeline_)
-                break
+                continue
             for box in boxes:
-                res.append(recursionQuery(box['_to'], {}, 0, listview=listview))
+                res.append(recursionQuery(box['_to'], {}, 0))
             pipeline_.pop('_from', None)
             pipeline_.pop('_to', None)
             pipeline_.update({'boxes': res})
