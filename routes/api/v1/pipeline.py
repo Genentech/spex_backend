@@ -115,21 +115,21 @@ class PipelineCreatePost(Resource):
             if parent is None:
                 message = f'box or pipeline with id: {parent_id} not found'
                 return {'success': False, "message": message}, 200
-
+        foundedT = []
         if t_id_arr is not None:
             foundedT = TaskService.select_tasks(condition='in', _key=t_id_arr)
             if foundedT is None:
                 foundedT = []
                 message = f'tasks not found {t_id_arr}'
                 return {'success': False, "message": message}, 200
-
+        foundedR = []
         if r_id_arr is not None:
             foundedR = JobService.select_jobs(condition='in', _key=r_id_arr, collection='resource')
             if foundedR is None:
                 foundedR = []
                 message = f'resources not found {r_id_arr}'
                 return {'success': False, "message": message}, 200
-
+        foundedB = []
         if b_id_arr is not None:
             foundedB = PipelineService.select_pipeline(collection='box', _key=b_id_arr, condition='in', author=[author])
             if foundedB is None:
