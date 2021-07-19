@@ -1,87 +1,87 @@
 version: "3.7"
 
 networks:
-  genentech:
+  backend_genentech:
 
 services:
-
-  memcached:
-    container_name: memcached
-    image: 'bitnami/memcached:latest'
+  redisjson:
+    container_name: spex_redisjson
     networks:
-      genentech:
-    ports:
-      - '11211:11211'
-    environment:
-      - MEMCACHED_CACHE_SIZE=64
-
-  redis_json:
-    container_name: redis-json
-    networks:
-      genentech:
+      backend_genentech:
         aliases:
-          - redis-json
-    ports: 
+          - spex_redisjson
+    ports:
       - '6379:6379'
-    build: 
+    build:
       context: ./redis
       dockerfile: Dockerfile
-
 
   ms_ome_session_refresher:
     container_name: roche-ms-ome-session-refresher
     networks:
-      genentech:
+      backend_genentech:
         aliases:
           - roche-ms-ome-session-refresher
     env_file:
       - ./ms-session-refresher/.env
-    build: 
+      - ./.env.common
+      - ./.env.common.local
+    build:
       context: ./ms-session-refresher
       dockerfile: Dockerfile
-  
+    depends_on:
+      - redisjson
+
   ms_splitter:
     container_name: roche-ms-splitter
     networks:
-      genentech:
+      backend_genentech:
         aliases:
           - roche-ms-splitter
     volumes:
-      - type: bind
-        source: C:\\temp\\DATA_STORAGE 
-        target: /DATA_STORAGE
+      - /e/tmp/DATA_STORAGE:/DATA_STORAGE
     env_file:
       - ./ms-splitter/.env
-    build: 
+      - ./.env.common
+      - ./.env.common.local
+    build:
       context: ./ms-splitter
       dockerfile: Dockerfile
-  
+    depends_on:
+      - redisjson
+
   ms_task_runner:
     container_name: roche-ms-task-runner
     networks:
-      genentech:
+      backend_genentech:
         aliases:
           - roche-ms-task-runner
     volumes_from:
-      - ms_splitter     
+      - ms_splitter
     env_file:
       - ./ms-task-runner/.env
-    build: 
+      - ./.env.common
+      - ./.env.common.local
+    build:
       context: ./ms-task-runner
       dockerfile: Dockerfile
+    depends_on:
+      - redisjson
 
   ms_collector:
     container_name: roche-ms-collector
     networks:
-      genentech:
+      backend_genentech:
         aliases:
           - roche-ms-collector
     volumes_from:
-      - ms_splitter     
+      - ms_splitter
     env_file:
       - ./ms-collector/.env
-    build: 
+      - ./.env.common
+      - ./.env.common.local
+    build:
       context: ./ms-collector
       dockerfile: Dockerfile
-
- 
+    depends_on:
+      - redisjson
