@@ -6,48 +6,41 @@ networks:
 services:
   arangodb:
     image: arangodb:3.7.7
-    container_name: roche-arangodb
+    container_name: spex-arangodb
     restart: always
     networks:
       genentech:
         aliases:
-          - roche-arangodb
+          - spex-arangodb
     ports:
       - 8529
     env_file:
       - ./.env.local
     volumes:
-      - /home/arangodb_data:/var/lib/arangodb3
+      - /e/tmp/arangodb_data:/var/lib/arangodb3
+
   memcached:
     image: memcached:latest
-    container_name: roche-memcached
+    container_name: spex-memcached
     restart: always
     networks:
       genentech:
         aliases:
-          - roche-memcached
+          - spex-memcached
     ports:
       - 11211
     entrypoint:
       - memcached
       - -m 64
-  nginx:
-    image: nginx:1.19.8
-    container_name: roche-nginx
-    depends_on:
-      - backend
-    volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
-    ports:
-      - 80:80
-    networks:
-      - genentech
+
   backend:
-    container_name: roche-backend
+    container_name: spex-backend
     networks:
       genentech:
         aliases:
-          - roche-backend
+          - spex-backend
+    volumes:
+      - /e/tmp/DATA_STORAGE:/DATA_STORAGE
     ports:
       - 8080
     env_file:
@@ -58,3 +51,15 @@ services:
     depends_on:
       - arangodb
       - memcached
+
+  nginx:
+    image: nginx:1.19.8
+    container_name: spex-nginx
+    depends_on:
+      - backend
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - 80:80
+    networks:
+      - genentech
