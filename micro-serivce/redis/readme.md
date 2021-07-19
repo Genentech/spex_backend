@@ -1,15 +1,15 @@
 1) change password in redis.conf
-    requirepass password (check what password in microservice env)
+```    
+requirepass password (check what password in microservice env)
+```
+
+2) `$ docker build --pull --rm -t redisjson .`
 
 
-2) docker build --pull --rm -f "DockerFile" -t redislabs/rejson:latest "." 
+3) `$ docker images`  
+you should see something like this:
+```
+redisjson                         latest    2851900d79c3   4 minutes ago   105MB
+```
 
-then 
-
-3) docker images
-
-redislabs/rejson                      latest    2b7df03157e6   11 minutes ago   105MB you need something like this
-
-4) docker run -p 6379:6379 --name redis-redisjson 
-
-there = 2b7df03157e6 from 3
+4) `$ docker run -p 6379:6379 --name redisjson redisjson` 
