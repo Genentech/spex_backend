@@ -45,11 +45,10 @@ class JobCreateGetPost(Resource):
     def get(self):
 
         result = JobService.select_jobs(**{'author': get_jwt_identity()})
-        for job in result:
-            job['tasks'] = TaskService.select_tasks_edge(job.get('_id'))
-
         if result is None:
             return {'success': False, 'message': 'jobs not found', 'data': {}}, 200
+        for job in result:
+            job['tasks'] = TaskService.select_tasks_edge(job.get('_id'))
 
         return {'success': True, 'data': result}, 200
 
