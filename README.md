@@ -20,7 +20,7 @@ copy `.env` to `.env.local` and specify correct values for variables
 `$ docker compose up -d --build`  
 
 
-copy `.env.common` to `.env.common.local` and specify correct values for variables  
+copy `.env.common` to `.env.common.local` and specify correct values for `OMERO_HOST` and `OMERO_PROXY_PATH`  
 `$ docker compose -f ./micro-service/docker-compose.yml --project-directory ./micro-service up -d --build`
 
 ## Deployment
