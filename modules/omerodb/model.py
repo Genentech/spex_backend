@@ -145,7 +145,7 @@ def archived_files(iid=None, conn=None, **kwargs):
         )
         return message
 
-    # Test permissions on images and weels
+    # Test permissions on images and wheels
     for ob in wells:
         if hasattr(ob, "canDownload"):
             return "HttpResponseNotFound"

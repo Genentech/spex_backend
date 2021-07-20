@@ -4,7 +4,7 @@ from .responses import response
 tasks_model = Model('TasksBase', {
     'name': fields.String,
     'content': fields.String,
-    'omeroId': fields.Integer(requred=False),
+    'omeroId': fields.Integer(required=False),
     'omeroIds': fields.List(fields.Integer(required=False)),
     'parent': fields.String,
     'status': fields.Integer

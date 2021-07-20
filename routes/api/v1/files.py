@@ -35,8 +35,8 @@ class FileResPost(Resource):
         args = upload_parser.parse_args()
         file = args['filenames']
         destination = fileService.user_folder(author=get_jwt_identity(), folder=args['folder'])
-        filetosave = '%s%s' % (destination, file.filename)
-        file.save(filetosave)
+        file_to_save = '%s%s' % (destination, file.filename)
+        file.save(file_to_save)
 
         return {'success': 'True', 'filename': file.filename}, 200
 
@@ -56,7 +56,7 @@ class FileResPost(Resource):
     # @namespace.marshal_with(_resource.list_tasks_response)
     @namespace.response(404, 'file not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
-    @namespace.param('path', 'path to detele')
+    @namespace.param('path', 'path to delete')
     @jwt_required()
     def delete(self):
 

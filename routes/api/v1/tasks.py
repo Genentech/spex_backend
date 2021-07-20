@@ -67,7 +67,7 @@ class TaskGetPut(Resource):
 @namespace.route('/im/<id>')
 @namespace.param('id', 'task id')
 class TasksGetIm(Resource):
-    @namespace.doc('tasks/getim', security='Bearer')
+    @namespace.doc('tasks/getimg', security='Bearer')
     @namespace.response(404, 'Task not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     # @namespace.marshal_with(tasks.a_tasks_response)

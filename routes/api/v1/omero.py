@@ -10,7 +10,7 @@ from urllib.parse import unquote
 from services.Utils import download_file
 
 
-namespace = Namespace('Omero', description='Omera operations')
+namespace = Namespace('Omero', description='Omero operations')
 namespace.add_model(omero.omero_download_model.name, omero.omero_download_model)
 namespace.add_model(omero.login_model.name, omero.login_model)
 namespace.add_model(omero.login_responce.name, omero.login_responce)

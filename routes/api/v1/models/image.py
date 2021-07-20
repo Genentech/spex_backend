@@ -5,7 +5,7 @@ paths = Model('PathBase', {'path': fields.String, 'format': fields.String, 'date
 
 image_model = Model('ImgBase', {
     'name': fields.String,
-    'omeroId': fields.String(requred=False),
+    'omeroId': fields.String(required=False),
     'paths': fields.List(fields.Nested(paths))
 })
 
