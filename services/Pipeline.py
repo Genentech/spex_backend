@@ -1,83 +1,65 @@
-from modules.database import database
-from models.Pipeline import pipeline
+from spex_common.modules.database import db_instance
+from spex_common.models.Pipeline import pipeline
+from services.Utils import first_or_none, map_or_none
+
+collectionName = 'pipeline_direction'
 
 
-collection = 'pipeline_direction'
-
-
-def select(id, collection='pipeline_direction', toJson=False):
-    value = id
+def select(id, collection=collectionName, to_json=False):
     search = 'FILTER doc._key == @value LIMIT 1'
-    items = database.select(collection, search, value=value)
-    if len(items) == 0:
-        return None
-    if toJson is True:
-        return pipeline(items[0]).to_json() if not items[0] is None else None
-    return pipeline(items[0]) if not items[0] is None else None
+    items = db_instance().select(collection, search, value=id)
+    return map_or_none(items, lambda item: (pipeline(item).to_json() if to_json else pipeline(item)))
 
 
-def select_pipeline(condition=None, collection='pipeline_direction', one=False, **kwargs):
-
-    search = 'FILTER '
-    count = 0
-    for key, value in kwargs.items():
-        count = count + 1
-        search = search + 'doc.' + key + ' == @' + key
-        if count != len(kwargs.items()):
-            search = search + " && "
-    if condition is not None:
+def select_pipeline(condition=None, collection=collectionName, one=False, **kwargs):
+    search = db_instance().get_search(**kwargs)
+    if condition is not None and search:
         search = search.replace('==',  condition)
 
-    items = database.select(collection, search, **kwargs)
-    if len(items) == 0:
-        return None
-    if one is True:
-        return pipeline(items[0]).to_json()
-    return [pipeline(item).to_json() for item in items]
+    items = db_instance().select(collection, search, **kwargs)
+
+    def to_json(item):
+        pipeline(item).to_json()
+
+    if one:
+        return first_or_none(items, to_json)
+
+    return map_or_none(items, to_json)
 
 
 def select_pipeline_edge(_key):
-    items = database.select_edge(collection='pipeline_direction', inboud=False, _key=_key)
-    if len(items) == 0:
-        return []
+    items = db_instance().select_edge(collection=collectionName, inboud=False, _key=_key)
+
+    def to_json(item):
+        pipeline(item).to_json()
+
     if len(items) == 1:
-        return pipeline(items[0]).to_json()
-    return [pipeline(item).to_json() for item in items]
+        return first_or_none(items, to_json)
+
+    return map_or_none(items, to_json)
 
 
-def update(id, data=None, collection='pipeline_direction'):
-    value = id
+def update(id, data=None, collection=collectionName):
     search = 'FILTER doc._key == @value LIMIT 1 '
-
-    items = database.update(collection, data, search, value=value)
-    if len(items) == 0:
-        return None
-    return pipeline(items[0]) if not items[0] is None else None
+    items = db_instance().update(collection, data, search, value=id)
+    return first_or_none(items, pipeline)
 
 
-def delete(condition=None, collection='pipeline_direction', **kwargs):
-    search = 'FILTER '
-    count = 0
-    for key, value in kwargs.items():
-        count = count + 1
-        search = search + 'doc.' + key + ' == @' + key
-        if count != len(kwargs.items()):
-            search = search + " && "
-    if condition is not None:
+def delete(condition=None, collection=collectionName, **kwargs):
+    search = db_instance().get_search(**kwargs)
+    if condition is not None and search:
         search = search.replace('==',  condition)
-    items = database.delete(collection, search, **kwargs)
-    if len(items) == 0:
-        return None
-    return pipeline(items[0]) if not items[0] is None else None
+    items = db_instance().delete(collection, search, **kwargs)
+    return first_or_none(items, pipeline)
 
 
-def insert(data, collection='pipeline_direction'):
-    item = database.insert(collection, data)
-    return pipeline(item['new'])
+def insert(data, collection=collectionName):
+    item = db_instance().insert(collection, data)
+    return pipeline(item['new']) if item['new'] is not None else None
 
 
 def count():
-    arr = database.count(collection, '')
+    arr = db_instance().count(collectionName, '')
     return arr[0]
 
 

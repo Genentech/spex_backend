@@ -1,76 +1,59 @@
-from modules.database import database
-from models.User import user
+from spex_common.modules.database import db_instance
+from spex_common.models.User import user, User
+from services.Utils import first_or_none, map_or_none
 
 collection = 'users'
 
 
-def select(username='', id=None):
+def select(username='', id=None) -> User:
     value = username
     search = 'FILTER doc.username == @value LIMIT 1'
     if id:
         value = id
         search = 'FILTER doc._key == @value LIMIT 1'
 
-    items = database.select(collection, search, value=value)
-    if len(items) == 0:
-        return None
-    return user(items[0]) if not items[0] is None else None
+    items = db_instance().select(collection, search, value=value)
+    return first_or_none(items, user)
 
 
-def select_users():
-    items = database.select(collection)
-    if len(items) == 0:
-        return None
-    return [user(item) for item in items]
+def select_users() -> list[User]:
+    items = db_instance().select(collection)
+    return map_or_none(items, user)
 
 
-def update(username='', id=None, data=None):
+def update(username='', id=None, data=None) -> User:
     value = username
     search = 'FILTER doc.username == @value LIMIT 1'
     if id:
         value = id
         search = 'FILTER doc._key == @value LIMIT 1'
 
-    items = database.update(collection, data, search, value=value)
-    if len(items) == 0:
-        return None
-    return user(items[0]) if not items[0] is None else None
+    items = db_instance().update(collection, data, search, value=value)
+    return first_or_none(items, user)
 
 
-def delete(username='', id=None):
+def delete(username='', id=None) -> User:
     value = username
     search = 'FILTER doc.username == @value '
     if id:
         value = id
         search = 'FILTER doc._key == @value '
 
-    items = database.delete(collection, search, value=value)
-    if len(items) == 0:
-        return None
-    return user(items[0]) if not items[0] is None else None
+    items = db_instance().delete(collection, search, value=value)
+    return first_or_none(items, user)
 
 
-def insert(data):
-    item = database.insert(collection, data)
-
-    return user(item['new'])
-
-
-def isAdmin(id):
-    search = 'FILTER doc._key == @value LIMIT 1'
-    items = database.select(collection, search, value=id)
-    if len(items) == 0:
-        return False
-    if items[0] is None:
-        return False
-    else:
-        if items[0].get('admin') is None:
-            return False
-        else:
-            return items[0].get('admin')
+def insert(data) -> User:
+    item = db_instance().insert(collection, data)
+    return user(item['new']) if item['new'] is not None else None
 
 
-def count():
+def count() -> int:
+    arr = db_instance().count(collection, '')
+    return int(arr[0])
 
-    arr = database.count(collection, '')
-    return arr[0]
+
+def is_admin(id) -> bool:
+    item = select(id=id)
+
+    return item.admin if item is not None else False

@@ -76,3 +76,25 @@ def copy_file(_path, _path2='', author=None):
         _path2 = user_folder(author)
     shutil.copyfile(_path, _path2 + path.basename(_path))
     return getAbsoluteRelative(_path2)
+
+
+def _identity(item):
+    return item
+
+
+def first_or_none(items, transform=_identity):
+    if len(items) < 1:
+        return None
+
+    transform = transform if transform is not None else _identity
+
+    return transform(items[0]) if items[0] is not None else None
+
+
+def map_or_none(items, transform=_identity):
+    if len(items) < 1:
+        return None
+
+    transform = transform if transform is not None else _identity
+
+    return [transform(item) if item is not None else None for item in items]

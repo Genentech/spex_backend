@@ -1,50 +1,40 @@
-from modules.database import database
-from models.Project import project
+from spex_common.modules.database import db_instance
+from spex_common.models.Project import project
+from services.Utils import first_or_none, map_or_none
 
 
 collection = 'projects'
 
 
-def select(id, **kwargs):
-    value = id
+def select(id):
     search = 'FILTER doc._key == @value LIMIT 1'
-    items = database.select(collection, search, value=value)
-    if len(items) == 0:
-        return None
-    return project(items[0]) if not items[0] is None else None
+    items = db_instance().select(collection, search, value=id)
+    return first_or_none(items, project)
 
 
 def select_projects(**kwargs):
-    search = database.get_search(**kwargs)
-    items = database.select(collection, search, **kwargs)
-    if len(items) == 0:
-        return None
-    return [project(item).to_json() for item in items]
+    search = db_instance().get_search(**kwargs)
+    items = db_instance().select(collection, search, **kwargs)
+    return map_or_none(items, lambda item: project(item).to_json())
 
 
 def update(id, data=None):
-    value = id
     search = 'FILTER doc._key == @value LIMIT 1 '
-
-    items = database.update(collection, data, search, value=value)
-    if len(items) == 0:
-        return None
-    return project(items[0]) if not items[0] is None else None
+    items = db_instance().update(collection, data, search, value=id)
+    return first_or_none(items, project)
 
 
 def delete(**kwargs):
-    search = database.get_search(**kwargs)
-    items = database.delete(collection, search, **kwargs)
-    if len(items) == 0:
-        return None
-    return project(items[0]) if not items[0] is None else None
+    search = db_instance().get_search(**kwargs)
+    items = db_instance().delete(collection, search, **kwargs)
+    return first_or_none(items, project)
 
 
 def insert(data):
-    item = database.insert(collection, data)
-    return project(item['new'])
+    item = db_instance().insert(collection, data)
+    return project(item['new']) if item['new'] is not None else None
 
 
 def count():
-    arr = database.count(collection, '')
+    arr = db_instance().count(collection, '')
     return arr[0]

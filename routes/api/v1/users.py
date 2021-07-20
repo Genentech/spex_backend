@@ -139,7 +139,7 @@ class Item(Resource):
 
         current_user = get_jwt_identity()
 
-        if current_user['id'] != id and not UserService.isAdmin(current_user):
+        if current_user['id'] != id and not UserService.is_admin(current_user):
             abort(401, 'only admins can remove users')
 
         user = UserService.delete(id=id)

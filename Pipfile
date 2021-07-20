@@ -14,7 +14,6 @@ scikit-image = "0.18.1"
 basicauth = "0.4.1"
 pymemcache = "3.4.1"
 requests = "2.25.1"
-python-arango = "7.1.0"
 importlib = "*"
 flask-jwt-extended = "*"
 flask-bcrypt = "*"
@@ -22,6 +21,7 @@ flask-cors = "*"
 flask-restx = "==0.3.0"
 flask = "==1.1.2"
 docker = "*"
+spex-common = {editable = true, path = "./../common"}
 
 [dev-packages]
 flake8 = "3.9.0"

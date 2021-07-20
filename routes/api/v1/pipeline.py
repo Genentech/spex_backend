@@ -7,7 +7,7 @@ from flask import request
 # from models.Job import Job
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import pipeline, responses
-from modules.database import database
+from spex_common.modules.database import db_instance
 
 namespace = Namespace('Pipeline', description='Pipeline CRUD operations')
 
@@ -33,7 +33,7 @@ def recursionQuery(itemId, tree, depth):
           f'FOR t IN 1..1 INBOUND "{itemId}"' + ' GRAPH "pipeline" FILTER t._id LIKE "tasks/%" RETURN {"name": t.name, "id": t._key, "status": t.status } )' + \
            ' RETURN MERGE({"id": d._key, "name": d.name, "status": d.complete}, {"boxes": boxes, "tasks": tasks, "resources": resources})'
 
-    result = database.query(text)
+    result = db_instance().query(text)
     if len(result) > 0:
         tree = result[0]
     else:
@@ -221,7 +221,7 @@ class PipelineGetList(Resource):
             return {'success': False, 'message': f'project with id: {project_id} not found'}, 200
 
         text = 'For d in pipeline_direction filter d.project == @project_id Return MERGE({"source": d._from, "target": d._to})'
-        lines = database.query(query=text, project_id=project_id)
+        lines = db_instance().query(query=text, project_id=project_id)
         data = []
         for line in lines:
             data.append(line['source'])
@@ -233,7 +233,7 @@ class PipelineGetList(Resource):
             temp_array = item.split('/')
             text = f'for d in {temp_array[0]} filter d._id == @id ' + \
                 ' return MERGE({"name": d.name, "id": d._id}) '
-            element = database.query(query=text, id=item)
+            element = db_instance().query(query=text, id=item)
             if len(element) > 0:
                 arr.append(element[0])
         result.update({'items': arr})
@@ -261,7 +261,7 @@ class BoxCreate(Resource):
 
         parent = PipelineService.select_pipeline(collection='pipeline', _key=parent_id, author=author, project=project_id, one=True)
         if parent is None:
-            parent = PipelineService.select(id=parent_id, collection='box', toJson=True)
+            parent = PipelineService.select(id=parent_id, collection='box', to_json=True)
             if parent is None:
                 return {'success': False, 'message': f'box or pipeline with id: {parent_id} not found'}, 200
 

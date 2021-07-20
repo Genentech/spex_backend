@@ -8,8 +8,8 @@ from .models import responses
 import modules.omeroweb as omeroweb
 import os
 from datetime import date
-from modules.database import database
-from models.Image import image as im
+from spex_common.modules.database import db_instance
+from spex_common.models.Image import image as im
 
 
 namespace = Namespace('Images', description='image download and cache in our data storage CRUD operations')
@@ -32,7 +32,7 @@ def image_by_id_format(id, format):
             f' FILTER path.format == "{format}" ' + \
                 ' LIMIT 1 ' + \
                 ' RETURN doc '
-        result = database.query(query)
+        result = db_instance().query(query)
 
         if len(result) > 0:
             image = im(result[0]).to_json()
