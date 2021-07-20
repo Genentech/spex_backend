@@ -1,6 +1,6 @@
 import services.User as UserService
 import datetime
-import modules.omeroweb as omeroweb
+import spex_common.modules.omeroweb as omeroweb
 
 from flask_restx import Namespace, Resource
 from flask import request, abort

@@ -1,10 +1,8 @@
-import modules.omeroweb as omeroweb
+import spex_common.modules.omeroweb as omeroweb
 from flask_restx import Namespace, Resource
 from flask import request, abort, Response
 from .models import responses, omero
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from services.Cache import CacheService
-from datetime import datetime, timedelta
 from os import getenv
 from urllib.parse import unquote
 from services.Utils import download_file
@@ -50,13 +48,7 @@ def _request(path, method='get', **kwargs):
         if name.lower() not in excluded_headers
     ]
 
-    session = omeroweb.OmeroSession(
-        client.omero_session_id,
-        client.omero_token,
-        client.omero_context,
-        datetime.now() + timedelta(hours=int(getenv('MEMCACHED_SESSION_ALIVE_H')))
-    )
-    CacheService.set(current_user['login'], session)
+    omeroweb.update_ttl(current_user['login'])
 
     return Response(response.content, response.status_code, headers)
 
@@ -87,7 +79,7 @@ class DownloadImageReturnPath(Resource):
     def get(self, imageId, format='tif'):
         author = get_jwt_identity()['login']
         session = omeroweb.get(author)
-        path = getenv('OMERO_PROXY_PATH') + '/webclient/render_image_download/' + str(imageId) + '/?format=' + format
+        path = getenv('OMERO_WEB') + '/webclient/render_image_download/' + str(imageId) + '/?format=' + format
         relativePath = download_file(path, client=session, imgId=imageId)
         if relativePath is not None:
             return {'success': True, 'path': relativePath}, 200

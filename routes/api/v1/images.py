@@ -5,7 +5,7 @@ from flask import request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import image
 from .models import responses
-import modules.omeroweb as omeroweb
+import spex_common.modules.omeroweb as omeroweb
 import os
 from datetime import date
 from spex_common.modules.database import db_instance
@@ -106,7 +106,7 @@ class ImgGetDel(Resource):
 
         if download is True:
             session = omeroweb.get(author['login'])
-            path = os.getenv('OMERO_PROXY_PATH') + '/webclient/render_image_download/' + str(id) + '/?format=' + format
+            path = os.getenv('OMERO_WEB') + '/webclient/render_image_download/' + str(id) + '/?format=' + format
             relativePath = download_file(path, client=session, imgId=id)
             if relativePath is not None:
                 if copy:

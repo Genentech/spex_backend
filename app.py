@@ -1,5 +1,4 @@
 from spex_common.config import load_config
-from spex_common.modules.database import db_instance
 from flask import Flask
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager
@@ -20,5 +19,4 @@ CORS(application, supports_credentials=True)
 application.register_blueprint(blueprint)
 
 if __name__ == '__main__':
-    db_instance().initialize()
     application.run()
