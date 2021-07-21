@@ -19,7 +19,7 @@ def select_pipeline(condition=None, collection=collectionName, one=False, **kwar
     items = db_instance().select(collection, search, **kwargs)
 
     def to_json(item):
-        pipeline(item).to_json()
+        return pipeline(item).to_json()
 
     if one:
         return first_or_none(items, to_json)
@@ -31,7 +31,7 @@ def select_pipeline_edge(_key):
     items = db_instance().select_edge(collection=collectionName, inboud=False, _key=_key)
 
     def to_json(item):
-        pipeline(item).to_json()
+        return pipeline(item).to_json()
 
     if len(items) == 1:
         return first_or_none(items, to_json)

@@ -97,4 +97,9 @@ def map_or_none(items, transform=_identity):
 
     transform = transform if transform is not None else _identity
 
-    return [transform(item) if item is not None else None for item in items]
+    return [
+        transform(item)
+        if item is not None
+        else None
+        for item in items
+    ]
