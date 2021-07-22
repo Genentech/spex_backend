@@ -1,7 +1,9 @@
+import base64
+
 import services.Task as TaskService
 import services.Job as JobService
 from flask_restx import Namespace, Resource
-from flask import request, send_file
+from flask import request
 import services.Utils as Utils
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import tasks, responses
@@ -64,10 +66,10 @@ class TaskGetPut(Resource):
         return {'success': True, 'data': deleted}, 200
 
 
-@namespace.route('/im/<id>')
+@namespace.route('/image/<id>')
 @namespace.param('id', 'task id')
 class TasksGetIm(Resource):
-    @namespace.doc('tasks/getimg', security='Bearer')
+    @namespace.doc('tasks/getimage', security='Bearer')
     @namespace.response(404, 'Task not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     # @namespace.marshal_with(tasks.a_tasks_response)
@@ -82,10 +84,23 @@ class TasksGetIm(Resource):
 
         path = task.get('impath')
         path = Utils.getAbsoluteRelative(path, absolute=True)
+
+        print(f'path: {path}')
+
         if not os.path.exists(path):
             return {'success': False, 'message': 'image not found', 'data': {}}, 200
 
-        return send_file(path, mimetype='image/png')
+        try:
+            with open(path, 'rb') as image:
+                encoded = base64.b64encode(image.read())
+
+                encoded = f'data:image/png;base64,{encoded.decode("utf-8")}'
+
+                return {'success': True, 'data': {'image': encoded}}, 200
+        except Exception as error:
+            print(f'Error: {error}')
+
+        return {'success': False, 'message': 'image not found', 'data': {}}, 200
 
 
 @namespace.route('/list')
