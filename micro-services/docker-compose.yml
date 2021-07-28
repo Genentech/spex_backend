@@ -16,6 +16,16 @@ services:
       context: ./redis
       dockerfile: Dockerfile
 
+  memcached:
+    image: 'bitnami/memcached:latest'
+    container_name: spex_memcached
+    ports:
+      - '11211:11211'
+    networks:
+      backend_genentech:
+        aliases:
+          - spex-memcached
+
   ms_ome_session_refresher:
     container_name: roche-ms-ome-session-refresher
     networks:
@@ -27,10 +37,10 @@ services:
       - ./.env.common
       - ./.env.common.local
     build:
-      context: ./ms-session-refresher
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./ms-session-refresher/Dockerfile
     depends_on:
-      - redisjson
+      - memcached
 
   ms_splitter:
     container_name: roche-ms-splitter
@@ -39,14 +49,14 @@ services:
         aliases:
           - roche-ms-splitter
     volumes:
-      - /e/tmp/DATA_STORAGE:/DATA_STORAGE
+      - C:\\temp\\DATA_STORAGE:/DATA_STORAGE
     env_file:
       - ./ms-splitter/.env
       - ./.env.common
       - ./.env.common.local
     build:
-      context: ./ms-splitter
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./ms-splitter/Dockerfile
     depends_on:
       - redisjson
 
@@ -63,10 +73,11 @@ services:
       - ./.env.common
       - ./.env.common.local
     build:
-      context: ./ms-task-runner
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./ms-task-runner/Dockerfile
     depends_on:
       - redisjson
+      - ms_splitter
 
   ms_collector:
     container_name: roche-ms-collector
@@ -81,7 +92,8 @@ services:
       - ./.env.common
       - ./.env.common.local
     build:
-      context: ./ms-collector
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./ms-collector/Dockerfile
     depends_on:
       - redisjson
+      - ms_splitter
