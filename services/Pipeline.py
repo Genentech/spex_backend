@@ -5,9 +5,15 @@ from services.Utils import first_or_none, map_or_none
 collectionName = 'pipeline_direction'
 
 
-def select(id, collection=collectionName, to_json=False):
+def select(id, collection=collectionName, to_json=False, one=False):
     search = 'FILTER doc._key == @value LIMIT 1'
     items = db_instance().select(collection, search, value=id)
+
+    def to_json(item):
+        return pipeline(item).to_json()
+
+    if one:
+        return first_or_none(items, to_json)
     return map_or_none(items, lambda item: (pipeline(item).to_json() if to_json else pipeline(item)))
 
 
@@ -22,7 +28,10 @@ def select_pipeline(condition=None, collection=collectionName, one=False, **kwar
         return pipeline(item).to_json()
 
     if one:
-        return first_or_none(items, to_json)
+        item = first_or_none(items, pipeline)
+        if item is not None:
+            item = item.to_json()
+        return item
 
     return map_or_none(items, to_json)
 

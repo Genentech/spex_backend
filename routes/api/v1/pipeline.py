@@ -261,7 +261,7 @@ class BoxCreate(Resource):
 
         parent = PipelineService.select_pipeline(collection='pipeline', _key=parent_id, author=author, project=project_id, one=True)
         if parent is None:
-            parent = PipelineService.select(id=parent_id, collection='box', to_json=True)
+            parent = PipelineService.select(id=parent_id, collection='box', to_json=True, one=True)
             if parent is None:
                 return {'success': False, 'message': f'box or pipeline with id: {parent_id} not found'}, 200
 
