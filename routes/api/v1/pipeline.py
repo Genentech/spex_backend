@@ -161,7 +161,7 @@ class PipelineCreatePost(Resource):
 # directions between pipelines boxes tasks
 
 
-# get pipeline list with childs
+# get pipelines list with childs
 @namespace.route('/<string:project_id>')
 @namespace.param('project_id', 'project id')
 class PipelineGet(Resource):
@@ -204,39 +204,46 @@ class PipelineGet(Resource):
         return {'success': True, 'data': result}, 200
 
 
-# get pipeline list as list with childs
-@namespace.route('/list/<string:project_id>')
+# get pipeline with childs
+@namespace.route('/path/<string:project_id>/<string:pipeline_id>')
 @namespace.param('project_id', 'project id')
+@namespace.param('pipeline_id', 'pipeline_id')
 class PipelineGetList(Resource):
     @namespace.doc('pipelines/get', security='Bearer')
     # @namespace.expect(projects.projects_model)
     # @namespace.marshal_with(projects.a_project_response)
-    @namespace.response(200, 'Get pipeline and childs as list', pipeline.a_pipeline_response)
+    @namespace.response(200, 'Get pipeline and child as list', pipeline.a_pipeline_response)
     @namespace.response(400, 'Message about reason of error', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
-    def get(self, project_id):
+    def get(self, project_id, pipeline_id):
         author = get_jwt_identity()
         if ProjectService.select_projects(_key=project_id, author=author) is None:
             return {'success': False, 'message': f'project with id: {project_id} not found'}, 200
 
-        text = 'For d in pipeline_direction filter d.project == @project_id Return MERGE({"source": d._from, "target": d._to})'
-        lines = db_instance().query(query=text, project_id=project_id)
-        data = []
-        for line in lines:
-            data.append(line['source'])
-            data.append(line['target'])
-        data = list(set(data))
-        result = {'lines': lines}
-        arr = []
-        for item in data:
-            temp_array = item.split('/')
-            text = f'for d in {temp_array[0]} filter d._id == @id ' + \
-                ' return MERGE({"name": d.name, "id": d._id}) '
-            element = db_instance().query(query=text, id=item)
-            if len(element) > 0:
-                arr.append(element[0])
-        result.update({'items': arr})
+        pipelines = PipelineService.select_pipeline(collection='pipeline', author=author, project=project_id, _key=pipeline_id)
+
+        lines = []
+        if pipelines is None:
+            return {'success': True, 'data': {"pipelines": lines}}, 200
+        for pipeline_ in pipelines:
+            res = []
+            boxes = PipelineService.select_pipeline(author=author, _from=pipeline_.get('_id'))
+            if boxes is None:
+                pipeline_.pop('_from', None)
+                pipeline_.pop('_to', None)
+                pipeline_.update({'boxes': res})
+                lines.append(pipeline_)
+                continue
+            for box in boxes:
+                res.append(recursionQuery(box['_to'], {}, 0))
+            pipeline_.pop('_from', None)
+            pipeline_.pop('_to', None)
+            pipeline_.update({'boxes': res})
+            lines.append(pipeline_)
+
+        result = {"pipelines": lines}
+
         return {'success': True, 'data': result}, 200
 
 
