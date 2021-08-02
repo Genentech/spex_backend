@@ -154,7 +154,7 @@ class PipelineCreatePost(Resource):
             else:
                 existed.append(c_id)
 
-        notFoundedC = list(set(t_id_arr) - set(arr_founded_id) - set(existed))
+        notFoundedC = list(set(t_id_arr if t_id_arr is not None else []) - set(arr_founded_id if arr_founded_id is not None else []) - set(existed if existed is not None else []))
         result = {'Added': arr_founded_id, 'NotFounded': notFoundedC, 'Existed': existed}
 
         return {'success': True, 'data': result}, 200
