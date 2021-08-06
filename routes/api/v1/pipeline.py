@@ -21,16 +21,16 @@ namespace.add_model(pipeline.pipeline_get_model.name, pipeline.pipeline_get_mode
 namespace.add_model(pipeline.task_resource_image_connect_to_box.name, pipeline.task_resource_image_connect_to_box)
 
 
-def recursionQuery(itemId, tree, depth):
+def recursion_query(itemid, tree, depth):
 
     text = 'FOR d IN box ' + \
-          f'FILTER d._id == "{itemId}" ' + \
+          f'FILTER d._id == "{itemid}" ' + \
            'LET boxes = (' + \
-          f'FOR b IN 1..1 OUTBOUND "{itemId}"' + ' GRAPH "pipeline" FILTER b._id LIKE "box/%"  RETURN {"name": b.name, "id": b._key, "status": b.complete } )' + \
+          f'FOR b IN 1..1 OUTBOUND "{itemid}"' + ' GRAPH "pipeline" FILTER b._id LIKE "box/%"  RETURN {"name": b.name, "id": b._key, "status": b.complete } )' + \
            'LET resources = (' + \
-          f'FOR b IN 1..1 INBOUND "{itemId}"' + ' GRAPH "pipeline" FILTER b._id LIKE "resource/%"  RETURN {"name": b.name, "id": b._key, "status": 0 } )' + \
+          f'FOR b IN 1..1 INBOUND "{itemid}"' + ' GRAPH "pipeline" FILTER b._id LIKE "resource/%"  RETURN {"name": b.name, "id": b._key, "status": 0 } )' + \
            'LET tasks = (' + \
-          f'FOR t IN 1..1 INBOUND "{itemId}"' + ' GRAPH "pipeline" FILTER t._id LIKE "tasks/%" RETURN {"name": t.name, "id": t._key, "status": t.status } )' + \
+          f'FOR t IN 1..1 INBOUND "{itemid}"' + ' GRAPH "pipeline" FILTER t._id LIKE "tasks/%" RETURN {"name": t.name, "id": t._key, "status": t.status } )' + \
            ' RETURN MERGE({"id": d._key, "name": d.name, "status": d.complete}, {"boxes": boxes, "tasks": tasks, "resources": resources})'
 
     result = db_instance().query(text)
@@ -44,7 +44,7 @@ def recursionQuery(itemId, tree, depth):
         if (result[0]['boxes'] is not None and len(result[0]['boxes']) > 0):
             while i < len(result[0]['boxes']):
                 id = 'box/' + str(result[0]['boxes'][i]['id'])
-                tree['boxes'][i] = recursionQuery(id, tree['boxes'][i], depth + 1)
+                tree['boxes'][i] = recursion_query(id, tree['boxes'][i], depth + 1)
                 i += 1
     return tree
 
@@ -161,7 +161,7 @@ class PipelineCreatePost(Resource):
 # directions between pipelines boxes tasks
 
 
-# get pipelines list with childs
+# get pipelines list with child's
 @namespace.route('/<string:project_id>')
 @namespace.param('project_id', 'project id')
 class PipelineGet(Resource):
@@ -193,7 +193,7 @@ class PipelineGet(Resource):
                 lines.append(pipeline_)
                 continue
             for box in boxes:
-                res.append(recursionQuery(box['_to'], {}, 0))
+                res.append(recursion_query(box['_to'], {}, 0))
             pipeline_.pop('_from', None)
             pipeline_.pop('_to', None)
             pipeline_.update({'boxes': res})
@@ -236,7 +236,7 @@ class PipelineGetList(Resource):
                 lines.append(pipeline_)
                 continue
             for box in boxes:
-                res.append(recursionQuery(box['_to'], {}, 0))
+                res.append(recursion_query(box['_to'], {}, 0))
             pipeline_.pop('_from', None)
             pipeline_.pop('_to', None)
             pipeline_.update({'boxes': res})
@@ -296,7 +296,7 @@ class BoxCreate(Resource):
 # insert pipeline to project
 @namespace.route('/create/<string:project_id>')
 @namespace.param('project_id', 'project id')
-class pipelineCreate(Resource):
+class PipelineCreate(Resource):
     @namespace.doc('pipeline/insert', security='Bearer')
     @namespace.expect(pipeline.pipeline_model)
     @namespace.marshal_with(pipeline.a_pipeline_response)
@@ -331,10 +331,10 @@ class pipelineCreate(Resource):
 
 
 # update pipeline data
-@namespace.route('/update/<string:project_id>/<string:pipeline_id>')
+@namespace.route('/update/<string:project_id>/<string:pipeline_box_id>')
 @namespace.param('project_id', 'project id')
-@namespace.param('pipeline_id', 'pipeline id')
-class pipelineGetUpdate(Resource):
+@namespace.param('pipeline_box_id', 'pipeline or box id')
+class PipelineBoxUpdate(Resource):
     @namespace.doc('pipeline/update', security='Bearer')
     @namespace.expect(pipeline.pipeline_model)
     @namespace.marshal_with(pipeline.a_pipeline_response)
@@ -342,17 +342,19 @@ class pipelineGetUpdate(Resource):
     @namespace.response(400, 'Message about reason of error', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
-    def put(self, project_id, pipeline_id):
+    def put(self, project_id, pipeline_box_id):
         author = get_jwt_identity()
-
+        body = request.json
         if ProjectService.select_projects(_key=project_id, author=author) is None:
             return {'success': False, 'message': 'project not found'}, 200
 
-        if PipelineService.select_pipeline(collection='pipeline', _key=pipeline_id, author=author, project=project_id) is None:
-            return {'success': False, 'message': 'pipeline not found'}, 200
-
-        body = request.json
-        pipeline_ = PipelineService.update(collection='pipeline', id=pipeline_id, data=body)
+        if PipelineService.select_pipeline(collection='pipeline', _key=pipeline_box_id, author=author, project=project_id) is not None:
+            pipeline_ = PipelineService.update(collection='pipeline', id=pipeline_box_id, data=body)
+        else:
+            if PipelineService.select_pipeline(collection='box', _key=pipeline_box_id, author=author, project=project_id) is None:
+                return {'success': False, 'message': 'pipeline or box not found'}, 200
+            else:
+                pipeline_ = PipelineService.update(collection='box', id=pipeline_box_id, data=body)
 
         return {'success': True, 'data': pipeline_.to_json()}, 200
 # update pipeline data
@@ -361,7 +363,7 @@ class pipelineGetUpdate(Resource):
 @namespace.route('/delete/<string:project_id>/<string:pipeline_id>')
 @namespace.param('project_id', 'project id')
 @namespace.param('pipeline_id', 'pipeline id')
-class pipelineDelete(Resource):
+class PipelineDelete(Resource):
     @namespace.doc('pipeline_boxes/delete', security='Bearer')
     @namespace.marshal_with(pipeline.a_pipeline_response)
     @namespace.response(404, 'Object not found', responses.error_response)
@@ -382,7 +384,7 @@ class pipelineDelete(Resource):
         res = []
         if boxes is not None:
             for box in boxes:
-                res.append(recursionQuery(box['_to'], {}, 0))
+                res.append(recursion_query(box['_to'], {}, 0))
 
         pipeline_.update({'boxes': res})
         childs_to_delete = getBoxes(pipeline_.get('boxes'))
