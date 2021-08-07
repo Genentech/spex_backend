@@ -360,23 +360,23 @@ class PipelineBoxUpdate(Resource):
 # update pipeline data
 
 
-@namespace.route('/delete/<string:project_id>/<string:pipeline_id>')
+@namespace.route('/delete/<string:project_id>/<string:pipeline_box_id>')
 @namespace.param('project_id', 'project id')
-@namespace.param('pipeline_id', 'pipeline id')
+@namespace.param('pipeline_box_id', 'pipeline or box id')
 class PipelineDelete(Resource):
     @namespace.doc('pipeline_boxes/delete', security='Bearer')
     @namespace.marshal_with(pipeline.a_pipeline_response)
     @namespace.response(404, 'Object not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
-    def delete(self, project_id, pipeline_id):
+    def delete(self, project_id, pipeline_box_id):
         author = get_jwt_identity()
         project = ProjectService.select_projects(_key=project_id, author=author)   # only author projects show
         if project is None:
             return {'success': False, 'message': 'project not found'}, 200
-        pipeline_ = PipelineService.select_pipeline(collection='pipeline', _key=pipeline_id, author=author, project=project_id, one=True)
+        pipeline_ = PipelineService.select_pipeline(collection='pipeline', _key=pipeline_box_id, author=author, project=project_id, one=True)
         if pipeline_ is None:
-            pipeline_ = PipelineService.select_pipeline(collection='box', _key=pipeline_id, author=author, project=project_id, one=True)
+            pipeline_ = PipelineService.select_pipeline(collection='box', _key=pipeline_box_id, author=author, project=project_id, one=True)
             if pipeline_ is None:
                 return {'success': False, 'message': 'pipeline not found'}, 200
 
