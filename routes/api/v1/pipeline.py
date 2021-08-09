@@ -21,7 +21,7 @@ namespace.add_model(pipeline.pipeline_get_model.name, pipeline.pipeline_get_mode
 namespace.add_model(pipeline.task_resource_image_connect_to_box.name, pipeline.task_resource_image_connect_to_box)
 
 
-def recursion_query(itemid, tree, depth):
+def recursion_query(itemid, tree, _depth):
 
     text = 'FOR d IN box ' + \
           f'FILTER d._id == "{itemid}" ' + \
@@ -40,11 +40,11 @@ def recursion_query(itemid, tree, depth):
         return
 
     i = 0
-    if depth < 50:
-        if (result[0]['boxes'] is not None and len(result[0]['boxes']) > 0):
+    if _depth < 50:
+        if result[0]['boxes'] is not None and len(result[0]['boxes']) > 0:
             while i < len(result[0]['boxes']):
-                id = 'box/' + str(result[0]['boxes'][i]['id'])
-                tree['boxes'][i] = recursion_query(id, tree['boxes'][i], depth + 1)
+                _id = 'box/' + str(result[0]['boxes'][i]['id'])
+                tree['boxes'][i] = recursion_query(_id, tree['boxes'][i], _depth + 1)
                 i += 1
     return tree
 
@@ -57,7 +57,7 @@ def depth(x):
     return 0
 
 
-def getBoxes(x):
+def get_boxes(x):
     boxes = []
     if type(x) is list and x:
         for box in x:
@@ -65,11 +65,11 @@ def getBoxes(x):
                 return boxes
             boxes.append(box.get('id'))
             if box.get('boxes') is not None:
-                boxes = boxes + getBoxes(box.get('boxes'))
+                boxes = boxes + get_boxes(box.get('boxes'))
     return boxes
 
 
-def searchInArrDict(key, value, arr):
+def search_in_arr_dict(key, value, arr):
     founded = []
     for item in arr:
         item_value = item.get(key)
@@ -387,7 +387,7 @@ class PipelineDelete(Resource):
                 res.append(recursion_query(box['_to'], {}, 0))
 
         pipeline_.update({'boxes': res})
-        childs_to_delete = getBoxes(pipeline_.get('boxes'))
+        childs_to_delete = get_boxes(pipeline_.get('boxes'))
         for child in reversed(childs_to_delete):
             PipelineService.delete(_from=child)
             PipelineService.delete(_to=child)
