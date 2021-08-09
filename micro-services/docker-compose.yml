@@ -97,3 +97,17 @@ services:
     depends_on:
       - redisjson
       - ms_splitter
+
+  ms_pipeline_manager:
+    container_name: roche-ms-pipeline-manager
+    networks:
+      backend_genentech:
+        aliases:
+          - roche-ms-collector
+    env_file:
+      - ./ms-pipeline-manager/.env
+      - ./.env.common
+      - ./.env.common.local
+    build:
+      context: .
+      dockerfile: ./ms-pipeline-manager/Dockerfile
