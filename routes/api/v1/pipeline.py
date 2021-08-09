@@ -168,7 +168,7 @@ class PipelineGet(Resource):
     @namespace.doc('pipelines/get', security='Bearer')
     # @namespace.expect(projects.projects_model)
     # @namespace.marshal_with(projects.a_project_response)
-    @namespace.response(200, 'Get pipeline and childs', pipeline.a_pipeline_response)
+    @namespace.response(200, 'Get pipeline and children', pipeline.a_pipeline_response)
     @namespace.response(400, 'Message about reason of error', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
@@ -395,3 +395,43 @@ class PipelineDelete(Resource):
         PipelineService.delete(collection=pipeline_.get('_id').replace('/'+pipeline_.get('id'), ''), _key=pipeline_.get('id'))
         PipelineService.delete(_to=pipeline_.get('_id'))
         return {'success': True, 'data': pipeline_}, 200
+
+
+@namespace.route('/conn/<string:parent_id>/<string:child_id>/<string:project_id>')
+@namespace.param('parent_id', 'parent id(box or pipeline)')
+@namespace.param('child_id', 'child id only box')
+@namespace.param('project_id', 'project id')
+class PipelineDelete(Resource):
+    @namespace.doc('pipeline_boxes_reconnect_box/reconnect', security='Bearer')
+    @namespace.marshal_with(pipeline.a_pipeline_response)
+    @namespace.response(404, 'Object not found', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @jwt_required()
+    def get(self, parent_id, child_id, project_id):
+        author = get_jwt_identity()
+        if child_id == parent_id:
+            return {'success': False, 'message': 'child and parent id can not be same'}
+        project = ProjectService.select_projects(_key=project_id, author=author)   # only author projects show
+        if project is None:
+            return {'success': False, 'message': 'project not found'}, 200
+        parent_ = PipelineService.select_pipeline(collection='pipeline', _key=parent_id, author=author, project=project_id, one=True)
+        if parent_ is None:
+            parent_ = PipelineService.select_pipeline(collection='box', _key=parent_id, author=author, project=project_id, one=True)
+            if parent_ is None:
+                return {'success': False, 'message': 'parent not found'}, 200
+
+        child_ = PipelineService.select_pipeline(collection='box', _key=child_id, author=author, project=project_id, one=True)
+        if child_ is None:
+            return {'success': False, 'message': 'child not found'}, 200
+        lines = PipelineService.select_pipeline(collection='pipeline_direction', _to=child_['_id'], author=author, project=project_id, one=False)
+        if len(lines) is not None:
+            PipelineService.delete(collection='pipeline_direction', _to=child_['_id'], author=author, project=project_id)
+            ft = {'_from': str(parent_['_id']),
+                  '_to': str(child_['_id']),
+                  'author': author,
+                  'project': str(project_id)}
+            data = PipelineService.insert(data=ft, collection='pipeline_direction')
+        else:
+            return {'success': False}
+
+        return {'success': True, 'data': data}, 200
