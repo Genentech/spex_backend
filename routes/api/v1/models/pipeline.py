@@ -28,10 +28,10 @@ pipeline_get_model = pipeline_model.inherit('Pipeline get', {
     )
 })
 
-task_resource_image_connect_to_box = pipeline_model.inherit('Connect post', {
-    'tasks_ids': fields.List(fields.String(required=False, description='task to connect into box')),
-    'box_ids': fields.List(fields.String(required=False, description='box ids to connect pipeline')),
-    'resource_ids': fields.List(fields.String(required=False, description='resource ids to connect into box'))
+task_resource_image_connect_to_job = pipeline_model.inherit('Connect post', {
+    'tasks_ids': fields.List(fields.String(required=False, description='task to connect into job')),
+    'job_ids': fields.List(fields.String(required=False, description='job ids to connect pipeline')),
+    'resource_ids': fields.List(fields.String(required=False, description='resource ids to connect into job'))
 })
 
 pipeline_post_model = pipeline_model.inherit('Pipeline post', {
