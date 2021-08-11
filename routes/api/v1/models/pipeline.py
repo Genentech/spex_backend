@@ -1,11 +1,14 @@
 from flask_restx import fields, Model
 from .responses import response
 
-pipeline_model = Model('PipelineBase', {
+pipeline_create_model = Model('PipelineBase', {
     'name': fields.String(
         description='pipeline name',
-        required=False
-    ),
+        required=True
+    )
+})
+
+pipeline_model = pipeline_create_model.inherit('Pipeline base1', {
     'id': fields.String(
         required=False,
         description='id'
@@ -44,5 +47,6 @@ list_pipeline_response = response.inherit('PipelineListResponse', {
 })
 
 a_pipeline_response = response.inherit('PipelineResponse', {
-    'data': fields.Nested(pipeline_get_model)
+    'data': fields.Nested(pipeline_get_model, required=False),
+    'message': fields.String(required=False, description='error reason')
 })
