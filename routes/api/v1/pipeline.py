@@ -22,12 +22,12 @@ namespace.add_model(pipeline.pipeline_get_model.name, pipeline.pipeline_get_mode
 namespace.add_model(pipeline.task_resource_image_connect_to_job.name, pipeline.task_resource_image_connect_to_job)
 
 
-def recursion_query(itemid, tree, _depth):
+def recursion_query(itemid, tree, _depth, pipeline_id):
 
     text = 'FOR d IN jobs ' + \
            f'FILTER d._id == "{itemid}" ' + \
            'LET jobs = (' + \
-           f'FOR b IN 1..1 OUTBOUND "{itemid}"' + ' GRAPH "pipeline" RETURN {"name": b.name, "id": b._key, "status": b.complete } )' + \
+           f'FOR b IN pipeline_direction FILTER b._from ==  "{itemid}" && b.pipeline == "{pipeline_id}" RETURN  ' + '{"name": b.name, "_id": SUBSTITUTE(b._to, "jobs/",""), "status": b.complete } )' + \
            ' RETURN MERGE({"id": d._key, "name": d.name, "status": d.complete}, {"jobs": jobs})'
 
     result = db_instance().query(text)
@@ -41,8 +41,8 @@ def recursion_query(itemid, tree, _depth):
     if _depth < 50:
         if result[0]['jobs'] is not None and len(result[0]['jobs']) > 0:
             while i < len(result[0]['jobs']):
-                _id = 'job/' + str(result[0]['jobs'][i]['id'])
-                tree['jobs'][i] = recursion_query(_id, tree['jobs'][i], _depth + 1)
+                _id = 'jobs/' + result[0]['jobs'][i]['_id']
+                tree['jobs'][i] = recursion_query(_id, tree['jobs'][i], _depth + 1, pipeline_id)
                 i += 1
     return tree
 
@@ -191,7 +191,7 @@ class PipelineGet(Resource):
                 lines.append(pipeline_)
                 continue
             for job in jobs:
-                res.append(recursion_query(job['_to'], {}, 0))
+                res.append(recursion_query(job['_to'], {}, 0, pipeline_.get('id')))
             pipeline_.pop('_from', None)
             pipeline_.pop('_to', None)
             pipeline_.update({'jobs': res})
@@ -222,7 +222,7 @@ class PipelineGetList(Resource):
             return {'success': True, 'data': {"pipelines": lines}}, 200
         for _pipeline in _pipelines:
             res = []
-            jobs = PipelineService.select_pipeline(author=author, _from=_pipeline.get('_id'))
+            jobs = PipelineService.select_pipeline(author=author, _from=_pipeline.get('_id'), pipeline=_pipeline.get('id'))
             if jobs is None:
                 _pipeline.pop('_from', None)
                 _pipeline.pop('_to', None)
@@ -230,7 +230,7 @@ class PipelineGetList(Resource):
                 lines.append(_pipeline)
                 continue
             for job in jobs:
-                res.append(recursion_query(job['_to'], {}, 0))
+                res.append(recursion_query(job['_to'], {}, 0, pipeline_id))
             _pipeline.pop('_from', None)
             _pipeline.pop('_to', None)
             _pipeline.update({'jobs': res})
@@ -359,20 +359,25 @@ class PipelineDelete(Resource):
         if pipeline_ is None:
             return {'success': False, 'message': 'pipeline not found'}, 200
         pipeline_ = PipelineService.select_pipeline(collection='pipeline', _key=pipeline_job_id, author=author, one=True)
-        if pipeline_ is None:
-            is_a_job = JobService.select_jobs(id=pipeline_job_id)
-            pipeline_ = PipelineService.select_pipeline(collection='pipeline_direction', _to='jobs/'+pipeline_job_id, pipeline=pipeline_id, author=author, one=True)
+
+        if pipeline_job_id == pipeline_id:
+            direction = PipelineService.select_pipeline(collection='pipeline_direction', pipeline=pipeline_id, author=author)
+            children_to_delete = list(map(lambda item: item.get('_to'), direction))
+        else:
             if pipeline_ is None:
-                return {'success': False, 'message': 'pipeline not found'}, 200
+                pipeline_ = PipelineService.select_pipeline(collection='pipeline_direction', _to='jobs/'+pipeline_job_id, pipeline=pipeline_id, author=author, one=True)
+                if pipeline_ is None:
+                    return {'success': False, 'message': 'pipeline not found'}, 200
 
-        jobs = PipelineService.select_pipeline(author=author, _to='jobs/'+pipeline_job_id, pipeline=pipeline_id)
-        res = []
-        if jobs is not None:
-            for job in jobs:
-                res.append(recursion_query(job['_to'], {}, 0))
+            jobs = PipelineService.select_pipeline(author=author, _to='jobs/'+pipeline_job_id, pipeline=pipeline_id)
+            res = []
+            if jobs is not None:
+                for job in jobs:
+                    res.append(recursion_query(job['_to'], {}, 0, pipeline_id))
 
-        pipeline_.update({'jobs': res})
-        children_to_delete = get_jobs(pipeline_.get('jobs'))
+            pipeline_.update({'jobs': res})
+            children_to_delete = get_jobs(pipeline_.get('jobs'))
+
         for child in reversed(children_to_delete):
             PipelineService.delete(_from=child, pipeline=pipeline_id)
             PipelineService.delete(_to=child, pipeline=pipeline_id)
