@@ -15,6 +15,9 @@ jobs_model = Model('JobBase', {
         fields.String,
         required=True,
         description='image id'),
+    'status': fields.Integer(
+        requred=False,
+        description='status'),
 })
 
 jobs_update_model = Model('JobUpdate', {
@@ -30,6 +33,9 @@ jobs_update_model = Model('JobUpdate', {
         fields.String,
         required=False,
         description='image id'),
+    'status': fields.Integer(
+        requred=False,
+        description='status'),
 })
 
 job_get_model = jobs_model.inherit('JobsGet', {

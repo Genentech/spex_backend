@@ -31,9 +31,9 @@ class JobCreateGetPost(Resource):
         body = request.json
         body['author'] = get_jwt_identity()
         result = JobService.insert(body)
-        Tasks = TaskService.createTasks(body, result)
+        tasks = TaskService.createTasks(body, result)
         res = result.to_json()
-        res['tasks'] = Tasks
+        res['tasks'] = tasks
         return {'success': True, 'data': res}, 200
 
     @namespace.doc('job/get', security='Bearer')
@@ -53,16 +53,16 @@ class JobCreateGetPost(Resource):
         return {'success': True, 'data': result}, 200
 
 
-@namespace.route('/<string:id>')
+@namespace.route('/<string:_id>')
 class Item(Resource):
     @namespace.doc('job/get', security='Bearer')
     @namespace.marshal_with(jobs.a_jobs_response)
     @namespace.response(404, 'job not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
-    def get(self, id):
+    def get(self, _id):
 
-        result = JobService.select_jobs(**{'author': get_jwt_identity(), '_key': id})
+        result = JobService.select_jobs(**{'author': get_jwt_identity(), '_key': _id})
         if result is None or result == []:
             return {'success': False, 'message': 'job not found', 'data': {}}, 200
         for job in result:
@@ -75,13 +75,13 @@ class Item(Resource):
     @namespace.response(404, 'job not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
-    def put(self, id):
+    def put(self, _id):
 
-        result = JobService.select_jobs(**{'author': get_jwt_identity(), '_key': id})
+        result = JobService.select_jobs(**{'author': get_jwt_identity(), '_key': _id})
         if result is None or result == []:
             return {'success': False, 'message': 'job not found', 'data': {}}, 200
         for job in result:
-            job = JobService.update(id=id, data=request.json).to_json()
+            job = JobService.update(id=_id, data=request.json).to_json()
             tasks = TaskService.select_tasks_edge(job['_id'])
             updated_tasks = []
             for task in tasks:
@@ -89,16 +89,16 @@ class Item(Resource):
                 updated_tasks.append(task.to_json())
             job['tasks'] = updated_tasks
 
-        return {'success': True, 'data': job}, 200
+            return {'success': True, 'data': job}, 200
 
     @namespace.doc('job/delete', security='Bearer')
     @namespace.marshal_with(jobs.a_jobs_response)
     @namespace.response(404, 'job not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
-    def delete(self, id):
+    def delete(self, _id):
 
-        result = JobService.select_jobs(**{'author': get_jwt_identity(), '_key': id})
+        result = JobService.select_jobs(**{'author': get_jwt_identity(), '_key': _id})
         if result is None or result == []:
             return {'success': False, 'message': 'job not found', 'data': {}}, 200
         for job in result:
@@ -107,7 +107,7 @@ class Item(Resource):
                 JobService.delete_connection(_from=job['_id'], _to=task['_id'])
                 TaskService.delete(task['id'])
 
-            deleted = JobService.delete(id).to_json()
+            deleted = JobService.delete(_id).to_json()
             deleted['tasks'] = tasks
 
-        return {'success': True, 'data': deleted}, 200
+            return {'success': True, 'data': deleted}, 200
