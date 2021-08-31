@@ -28,7 +28,7 @@ def recursion_query(itemid, tree, _depth, pipeline_id):
            f'FILTER d._id == "{itemid}" ' + \
            'LET jobs = (' + \
            f'FOR b IN pipeline_direction FILTER b._from ==  "{itemid}" && b.pipeline == "{pipeline_id}" RETURN  ' + '{"name": b.name, "_id": SUBSTITUTE(b._to, "jobs/",""), "status": b.complete } )' + \
-           ' RETURN MERGE({"id": d._key, "name": d.name, "status": d.complete}, {"jobs": jobs})'
+           ' RETURN MERGE({"id": d._key, "name": d.name, "status": d.status}, {"jobs": jobs})'
 
     result = db_instance().query(text)
     if len(result) > 0:

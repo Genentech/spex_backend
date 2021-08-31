@@ -30,6 +30,8 @@ class JobCreateGetPost(Resource):
     def post(self):
         body = request.json
         body['author'] = get_jwt_identity()
+        if body.get('status') is None or body.get('status') == '':
+            body.update(status=0)
         result = JobService.insert(body)
         tasks = TaskService.createTasks(body, result)
         res = result.to_json()
@@ -49,6 +51,8 @@ class JobCreateGetPost(Resource):
             return {'success': False, 'message': 'jobs not found', 'data': {}}, 200
         for job in result:
             job['tasks'] = TaskService.select_tasks_edge(job.get('_id'))
+            if job.get('status') is None or job.get('status') == '':
+                job.update(status=0)
 
         return {'success': True, 'data': result}, 200
 
@@ -67,6 +71,8 @@ class Item(Resource):
             return {'success': False, 'message': 'job not found', 'data': {}}, 200
         for job in result:
             job['tasks'] = TaskService.select_tasks_edge(job.get('_id'))
+            if job.get('status') is None or job.get('status') == '':
+                job.update(status=0)
         return {'success': True, 'data': result[0]}, 200
 
     @namespace.doc('job/put', security='Bearer')
@@ -88,6 +94,8 @@ class Item(Resource):
                 task = TaskService.update(id=task['id'], data=request.json)
                 updated_tasks.append(task.to_json())
             job['tasks'] = updated_tasks
+            if job.get('status') is None or job.get('status') == '':
+                job.update(status=0)
 
             return {'success': True, 'data': job}, 200
 
@@ -109,5 +117,7 @@ class Item(Resource):
 
             deleted = JobService.delete(_id).to_json()
             deleted['tasks'] = tasks
+            if deleted.get('status') is None or deleted.get('status') == '':
+                deleted.update(status=0)
 
             return {'success': True, 'data': deleted}, 200
