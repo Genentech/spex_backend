@@ -54,3 +54,7 @@ list_jobs_response = response.inherit('JobsListResponse', {
 a_jobs_response = response.inherit('JobsResponse', {
     'data': fields.Nested(job_get_model),
 })
+
+a_jobs_type_response = response.inherit('JobsResponse', {
+    'data': fields.List(fields.String(required=True, description='Job type name')),
+})

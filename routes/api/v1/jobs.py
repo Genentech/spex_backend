@@ -1,5 +1,8 @@
 import services.Job as JobService
 import services.Task as TaskService
+import services.Script_worker as ScriptService
+import os
+from glob import glob
 from flask_restx import Namespace, Resource
 from flask import request
 # from models.Job import Job
@@ -16,6 +19,7 @@ namespace.add_model(jobs.a_jobs_response.name, jobs.a_jobs_response)
 namespace.add_model(jobs.jobs_update_model.name, jobs.jobs_update_model)
 namespace.add_model(responses.error_response.name, responses.error_response)
 namespace.add_model(jobs.list_jobs_response.name, jobs.list_jobs_response)
+namespace.add_model(jobs.a_jobs_type_response.name, jobs.a_jobs_type_response)
 
 
 @namespace.route('')
@@ -121,3 +125,29 @@ class Item(Resource):
                 deleted.update(status=0)
 
             return {'success': True, 'data': deleted}, 200
+
+
+@namespace.route('/type/<string:job_type>')
+class Type(Resource):
+    @namespace.doc('job/get_job_info', security='Bearer')
+    # @namespace.marshal_with(jobs.a_jobs_response)
+    @namespace.response(404, 'job type not found', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    # @jwt_required()
+    def get(self, job_type):
+        if job_type not in ScriptService.scripts_list():
+            return {'success': False, 'message': 'Cannot find this type of job'}, 200
+
+        return {'success': True, 'data': data}, 200
+
+
+@namespace.route('/type')
+class Type(Resource):
+    @namespace.doc('job/get_types', security='Bearer')
+    @namespace.marshal_with(jobs.a_jobs_type_response)
+    @namespace.response(404, 'job type not found', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @jwt_required()
+    def get(self):
+
+        return {'success': True, 'data': ScriptService.scripts_list()}, 200
