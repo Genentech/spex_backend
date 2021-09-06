@@ -26,7 +26,7 @@ namespace.add_model(jobs.a_jobs_type_response.name, jobs.a_jobs_type_response)
 class JobCreateGetPost(Resource):
     @namespace.doc('jobs/create', security='Bearer')
     @namespace.expect(jobs.jobs_model)
-    @namespace.marshal_with(jobs.a_jobs_response)
+    # @namespace.marshal_with(jobs.a_jobs_response)
     @namespace.response(200, 'Created job', jobs.a_jobs_response)
     @namespace.response(400, 'Message about reason of error', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
@@ -37,7 +37,7 @@ class JobCreateGetPost(Resource):
         if body.get('status') is None or body.get('status') == '':
             body.update(status=0)
         result = JobService.insert(body)
-        tasks = TaskService.createTasks(body, result)
+        tasks = TaskService.create_tasks(body, result)
         res = result.to_json()
         res['tasks'] = tasks
         return {'success': True, 'data': res}, 200
@@ -95,7 +95,7 @@ class Item(Resource):
             tasks = TaskService.select_tasks_edge(job['_id'])
             updated_tasks = []
             for task in tasks:
-                task = TaskService.update(id=task['id'], data=request.json)
+                task = TaskService.update(_id=task['id'], data=request.json)
                 updated_tasks.append(task.to_json())
             job['tasks'] = updated_tasks
             if job.get('status') is None or job.get('status') == '':
@@ -137,6 +137,8 @@ class Type(Resource):
     def get(self, job_type):
         if job_type not in ScriptService.scripts_list():
             return {'success': False, 'message': 'Cannot find this type of job'}, 200
+
+        data = ScriptService.get_script_structure(job_type)
 
         return {'success': True, 'data': data}, 200
 

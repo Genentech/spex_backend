@@ -6,9 +6,9 @@ from services.Utils import first_or_none, map_or_none
 _collectionName = 'tasks'
 
 
-def select(id, collection=_collectionName) -> Task:
+def select(_id, collection=_collectionName) -> Task:
     search = 'FILTER doc._key == @value LIMIT 1'
-    items = db_instance().select(collection, search, value=id)
+    items = db_instance().select(collection, search, value=_id)
     return first_or_none(items, task)
 
 
@@ -34,15 +34,15 @@ def select_tasks_edge(_key) -> list[Task]:
     return map_or_none(items, lambda item: task(item).to_json())
 
 
-def update(id, data=None, collection='tasks') -> Task:
+def update(_id, data=None, collection='tasks') -> Task:
     search = 'FILTER doc._key == @value LIMIT 1 '
-    items = db_instance().update(collection, data, search, value=id)
+    items = db_instance().update(collection, data, search, value=_id)
     return first_or_none(items, task)
 
 
-def delete(id) -> Task:
+def delete(_id) -> Task:
     search = 'FILTER doc._key == @value LIMIT 1 '
-    items = db_instance().delete(_collectionName, search, value=id)
+    items = db_instance().delete(_collectionName, search, value=_id)
     return first_or_none(items, task)
 
 
@@ -56,7 +56,7 @@ def count() -> int:
     return int(arr[0])
 
 
-def createTasks(body, job) -> list[Task]:
+def create_tasks(body, job) -> list[Task]:
     parent = job.id
     result = []
 

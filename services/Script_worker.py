@@ -142,10 +142,26 @@ def start_scenario(script: str = "", part: str = "", subpart: list = None, **kwa
 # print(result)
 
 
-params_res = get_script_params(
-    script='segmentation',
-    part='find_boundaries',
-    subpart=['stardist_cellseg']
-)
+# params_res = get_script_params(
+#     script='segmentation',
+#     part='find_boundaries',
+#     subpart=['stardist_cellseg']
+# )
+#
+# print(params_res)
 
-print(params_res)
+
+def get_script_structure(folder: str = None):
+    result_data = {}
+    folder = f'{os.getenv("DATA_STORAGE")}\\Scripts\\{folder}\\'
+    for file in glob(f'{folder}stages.json', recursive=True):
+        data = json.load(open(file))
+        for key, value in data.items():
+            result = {}
+            for file_scr in glob(f'{folder}*.json', recursive=True):
+                file_scr_data = json.load(open(file_scr))
+                if file_scr_data.get('stage') == key:
+                    cur = result_data.get(key) if result_data.get(key) else []
+                    result_data.update({key: cur + [file_scr_data]})
+        result_data.update(stages=data)
+    return result_data
