@@ -3,9 +3,6 @@ version: "3.7"
 networks:
   spex:
 
-volumes:
-  ms_splitter:
-
 services:
   arangodb:
     image: arangodb:3.7.7
@@ -37,12 +34,12 @@ services:
       - -m 64
 
   redisjson:
-    container_name: spex_redisjson
+    container_name: spex-redisjson
     restart: always
     networks:
       spex:
         aliases:
-          - spex_redisjson
+          - spex-redisjson
     ports:
       - 6379
     build:
@@ -94,7 +91,7 @@ services:
         aliases:
           - spex-ms-task-runner
     volumes:
-      - ms_splitter:/DATA_STORAGE
+      - ${HOST_DATA_STORAGE}:/DATA_STORAGE
     env_file:
       - ./microservices/ms-task-runner/.env
       - ./microservices/.env.common
@@ -113,7 +110,7 @@ services:
         aliases:
           - spex-ms-collector
     volumes:
-      - ms_splitter:/DATA_STORAGE
+      - ${HOST_DATA_STORAGE}:/DATA_STORAGE
     env_file:
       - ./microservices/ms-collector/.env
       - ./microservices/.env.common
@@ -152,8 +149,8 @@ services:
     env_file:
       - ./.env.local
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ./..
+      dockerfile: ./backend/Dockerfile
     depends_on:
       - arangodb
       - memcached

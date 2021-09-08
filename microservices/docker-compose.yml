@@ -5,12 +5,12 @@ networks:
 
 services:
   redisjson:
-    container_name: spex_redisjson
+    container_name: spex-redisjson
     restart: always
     networks:
       spex:
         aliases:
-          - spex_redisjson
+          - spex-redisjson
     ports:
       - '6379:6379'
     build:

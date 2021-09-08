@@ -5,8 +5,9 @@ ENV PYTHONDONTWRITEBYTECODE = 1 \
     # Turns off buffering for easier container logging
     PYTHONUNBUFFERED = 1
 
-WORKDIR /app
-COPY . /app
+COPY ./common /app/common
+COPY ./backend /app/backend
+WORKDIR /app/backend
 
 RUN pip install pipenv && pipenv install --system --deploy --ignore-pipfile
 

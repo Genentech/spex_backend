@@ -20,7 +20,7 @@ These instructions will get you a copy of the project up and running on your loc
 2. copy `./microservices/.env.common` to `./microservices/.env.common.local` and specify correct values for `OMERO_HOST` and `OMERO_WEB`  
 3. copy `.env` to `.env.local` and specify correct values for variables  
 4. Set needed path in environment variable HOST_DATA_STORAGE
-5. `$ export HOST_DATA_STORAGE=<path> && docker compose up -d --build`
+5. `$ export HOST_DATA_STORAGE=<path> && docker-compose up -d --build`
 
 ## Deployment
 
@@ -74,7 +74,7 @@ $ python ./app.py
 8. 
 copy `./microservices/.env.common` to `./microservices/.env.common.local` and 
 specify correct values for `OMERO_HOST` and `OMERO_WEB`  
-`$ docker compose -f ./microservices/docker-compose.yml --project-directory ./microservices up -d --build`
+`$ docker-compose -f ./microservices/docker-compose.yml --project-directory ./microservices up -d --build`
 
 ## Resources
 

@@ -29,7 +29,7 @@ class TaskGetPut(Resource):
     @namespace.marshal_with(tasks.a_tasks_response)
     @jwt_required()
     def get(self, id):
-        task = TaskService.select(id=id)
+        task = TaskService.select(id)
         if task is None:
             return {'success': False, 'message': 'task not found', 'data': {}}, 200
 
@@ -42,11 +42,11 @@ class TaskGetPut(Resource):
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
     def put(self, id):
-        task = TaskService.select(id=id)
+        task = TaskService.select(id)
         if task is None:
             return {'success': False, 'message': 'task not found', 'data': {}}, 200
         body = request.json
-        task = TaskService.update(id=id, data=body)
+        task = TaskService.update(id, data=body)
 
         return {'success': True, 'data': task.to_json()}, 200
 
@@ -57,7 +57,7 @@ class TaskGetPut(Resource):
     @jwt_required()
     def delete(self, id):
 
-        task = TaskService.select(id=id)
+        task = TaskService.select(id)
         if task is None:
             return {'success': False, 'message': 'task not found', 'data': {}}, 200
 
@@ -75,7 +75,7 @@ class TasksGetIm(Resource):
     # @namespace.marshal_with(tasks.a_tasks_response)
     @jwt_required()
     def get(self, id):
-        task = TaskService.select(id=id)
+        task = TaskService.select(id)
         if task is None:
             return {'success': False, 'message': 'task not found', 'data': {}}, 200
         task = task.to_json()
@@ -133,7 +133,7 @@ class TaskPost(Resource):
         for id in body['ids']:
             data = dict(body)
             del data['ids']
-            task = TaskService.update(id=id, data=data)
+            task = TaskService.update(id, data=data)
             if task is not None:
                 arr.append(task.to_json())
         return {'success': True, 'data': arr}, 200
