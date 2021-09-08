@@ -19,11 +19,8 @@ These instructions will get you a copy of the project up and running on your loc
 1. Make symbolic links in of all microservices from `../microservices` to `./microservices`  
 2. copy `./microservices/.env.common` to `./microservices/.env.common.local` and specify correct values for `OMERO_HOST` and `OMERO_WEB`  
 3. copy `.env` to `.env.local` and specify correct values for variables  
-4. Set needed path in environment variable HOST_DATA_STORAGE  
-```
-export HOST_DATA_STORAGE=expected path for data storage
-```
-5. `$ docker compose up -d --build`
+4. Set needed path in environment variable HOST_DATA_STORAGE
+5. `$ export HOST_DATA_STORAGE=<path> && docker compose up -d --build`
 
 ## Deployment
 

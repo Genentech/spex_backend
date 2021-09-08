@@ -43,7 +43,7 @@ services:
       - ./.env.common
       - ./.env.common.local
     build:
-      context: ./..
+      context: ./../..
       dockerfile: ./microservices/ms-session-refresher/Dockerfile
     depends_on:
       - memcached
@@ -62,7 +62,7 @@ services:
       - ./.env.common
       - ./.env.common.local
     build:
-      context: ./..
+      context: ./../..
       dockerfile: ./microservices/ms-splitter/Dockerfile
     depends_on:
       - redisjson
@@ -81,7 +81,7 @@ services:
       - ./.env.common
       - ./.env.common.local
     build:
-      context: ./..
+      context: ./../..
       dockerfile: ./microservices/ms-task-runner/Dockerfile
     depends_on:
       - ms_splitter
@@ -100,7 +100,7 @@ services:
       - ./.env.common
       - ./.env.common.local
     build:
-      context: ./..
+      context: ./../..
       dockerfile: ./microservices/ms-collector/Dockerfile
     depends_on:
       - ms_splitter
@@ -117,7 +117,7 @@ services:
       - ./.env.common
       - ./.env.common.local
     build:
-      context: ./..
+      context: ./../..
       dockerfile: ./microservices/ms-pipeline-manager/Dockerfile
 
 volumes:
