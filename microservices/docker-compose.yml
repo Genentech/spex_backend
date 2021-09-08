@@ -1,13 +1,14 @@
 version: "3.7"
 
 networks:
-  backend_genentech:
+  spex:
 
 services:
   redisjson:
     container_name: spex_redisjson
+    restart: always
     networks:
-      backend_genentech:
+      spex:
         aliases:
           - spex_redisjson
     ports:
@@ -17,53 +18,60 @@ services:
       dockerfile: Dockerfile
 
   memcached:
-    image: 'bitnami/memcached:latest'
-    container_name: spex_memcached
-    ports:
-      - '11211:11211'
+    image: memcached:latest
+    container_name: spex-memcached
+    restart: always
     networks:
-      backend_genentech:
+      spex:
         aliases:
           - spex-memcached
+    ports:
+      - '11211:11211'
+    entrypoint:
+      - memcached
+      - -m 64
 
-  ms_ome_session_refresher:
-    container_name: spex-ms-ome-session-refresher
+  ms_session_refresher:
+    container_name: spex-ms-session-refresher
+    restart: always
     networks:
-      backend_genentech:
+      spex:
         aliases:
-          - spex-ms-ome-session-refresher
+          - spex-ms-session-refresher
     env_file:
       - ./ms-session-refresher/.env
       - ./.env.common
       - ./.env.common.local
     build:
       context: ./..
-      dockerfile: ./micro-services/ms-session-refresher/Dockerfile
+      dockerfile: ./microservices/ms-session-refresher/Dockerfile
     depends_on:
       - memcached
 
   ms_splitter:
     container_name: spex-ms-splitter
+    restart: always
     networks:
-      backend_genentech:
+      spex:
         aliases:
           - spex-ms-splitter
     volumes:
-      - C:\\temp\\DATA_STORAGE:/DATA_STORAGE
+      - ${HOST_DATA_STORAGE}:/DATA_STORAGE
     env_file:
       - ./ms-splitter/.env
       - ./.env.common
       - ./.env.common.local
     build:
       context: ./..
-      dockerfile: ./micro-services/ms-splitter/Dockerfile
+      dockerfile: ./microservices/ms-splitter/Dockerfile
     depends_on:
       - redisjson
 
   ms_task_runner:
     container_name: spex-ms-task-runner
+    restart: always
     networks:
-      backend_genentech:
+      spex:
         aliases:
           - spex-ms-task-runner
     volumes:
@@ -74,15 +82,15 @@ services:
       - ./.env.common.local
     build:
       context: ./..
-      dockerfile: ./micro-services/ms-task-runner/Dockerfile
+      dockerfile: ./microservices/ms-task-runner/Dockerfile
     depends_on:
-      - redisjson
       - ms_splitter
 
   ms_collector:
     container_name: spex-ms-collector
+    restart: always
     networks:
-      backend_genentech:
+      spex:
         aliases:
           - spex-ms-collector
     volumes:
@@ -93,15 +101,15 @@ services:
       - ./.env.common.local
     build:
       context: ./..
-      dockerfile: ./micro-services/ms-collector/Dockerfile
+      dockerfile: ./microservices/ms-collector/Dockerfile
     depends_on:
-      - redisjson
       - ms_splitter
 
   ms_pipeline_manager:
     container_name: spex-ms-pipeline-manager
+    restart: always
     networks:
-      backend_genentech:
+      spex:
         aliases:
           - spex-ms-collector
     env_file:
@@ -110,7 +118,7 @@ services:
       - ./.env.common.local
     build:
       context: ./..
-      dockerfile: ./micro-services/ms-pipeline-manager/Dockerfile
+      dockerfile: ./microservices/ms-pipeline-manager/Dockerfile
 
 volumes:
   ms_splitter:

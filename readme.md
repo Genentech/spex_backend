@@ -16,12 +16,14 @@ These instructions will get you a copy of the project up and running on your loc
 
 ## Production
 
-copy `.env` to `.env.local` and specify correct values for variables  
-`$ docker compose up -d --build`  
-
-
-copy `.env.common` to `.env.common.local` and specify correct values for `OMERO_HOST` and `OMERO_WEB`  
-`$ docker compose -f ./micro-service/docker-compose.yml --project-directory ./micro-service up -d --build`
+1. Make symbolic links in of all microservices from `../microservices` to `./microservices`  
+2. copy `./microservices/.env.common` to `./microservices/.env.common.local` and specify correct values for `OMERO_HOST` and `OMERO_WEB`  
+3. copy `.env` to `.env.local` and specify correct values for variables  
+4. Set needed path in environment variable HOST_DATA_STORAGE  
+```
+export HOST_DATA_STORAGE=expected path for data storage
+```
+5. `$ docker compose up -d --build`
 
 ## Deployment
 
@@ -32,7 +34,7 @@ copy `.env.common` to `.env.common.local` and specify correct values for `OMERO_
 2. Redis
 
 ```
-$ cd ./micro-services/redis  
+$ cd ./microservices/redis  
 $ docker build --pull --rm -t spex_redisjson .
 $ docker run -p 6379:6379 --name spex_redisjson -d spex_redisjson
 $ cd ../..
@@ -70,6 +72,12 @@ $ pipenv shell
 $ export MODE=development
 $ python ./app.py
 ```
+
+7. for start all microservices  
+8. 
+copy `./microservices/.env.common` to `./microservices/.env.common.local` and 
+specify correct values for `OMERO_HOST` and `OMERO_WEB`  
+`$ docker compose -f ./microservices/docker-compose.yml --project-directory ./microservices up -d --build`
 
 ## Resources
 

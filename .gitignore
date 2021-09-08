@@ -12,5 +12,5 @@
 /data
 *key
 *key.pub
-/micro-services/ms-*
+/microservices/ms-*
 .idea

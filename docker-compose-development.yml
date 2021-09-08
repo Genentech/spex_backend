@@ -1,0 +1,67 @@
+version: "3.7"
+
+networks:
+  spex:
+
+services:
+  arangodb:
+    image: arangodb:3.7.7
+    container_name: spex-arangodb
+    restart: always
+    networks:
+      spex:
+        aliases:
+          - spex-arangodb
+    ports:
+      - 8529
+    env_file:
+      - ./.env.local
+    volumes:
+      - ~/spex_db:/var/lib/arangodb3
+
+  memcached:
+    image: memcached:latest
+    container_name: spex-memcached
+    restart: always
+    networks:
+      spex:
+        aliases:
+          - spex-memcached
+    ports:
+      - 11211
+    entrypoint:
+      - memcached
+      - -m 64
+
+  backend:
+    container_name: spex-backend
+    restart: always
+    networks:
+      spex:
+        aliases:
+          - spex-backend
+    volumes:
+      - ${HOST_DATA_STORAGE}:/DATA_STORAGE
+    ports:
+      - 8080
+    env_file:
+      - ./.env.local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - arangodb
+      - memcached
+
+  nginx:
+    image: nginx:1.19.8
+    restart: always
+    container_name: spex-nginx
+    depends_on:
+      - backend
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - 80:80
+    networks:
+      - spex
