@@ -1,5 +1,5 @@
 import base64
-
+import json
 import services.Task as TaskService
 import services.Job as JobService
 from flask_restx import Namespace, Resource
@@ -8,6 +8,9 @@ import services.Utils as Utils
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import tasks, responses
 import os
+import pickle
+import numpy as np
+
 
 namespace = Namespace('Tasks', description='Tasks CRUD operations')
 
@@ -20,33 +23,33 @@ namespace.add_model(tasks.list_tasks_response.name, tasks.list_tasks_response)
 namespace.add_model(tasks.task_get_model.name, tasks.task_get_model)
 
 
-@namespace.route('/<id>')
-@namespace.param('id', 'task id')
+@namespace.route('/<_id>')
+@namespace.param('_id', 'task id')
 class TaskGetPut(Resource):
-    @namespace.doc('tasks/getone', security='Bearer')
+    @namespace.doc('tasks/get_one', security='Bearer')
     @namespace.response(404, 'Task not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @namespace.marshal_with(tasks.a_tasks_response)
     @jwt_required()
-    def get(self, id):
-        task = TaskService.select(id)
+    def get(self, _id):
+        task = TaskService.select(_id)
         if task is None:
             return {'success': False, 'message': 'task not found', 'data': {}}, 200
 
         return {'success': True, 'data': task.to_json()}, 200
 
-    @namespace.doc('tasks/updateone', security='Bearer')
+    @namespace.doc('tasks/update_one', security='Bearer')
     @namespace.marshal_with(tasks.a_tasks_response)
     @namespace.expect(tasks.tasks_model)
     @namespace.response(404, 'Task not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
-    def put(self, id):
-        task = TaskService.select(id)
+    def put(self, _id):
+        task = TaskService.select(_id)
         if task is None:
             return {'success': False, 'message': 'task not found', 'data': {}}, 200
         body = request.json
-        task = TaskService.update(id, data=body)
+        task = TaskService.update(_id, data=body)
 
         return {'success': True, 'data': task.to_json()}, 200
 
@@ -55,27 +58,27 @@ class TaskGetPut(Resource):
     @namespace.response(404, 'task not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
-    def delete(self, id):
+    def delete(self, _id):
 
-        task = TaskService.select(id)
+        task = TaskService.select(_id)
         if task is None:
             return {'success': False, 'message': 'task not found', 'data': {}}, 200
 
-        JobService.delete_connection(_to=task._id)
+        JobService.delete_connection(_to=task.id)
         deleted = TaskService.delete(task.id).to_json()
         return {'success': True, 'data': deleted}, 200
 
 
-@namespace.route('/image/<id>')
-@namespace.param('id', 'task id')
+@namespace.route('/image/<_id>')
+@namespace.param('_id', 'task id')
 class TasksGetIm(Resource):
     @namespace.doc('tasks/getimage', security='Bearer')
     @namespace.response(404, 'Task not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     # @namespace.marshal_with(tasks.a_tasks_response)
     @jwt_required()
-    def get(self, id):
-        task = TaskService.select(id)
+    def get(self, _id):
+        task = TaskService.select(_id)
         if task is None:
             return {'success': False, 'message': 'task not found', 'data': {}}, 200
         task = task.to_json()
@@ -84,8 +87,6 @@ class TasksGetIm(Resource):
 
         path = task.get('impath')
         path = Utils.getAbsoluteRelative(path, absolute=True)
-
-        print(f'path: {path}')
 
         if not os.path.exists(path):
             return {'success': False, 'message': 'image not found', 'data': {}}, 200
@@ -113,10 +114,10 @@ class TaskListPost(Resource):
     @jwt_required()
     def post(self):
         body = request.json
-        tasks = TaskService.select_tasks(condition='in', _key=body['ids'])
-        if tasks is None:
+        _tasks = TaskService.select_tasks(condition='in', _key=body['ids'])
+        if _tasks is None:
             return {'success': False, 'data': []}, 200
-        return {'success': True, 'data': tasks}, 200
+        return {'success': True, 'data': _tasks}, 200
 
 
 @namespace.route('')
@@ -130,10 +131,10 @@ class TaskPost(Resource):
     def post(self):
         body = request.json
         arr = []
-        for id in body['ids']:
+        for _id in body['ids']:
             data = dict(body)
             del data['ids']
-            task = TaskService.update(id, data=data)
+            task = TaskService.update(_id, data=data)
             if task is not None:
                 arr.append(task.to_json())
         return {'success': True, 'data': arr}, 200
@@ -152,3 +153,44 @@ class TaskPost(Resource):
             return {'success': False, 'message': 'tasks not found', 'data': {}}, 200
 
         return {'success': True, 'data': result}, 200
+
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+
+
+@namespace.route('/file/<_id>')
+@namespace.param('_id', 'task id')
+class TasksGetIm(Resource):
+    @namespace.doc('tasks/get_file', security='Bearer')
+    @namespace.response(404, 'Task not found', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    # @namespace.marshal_with(tasks.a_tasks_response)
+    @jwt_required()
+    def get(self, _id):
+        task = TaskService.select(_id)
+        if task is None:
+            return {'success': False, 'message': 'task not found', 'data': {}}, 200
+        task = task.to_json()
+        if task.get('result') is None:
+            return {'success': False, 'message': 'result not found', 'data': {}}, 200
+
+        path = task.get('result')
+        path = Utils.getAbsoluteRelative(path, absolute=True)
+
+        if not os.path.exists(path):
+            return {'success': False, 'message': 'result not found', 'data': {}}, 200
+
+        try:
+            with open(path, 'rb') as infile:
+                data = pickle.load(infile)
+                data = json.dumps(data, cls=NumpyEncoder)
+
+                return {'success': True, 'data': {'image': data}}, 200
+        except Exception as error:
+            print(f'Error: {error}')
+
+        return {'success': False, 'message': 'image not found', 'data': {}}, 200

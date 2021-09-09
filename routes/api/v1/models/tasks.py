@@ -15,6 +15,8 @@ task_get_model = tasks_model.inherit('Task get', {
         description='Task id'
     ),
     'csvdata': fields.Wildcard(fields.List(fields.List(fields.String()))),
+    'params': fields.Wildcard(fields.Wildcard(fields.String)),
+
 })
 
 task_post_model = Model('TasksList', {
