@@ -120,5 +120,21 @@ services:
       context: ./../..
       dockerfile: ./microservices/ms-pipeline-manager/Dockerfile
 
+  ms_job_manager:
+    container_name: roche-ms-job-manager
+    networks:
+      backend_genentech:
+        aliases:
+          - roche-job-manager
+    env_file:
+      - ./ms-job-manager/.env
+      - ./.env.common
+      - ./.env.common.local
+    build:
+      context: .
+      dockerfile: ./ms-job-manager/Dockerfile
+    volumes:
+      - ms_splitter:/DATA_STORAGE
+
 volumes:
   ms_splitter:
