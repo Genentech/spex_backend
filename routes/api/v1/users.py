@@ -1,7 +1,8 @@
+from os import getenv
 import services.User as UserService
 import datetime
 import spex_common.modules.omeroweb as omeroweb
-
+import requests
 from flask_restx import Namespace, Resource
 from flask import request, abort
 from flask_jwt_extended import \
@@ -55,8 +56,16 @@ class Login(Resource):
         body = request.json
 
         login = body['username']
-        password = body['password']
-        client = omeroweb.create(login, password)
+
+        response = requests.post(
+            getenv('OMERO_SESSIONS_HOST'),
+            json=body,
+            headers={"Content-Type": "application/json"}
+        )
+        if response.status_code != 200:
+            abort(401, 'Unable to login user')
+
+        client = omeroweb.get(login)
         if not client:
             abort(401, 'Unable to login user')
 
