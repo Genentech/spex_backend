@@ -32,11 +32,11 @@ class TaskGetPut(Resource):
     @namespace.marshal_with(tasks.a_tasks_response)
     @jwt_required()
     def get(self, _id):
-        task = TaskService.select(_id)
-        if task is None:
+        _task = TaskService.select(_id)
+        if _task is None:
             return {'success': False, 'message': 'task not found', 'data': {}}, 200
 
-        return {'success': True, 'data': task.to_json()}, 200
+        return {'success': True, 'data': _task.to_json()}, 200
 
     @namespace.doc('tasks/update_one', security='Bearer')
     @namespace.marshal_with(tasks.a_tasks_response)
@@ -45,13 +45,13 @@ class TaskGetPut(Resource):
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
     def put(self, _id):
-        task = TaskService.select(_id)
-        if task is None:
+        _task = TaskService.select(_id)
+        if _task is None:
             return {'success': False, 'message': 'task not found', 'data': {}}, 200
         body = request.json
-        task = TaskService.update(_id, data=body)
+        _task = TaskService.update(_id, data=body)
 
-        return {'success': True, 'data': task.to_json()}, 200
+        return {'success': True, 'data': _task.to_json()}, 200
 
     @namespace.doc('task/delete', security='Bearer')
     @namespace.marshal_with(tasks.a_tasks_response)
@@ -59,13 +59,12 @@ class TaskGetPut(Resource):
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
     def delete(self, _id):
-
-        task = TaskService.select(_id)
-        if task is None:
+        _task = TaskService.select(_id)
+        if _task is None:
             return {'success': False, 'message': 'task not found', 'data': {}}, 200
 
-        JobService.delete_connection(_to=task.id)
-        deleted = TaskService.delete(task.id).to_json()
+        JobService.delete_connection(_to=_task.id)
+        deleted = TaskService.delete(_task.id).to_json()
         return {'success': True, 'data': deleted}, 200
 
 
@@ -78,14 +77,14 @@ class TasksGetIm(Resource):
     # @namespace.marshal_with(tasks.a_tasks_response)
     @jwt_required()
     def get(self, _id):
-        task = TaskService.select(_id)
-        if task is None:
+        _task = TaskService.select(_id)
+        if _task is None:
             return {'success': False, 'message': 'task not found', 'data': {}}, 200
-        task = task.to_json()
-        if task.get('impath') is None:
+        _task = _task.to_json()
+        if _task.get('impath') is None:
             return {'success': False, 'message': 'image not found', 'data': {}}, 200
 
-        path = task.get('impath')
+        path = _task.get('impath')
         path = Utils.getAbsoluteRelative(path, absolute=True)
 
         if not os.path.exists(path):
