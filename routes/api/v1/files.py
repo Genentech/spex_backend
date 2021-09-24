@@ -1,13 +1,13 @@
 # from models.Files import file
 import os
-import services.Files as fileService
+import spex_common.services.Files as fileService
 from flask_restx import Namespace, Resource
 from flask import request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import files as _file
 from .models import responses
 from werkzeug.datastructures import FileStorage
-import services.Utils as Utils
+import spex_common.services.Utils as Utils
 
 
 namespace = Namespace('Files', description='Files operations CRUD operations')

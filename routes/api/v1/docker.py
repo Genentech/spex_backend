@@ -1,6 +1,6 @@
 # from models.Files import file
-import services.Docker as dockerService
-import services.Files as fileService
+import spex_common.services.Docker as dockerService
+import spex_common.services.Files as fileService
 from flask_restx import Namespace, Resource
 from flask import request
 from flask_jwt_extended import jwt_required, get_jwt_identity

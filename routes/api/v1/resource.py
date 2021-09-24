@@ -1,4 +1,4 @@
-import services.Job as JobService
+import spex_common.services.Job as JobService
 from flask_restx import Namespace, Resource
 from flask import request, abort
 from flask_jwt_extended import jwt_required, get_jwt_identity

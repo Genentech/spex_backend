@@ -1,5 +1,5 @@
 from os import getenv
-import services.User as UserService
+import spex_common.services.User as UserService
 import datetime
 import spex_common.modules.omeroweb as omeroweb
 import requests

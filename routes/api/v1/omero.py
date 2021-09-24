@@ -5,7 +5,7 @@ from .models import responses, omero
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from os import getenv
 from urllib.parse import unquote
-from services.Utils import download_file
+from spex_common.services.Utils import download_file
 
 
 namespace = Namespace('Omero', description='Omero operations')

@@ -1,6 +1,6 @@
-import services.Job as JobService
-import services.Task as TaskService
-import services.Script_worker as ScriptService
+import spex_common.services.Job as JobService
+import spex_common.services.Task as TaskService
+import spex_common.services.Script_worker as ScriptService
 import os
 from glob import glob
 from flask_restx import Namespace, Resource
@@ -90,18 +90,10 @@ class Item(Resource):
         result = JobService.select_jobs(**{'author': get_jwt_identity(), '_key': _id})
         if result is None or result == []:
             return {'success': False, 'message': 'job not found', 'data': {}}, 200
-        for job in result:
-            job = JobService.update(id=_id, data=request.json).to_json()
-            tasks = TaskService.select_tasks_edge(job['_id'])
-            updated_tasks = []
-            for task in tasks:
-                task = TaskService.update(_id=task['id'], data=request.json)
-                updated_tasks.append(task.to_json())
-            job['tasks'] = updated_tasks
-            if job.get('status') is None or job.get('status') == '':
-                job.update(status=0)
 
-            return {'success': True, 'data': job}, 200
+        for job in result:
+            updated_job = JobService.update_job(id=_id, data=request.json)
+            return {'success': True, 'data': updated_job}, 200
 
     @namespace.doc('job/delete', security='Bearer')
     @namespace.marshal_with(jobs.a_jobs_response)

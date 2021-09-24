@@ -1,15 +1,15 @@
+import spex_common.services.Task as TaskService
+import spex_common.services.Job as JobService
+import spex_common.services.Utils as Utils
 import base64
 import json
-import services.Task as TaskService
-import services.Job as JobService
-from flask_restx import Namespace, Resource
-from flask import request
-import services.Utils as Utils
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from .models import tasks, responses
 import os
 import pickle
 import numpy as np
+from flask_restx import Namespace, Resource
+from flask import request
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from .models import tasks, responses
 
 
 namespace = Namespace('Tasks', description='Tasks CRUD operations')
