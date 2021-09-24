@@ -64,6 +64,7 @@ def create_tasks(body, job) -> list[Task]:
         arg = dict()
         arg['name'] = body['name']
         arg['content'] = body['content']
+        arg['params'] = body['params']
         arg['omeroId'] = omeroId
 
         tasks = select_tasks(**arg)
