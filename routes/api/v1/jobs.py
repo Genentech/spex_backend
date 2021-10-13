@@ -36,6 +36,9 @@ class JobCreateGetPost(Resource):
         body['author'] = get_jwt_identity()
         if body.get('status') is None or body.get('status') == '':
             body.update(status=0)
+        if body.get('params') is None:
+            body["params"] = {}
+
         result = JobService.insert(body)
         tasks = TaskService.create_tasks(body, result)
         res = result.to_json()
