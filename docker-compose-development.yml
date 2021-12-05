@@ -13,25 +13,11 @@ services:
         aliases:
           - spex-arangodb
     ports:
-      - 8529
+      - '8529'
     env_file:
       - ./.env.local
     volumes:
       - ~/spex_db:/var/lib/arangodb3
-
-  memcached:
-    image: memcached:latest
-    container_name: spex-memcached
-    restart: always
-    networks:
-      spex:
-        aliases:
-          - spex-memcached
-    ports:
-      - 11211
-    entrypoint:
-      - memcached
-      - -m 64
 
   backend:
     container_name: spex-backend
@@ -43,7 +29,7 @@ services:
     volumes:
       - ${HOST_DATA_STORAGE}:/DATA_STORAGE
     ports:
-      - 8080
+      - '8080'
     env_file:
       - ./.env.local
     build:
@@ -62,6 +48,6 @@ services:
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
     ports:
-      - 80:80
+      - '80:80'
     networks:
       - spex

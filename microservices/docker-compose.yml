@@ -1,3 +1,5 @@
+# don't forget to add system environment variable HOST_DATA_STORAGE
+
 version: "3.7"
 
 networks:
@@ -31,60 +33,46 @@ services:
       - memcached
       - -m 64
 
-  ms_session_refresher:
-    container_name: spex-ms-session-refresher
+  ms_omero_sessions:
+    container_name: spex-ms-omero-sessions
     restart: always
+    ports:
+      - '8448:8448'
     networks:
       spex:
         aliases:
-          - spex-ms-session-refresher
+          - spex-ms-omero-sessions
     env_file:
-      - ./ms-session-refresher/.env
+      - ./ms-omero-sessions/.env
+      - ./ms-omero-sessions/.env.local
       - ./.env.common
       - ./.env.common.local
     build:
       context: ./../..
-      dockerfile: ./microservices/ms-session-refresher/Dockerfile
+      dockerfile: ./microservices/ms-omero-sessions/Dockerfile
     depends_on:
       - memcached
 
-  ms_splitter:
-    container_name: spex-ms-splitter
+  ms_image_loader:
+    container_name: spex-ms-image-loader
     restart: always
     networks:
       spex:
         aliases:
-          - spex-ms-splitter
+          - spex-ms-image-loader
     volumes:
-      - ${HOST_DATA_STORAGE}:/DATA_STORAGE
+      - data_storage:/DATA_STORAGE
     env_file:
-      - ./ms-splitter/.env
+      - ./ms-omero-image-downloader/.env
+      - ./ms-omero-image-downloader/.env.local
       - ./.env.common
       - ./.env.common.local
     build:
       context: ./../..
-      dockerfile: ./microservices/ms-splitter/Dockerfile
+      dockerfile: ./microservices/ms-omero-image-downloader/Dockerfile
     depends_on:
+      - ms_omero_sessions
       - redisjson
-
-  ms_task_runner:
-    container_name: spex-ms-task-runner
-    restart: always
-    networks:
-      spex:
-        aliases:
-          - spex-ms-task-runner
-    volumes:
-      - ms_splitter:/DATA_STORAGE
-    env_file:
-      - ./ms-task-runner/.env
-      - ./.env.common
-      - ./.env.common.local
-    build:
-      context: ./../..
-      dockerfile: ./microservices/ms-task-runner/Dockerfile
-    depends_on:
-      - ms_splitter
 
   ms_collector:
     container_name: spex-ms-collector
@@ -94,16 +82,15 @@ services:
         aliases:
           - spex-ms-collector
     volumes:
-      - ms_splitter:/DATA_STORAGE
+      - data_storage:/DATA_STORAGE
     env_file:
       - ./ms-collector/.env
+      - ./ms-collector/.env.local
       - ./.env.common
       - ./.env.common.local
     build:
       context: ./../..
       dockerfile: ./microservices/ms-collector/Dockerfile
-    depends_on:
-      - ms_splitter
 
   ms_pipeline_manager:
     container_name: spex-ms-pipeline-manager
@@ -114,6 +101,7 @@ services:
           - spex-ms-collector
     env_file:
       - ./ms-pipeline-manager/.env
+      - ./ms-pipeline-manager/.env.local
       - ./.env.common
       - ./.env.common.local
     build:
@@ -121,20 +109,27 @@ services:
       dockerfile: ./microservices/ms-pipeline-manager/Dockerfile
 
   ms_job_manager:
-    container_name: roche-ms-job-manager
+    container_name: spex-ms-job-manager
+    restart: always
     networks:
-      backend_genentech:
+      spex:
         aliases:
-          - roche-job-manager
+          - spex-job-manager
+    volumes:
+      - data_storage:/DATA_STORAGE
     env_file:
       - ./ms-job-manager/.env
+      - ./ms-job-manager/.env.local
       - ./.env.common
       - ./.env.common.local
     build:
-      context: .
-      dockerfile: ./ms-job-manager/Dockerfile
-    volumes:
-      - ms_splitter:/DATA_STORAGE
+      context: ./../..
+      dockerfile: ./microservices/ms-job-manager/Dockerfile
 
 volumes:
-  ms_splitter:
+  data_storage:
+    driver: local
+    driver_opts:
+      device: ${HOST_DATA_STORAGE}
+      o: bind
+      type: none
