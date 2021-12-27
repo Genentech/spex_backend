@@ -4,10 +4,13 @@ from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from routes import blueprint
+from flask_compress import Compress
 
 config = load_config()
 
 application = Flask(__name__)
+Compress(application)
+
 application.config.from_mapping(config)
 
 

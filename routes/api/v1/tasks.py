@@ -1,16 +1,19 @@
-import spex_common.services.Task as TaskService
-import spex_common.services.Job as JobService
-import spex_common.services.Utils as Utils
 import base64
 import json
+import tempfile
 import os
 import pickle
 import numpy as np
+import spex_common.services.Task as TaskService
+import spex_common.services.Job as JobService
+import spex_common.services.Utils as Utils
+from spex_common.modules.logging import get_logger
 from flask_restx import Namespace, Resource
-from flask import request
+from flask import request, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import tasks, responses
 
+logger = get_logger('spex.backend')
 
 namespace = Namespace('Tasks', description='Tasks CRUD operations')
 
@@ -163,6 +166,7 @@ class NumpyEncoder(json.JSONEncoder):
 
 @namespace.route('/file/<_id>')
 @namespace.param('_id', 'task id')
+@namespace.param('key', 'key name')
 class TasksGetIm(Resource):
     @namespace.doc('tasks/get_file', security='Bearer')
     @namespace.response(404, 'Task not found', responses.error_response)
@@ -170,6 +174,10 @@ class TasksGetIm(Resource):
     # @namespace.marshal_with(tasks.a_tasks_response)
     @jwt_required()
     def get(self, _id):
+        key: str = ''
+        for arg in request.args:
+            key = request.args.get(arg)
+
         task = TaskService.select(_id)
         if task is None:
             return {'success': False, 'message': 'task not found', 'data': {}}, 200
@@ -186,10 +194,25 @@ class TasksGetIm(Resource):
         try:
             with open(path, 'rb') as infile:
                 data = pickle.load(infile)
-                data = json.dumps(data, cls=NumpyEncoder)
 
-                return {'success': True, 'data': {'image': data}}, 200
+                if not key:
+                    data = json.dumps(data, cls=NumpyEncoder)
+                    return {'success': True, 'data': data}, 200
+
+                data = data.get(key)
+
+                fd, temp_file_name = tempfile.mkstemp()
+                fd.close()
+
+                data.to_csv(temp_file_name)
+
+                return send_file(
+                    temp_file_name,
+                    attachment_filename=f"{_id}_result_{key}.csv",
+                )
+
         except Exception as error:
+            logger.warn(error)
             print(f'Error: {error}')
 
-        return {'success': False, 'message': 'image not found', 'data': {}}, 200
+        return {'success': False, 'message': 'result not found', 'data': {}}, 200
