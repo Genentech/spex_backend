@@ -58,7 +58,7 @@ class ProjectGetById(Resource):
         result = ProjectService.select_projects(_key=id, author=author)  # only author projects show
 
         if result is None:
-            return {'success': False, 'message': 'project not found'}, 200
+            return {'success': False, 'message': 'project not found'}, 404
 
         return {'success': True, 'data': result[0]}, 200
 
@@ -72,7 +72,7 @@ class ProjectGetById(Resource):
         author = get_jwt_identity()
         project = ProjectService.select_projects(_key=id, author=author)   # only author projects show
         if project is None:
-            return {'success': False, 'message': 'project not found'}, 200
+            return {'success': False, 'message': 'project not found'}, 404
         body = request.json
         project = ProjectService.update(id=id, data=body)
 
@@ -87,7 +87,7 @@ class ProjectGetById(Resource):
         author = get_jwt_identity()
         project = ProjectService.select_projects(_key=id, author=author)   # only author projects show
         if project is None:
-            return {'success': False, 'message': 'project not found'}, 200
+            return {'success': False, 'message': 'project not found'}, 404
 
         project = ProjectService.delete(_key=id)
 

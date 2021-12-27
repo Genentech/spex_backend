@@ -1,13 +1,9 @@
 import spex_common.services.Pipeline as PipelineService
-import spex_common.services.Task as TaskService
-import spex_common.services.Job as JobService
 import spex_common.services.Project as ProjectService
 from flask_restx import Namespace, Resource
 from flask import request
-# from models.Job import Job
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import pipeline, responses
-from spex_common.modules.database import db_instance
 
 namespace = Namespace('Pipeline', description='Pipeline CRUD operations')
 
@@ -22,91 +18,8 @@ namespace.add_model(pipeline.pipeline_get_model.name, pipeline.pipeline_get_mode
 namespace.add_model(pipeline.task_resource_image_connect_to_job.name, pipeline.task_resource_image_connect_to_job)
 
 
-# directions between pipelines jobs tasks
-# @namespace.route('/<string:project_id>/<string:parent_id>')
-# @namespace.param('project_id', 'project id')
-# @namespace.param('parent_id', 'who is daddy')
-# class PipelineCreatePost(Resource):
-#     @namespace.doc('pipeline_directions/insert', security='Bearer')
-#     @namespace.expect(pipeline.task_resource_image_connect_to_job)
-#     # @namespace.marshal_with(projects.a_project_response)
-#     @namespace.response(200, 'Created connection', pipeline.a_pipeline_response)
-#     @namespace.response(400, 'Message about reason of error', responses.error_response)
-#     @namespace.response(401, 'Unauthorized', responses.error_response)
-#     @jwt_required()
-#     def post(self, project_id, parent_id):
-#         body = request.json
-#         author = get_jwt_identity()
-#         t_id_arr = body.get('tasks_ids')
-#         r_id_arr = body.get('resource_ids')
-#         j_id_arr = body.get('job_ids')
-#         project = ProjectService.select(project_id)
-#         if t_id_arr is not None:
-#             not_founded_in_project = list(set(t_id_arr) - set(project.taskIds))
-#             if len(not_founded_in_project) > 0:
-#                 message = f'tasks with ids: {not_founded_in_project} not found in project data'
-#                 return {'success': False, "message": message}, 200
-#
-#         if r_id_arr is not None:
-#             not_founded_in_project = list(set(r_id_arr) - set(project.resource_ids))
-#             if len(not_founded_in_project) > 0:
-#                 message = f'resource with ids: {not_founded_in_project} not found in project data'
-#                 return {'success': False, "message": message}, 200
-#
-#         parent = PipelineService.select_pipeline(collection='pipeline', _key=parent_id, author=author, project=project_id, one=True)
-#         if parent is None:
-#             parent = PipelineService.select_pipeline(collection='jobs', _key=parent_id, author=author, one=True)
-#             if parent is None:
-#                 message = f'job or pipeline with id: {parent_id} not found'
-#                 return {'success': False, "message": message}, 200
-#         founded_t = []
-#         if t_id_arr is not None:
-#             founded_t = TaskService.select_tasks(condition='in', _key=t_id_arr)
-#             if founded_t is None:
-#                 founded_t = []
-#                 message = f'tasks not found {t_id_arr}'
-#                 return {'success': False, "message": message}, 200
-#         founded_r = []
-#         if r_id_arr is not None:
-#             founded_r = JobService.select_jobs(condition='in', _key=r_id_arr, collection='resource')
-#             if founded_r is None:
-#                 founded_r = []
-#                 message = f'resources not found {r_id_arr}'
-#                 return {'success': False, "message": message}, 200
-#         founded_j = []
-#         if j_id_arr is not None:
-#             founded_j = PipelineService.select_pipeline(collection='jobs', _key=j_id_arr, condition='in', author=[author])
-#             if founded_j is None:
-#                 message = f'jobs not found {j_id_arr}'
-#                 founded_j = []
-#                 return {'success': False, "message": message}, 200
-#
-#         founded_c = list(founded_t + founded_r + founded_j)
-#         arr_founded_id = []
-#         existed = []
-#         for item in founded_c:
-#             c_id = item.get('id')
-#             f_t = {}
-#             f_t.update({'_from': str(item.get('_id'))})
-#             f_t.update({'_to': 'job/'+str(parent_id)})
-#             f_t.update({'author': author})
-#             f_t.update({'project': project_id})
-#             has = PipelineService.select_pipeline(_from=str(str(item.get('_id'))), _to='job/'+str(parent_id), author=author, project=project_id)
-#             if has is None:
-#                 PipelineService.insert(f_t)
-#                 arr_founded_id.append(c_id)
-#             else:
-#                 existed.append(c_id)
-#
-#         not_founded_c = list(set(t_id_arr if t_id_arr is not None else []) - set(arr_founded_id if arr_founded_id is not None else []) - set(existed if existed is not None else []))
-#         result = {'Added': arr_founded_id, 'NotFounded': not_founded_c, 'Existed': existed}
-#
-#         return {'success': True, 'data': result}, 200
-# directions between pipelines jobs tasks
-
-
 # get pipelines list with child's
-@namespace.route('/<string:project_id>')
+@namespace.route('s/<string:project_id>')
 @namespace.param('project_id', 'project id')
 class PipelineGet(Resource):
     @namespace.doc('pipelines/get', security='Bearer', description="get all project pipelines with children ")
@@ -115,41 +28,84 @@ class PipelineGet(Resource):
     @namespace.response(200, 'Get pipeline and children', pipeline.a_pipeline_response)
     @namespace.response(400, 'Message about reason of error', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
+    @namespace.response(404, 'Not Found', responses.error_response)
     @jwt_required()
     def get(self, project_id):
-
         author = get_jwt_identity()
-        if ProjectService.select_projects(_key=project_id, author=author) is None:
-            return {'success': False, 'message': f'project with id: {project_id} not found'}, 200
+
+        if not ProjectService.select_projects(_key=project_id, author=author):
+            return {'success': False, 'message': f'project with id: {project_id} not found'}, 404
 
         pipelines = PipelineService.select_pipeline(collection='pipeline', author=author, project=project_id)
 
         lines = []
-        if pipelines is None:
+        if not pipelines:
             return {'success': True, 'data': {"pipelines": lines}}, 200
-        for pipeline_ in pipelines:
+
+        for item in pipelines:
             res = []
-            jobs = PipelineService.select_pipeline(author=author, _from=pipeline_.get('_id'))
-            if jobs is None:
-                pipeline_.pop('_from', None)
-                pipeline_.pop('_to', None)
-                pipeline_.update({'jobs': res})
-                lines.append(pipeline_)
+            jobs = PipelineService.select_pipeline(author=author, _from=item.get('_id'))
+
+            if not jobs:
+                item.pop('_from', None)
+                item.pop('_to', None)
+                item.update({'jobs': res})
+                lines.append(item)
                 continue
+
             for job in jobs:
-                res.append(PipelineService.recursion_query(job['_to'], {}, 0, pipeline_.get('id')))
-            pipeline_.pop('_from', None)
-            pipeline_.pop('_to', None)
-            pipeline_.update({'jobs': res})
-            lines.append(pipeline_)
+                res.append(PipelineService.recursion_query(job['_to'], {}, 0, item.get('id')))
+
+            item.pop('_from', None)
+            item.pop('_to', None)
+            item.update({'jobs': res})
+            lines.append(item)
 
         result = {"pipelines": lines}
 
         return {'success': True, 'data': result}, 200
 
+    @namespace.doc('pipeline/insert', security='Bearer', description='First step create a pipeline')
+    @namespace.expect(pipeline.pipeline_create_model)
+    @namespace.marshal_with(pipeline.a_pipeline_response)
+    @namespace.response(200, 'Created pipeline', pipeline.a_pipeline_response)
+    @namespace.response(400, 'Message about reason of error', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @namespace.response(404, 'Not Found', responses.error_response)
+    @jwt_required()
+    def post(self, project_id):
+        body = request.json
+        author = get_jwt_identity()
+        name = body.get('name')
 
-# get pipeline with children's
-@namespace.route('/path/<string:pipeline_id>')
+        if not ProjectService.select_projects(_key=project_id, author=author):
+            return {'success': False, 'message': f'project with id: {project_id} not found'}, 404
+
+        data = {
+            'name': name,
+            'author': author,
+            'complete': 0,
+            'project': project_id,
+        }
+
+        item = PipelineService.insert(data, collection='pipeline').to_json()
+
+        link = {
+            '_from': f'projects/{project_id}',
+            '_to': item.get('_id'),
+            'author': author,
+            'project': project_id,
+            'pipeline': item.get('id')
+        }
+
+        pipeline_direction = PipelineService.insert(link)
+
+        item.update({'nested': pipeline_direction.to_json()})
+
+        return {'success': True, 'data': item}, 200
+
+
+@namespace.route('/<string:pipeline_id>')
 @namespace.param('pipeline_id', 'pipeline_id')
 class PipelineGetList(Resource):
     @namespace.doc('pipelines/get', security='Bearer', description='get full content for one pipeline')
@@ -158,119 +114,76 @@ class PipelineGetList(Resource):
     @namespace.response(200, 'Get pipeline and child as list', pipeline.a_pipeline_response)
     @namespace.response(400, 'Message about reason of error', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
+    @namespace.response(404, 'Object not found', responses.error_response)
     @jwt_required()
     def get(self, pipeline_id):
-
-        return {'success': True, 'data': {
-            "pipelines": PipelineService.get_tree(pipeline_id=pipeline_id, author=get_jwt_identity())
-        }}, 200
-
-
-# insert new job to another job, or to pipeline
-# @namespace.route('/job/<string:project_id>/<string:parent_id>')
-# @namespace.param('project_id', 'project id')
-# @namespace.param('parent_id', 'who is daddy pipeline or another job')
-# class JobCreate(Resource):
-#     @namespace.doc('job/insert', security='Bearer')
-#     @namespace.expect(pipeline.pipeline_model)
-#     @namespace.marshal_with(pipeline.a_pipeline_response)
-#     @namespace.response(200, 'Created job', pipeline.a_pipeline_response)
-#     @namespace.response(400, 'Message about reason of error', responses.error_response)
-#     @namespace.response(401, 'Unauthorized', responses.error_response)
-#     @jwt_required()
-#     def post(self, project_id, parent_id):
-#         body = request.json
-#         author = get_jwt_identity()
-#
-#         if ProjectService.select_projects(_key=project_id, author=author) is None:
-#             return {'success': False, 'message': f'project with id: {project_id} not found'}, 200
-#
-#         parent = PipelineService.select_pipeline(collection='pipeline', _key=parent_id, author=author, project=project_id, one=True)
-#         if parent is None:
-#             parent = PipelineService.select(id=parent_id, collection='jobs', to_json=True, one=True)
-#             if parent is None:
-#                 return {'success': False, 'message': f'job or pipeline with id: {parent_id} not found'}, 200
-#
-#         data = {'name': body.get('name')}
-#         data.update({'author': author})
-#         data.update({'complete': 0})
-#         data.update({'project': project_id})
-#         data.update({'parent': parent_id})
-#         job = PipelineService.insert(data, collection='jobs')
-#         if job is not None:
-#             job = job.to_json()
-#         f_t = {}
-#         f_t.update({'_from': parent.get('_id')})
-#         f_t.update({'_to': job.get('_id')})
-#         f_t.update({'author': author})
-#         f_t.update({'project': project_id})
-#         f_t.update({'parent': parent_id})
-#         _pipeline = PipelineService.insert(f_t)
-#         job.update({'nested': _pipeline.to_json()})
-#
-#         return {'success': True, 'data': job}, 200
-# insert new job to another job, or to pipeline
-
-
-# insert pipeline to project
-@namespace.route('/create/<string:project_id>')
-@namespace.param('project_id', 'project id')
-class PipelineCreate(Resource):
-    @namespace.doc('pipeline/insert', security='Bearer', description='First step create a pipeline')
-    @namespace.expect(pipeline.pipeline_create_model)
-    @namespace.marshal_with(pipeline.a_pipeline_response)
-    @namespace.response(200, 'Created pipeline', pipeline.a_pipeline_response)
-    @namespace.response(400, 'Message about reason of error', responses.error_response)
-    @namespace.response(401, 'Unauthorized', responses.error_response)
-    @jwt_required()
-    def post(self, project_id):
-        body = request.json
         author = get_jwt_identity()
-        name = body.get('name')
 
-        data = {'name': name}
-        data.update({'author': author})
-        if ProjectService.select_projects(_key=project_id, author=author) is None:
-            return {'success': False, 'message': f'project with id: {project_id} not found'}, 200
+        item = PipelineService.select_pipeline(collection='pipeline', _key=pipeline_id, author=author)
+        if not item:
+            return {'success': False, 'message': f'pipeline with id: {pipeline_id} not found'}, 404
 
-        data.update({'complete': 0})
-        data.update({'project': project_id})
-        _pipeline = PipelineService.insert(data, collection='pipeline').to_json()
-        f_t = {}
-        f_t.update({'_from': 'projects/'+project_id})
-        f_t.update({'_to': _pipeline.get('_id')})
-        f_t.update({'author': author})
-        f_t.update({'project': project_id})
-        f_t.update({'pipeline': _pipeline.get('id')})
-        pipeline_direction = PipelineService.insert(f_t)
-        _pipeline.update({'nested': pipeline_direction.to_json()})
-        return {'success': True, 'data': _pipeline}, 200
-# insert pipeline to project
+        pipelines = PipelineService.get_tree(pipeline_id=pipeline_id, author=author)
 
+        return {'success': True, 'data': {"pipelines": pipelines}}, 200
 
-# update pipeline data
-@namespace.route('/update/<string:pipeline_id>')
-@namespace.param('pipeline_id', 'pipeline id')
-class PipelineJobUpdate(Resource):
     @namespace.doc('pipeline/update', security='Bearer', description='update pipeline data')
     @namespace.expect(pipeline.pipeline_model)
     @namespace.marshal_with(pipeline.a_pipeline_response)
     @namespace.response(200, 'Update pipeline', pipeline.a_pipeline_response)
     @namespace.response(400, 'Message about reason of error', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
+    @namespace.response(404, 'Object not found', responses.error_response)
     @jwt_required()
     def put(self, pipeline_id):
         author = get_jwt_identity()
         body = request.json
 
-        if _pipeline := PipelineService.select_pipeline(collection='pipeline', _key=pipeline_id, author=author):
-            _pipeline = PipelineService.update(collection='pipeline', id=pipeline_id, data=body)
+        item = PipelineService.select_pipeline(collection='pipeline', _key=pipeline_id, author=author)
+        if not item:
+            return {'success': False, 'message': f'pipeline with id: {pipeline_id} not found'}, 404
 
-        return {'success': True, 'data': _pipeline.to_json()}, 200
-# update pipeline data
+        item = PipelineService.update(collection='pipeline', id=pipeline_id, data=body)
+
+        return {'success': True, 'data': item.to_json()}, 200
+
+    @namespace.doc('pipeline/delete', security='Bearer', description='Delete a pipeline')
+    @namespace.marshal_with(pipeline.a_pipeline_response)
+    @namespace.response(404, 'Object not found', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @jwt_required()
+    def delete(self, pipeline_id):
+        author = get_jwt_identity()
+
+        item = PipelineService.select_pipeline(
+            collection='pipeline',
+            _key=pipeline_id,
+            author=author,
+            one=True
+        )
+        if not item:
+            return {'success': False, 'message': f'pipeline with id: {pipeline_id} not found'}, 404
+
+        direction = PipelineService.select_pipeline(
+            collection='pipeline_direction',
+            pipeline=pipeline_id,
+            author=author
+        )
+        children_to_delete = list(map(lambda row: row.get('_to'), direction)) \
+            if direction \
+            else []
+
+        for child in reversed(children_to_delete):
+            PipelineService.delete(_from=child, pipeline=pipeline_id)
+            PipelineService.delete(_to=child, pipeline=pipeline_id)
+
+        PipelineService.delete(collection='pipeline', _key=item.get('id'))
+        PipelineService.delete(_to=item.get('_id'))
+
+        return {'success': True}, 200
 
 
-@namespace.route('/delete/<string:pipeline_id>/<string:pipeline_job_id>')
+@namespace.route('/link/<string:pipeline_id>/<string:pipeline_job_id>')
 @namespace.param('pipeline_job_id', 'pipeline or job id')
 class PipelineDelete(Resource):
     @namespace.doc('pipeline_jobs/delete', security='Bearer', description='Delete connection or delete pipeline')
@@ -280,40 +193,37 @@ class PipelineDelete(Resource):
     @jwt_required()
     def delete(self, pipeline_id, pipeline_job_id):
         author = get_jwt_identity()
-        pipeline_ = PipelineService.select_pipeline(collection='pipeline', _key=pipeline_id, author=author, one=True)
-        if pipeline_ is None:
-            return {'success': False, 'message': 'pipeline not found'}, 200
-        pipeline_ = PipelineService.select_pipeline(collection='pipeline', _key=pipeline_job_id, author=author, one=True)
+        item = PipelineService.select_pipeline(
+            collection='pipeline',
+            _key=pipeline_id,
+            author=author,
+            one=True
+        )
 
-        if pipeline_job_id == pipeline_id:
-            direction = PipelineService.select_pipeline(collection='pipeline_direction', pipeline=pipeline_id, author=author)
-            children_to_delete = list(map(lambda item: item.get('_to'), direction))
-        else:
-            if pipeline_ is None:
-                pipeline_ = PipelineService.select_pipeline(collection='pipeline_direction', _to='jobs/'+pipeline_job_id, pipeline=pipeline_id, author=author, one=True)
-                if pipeline_ is None:
-                    return {'success': False, 'message': 'pipeline not found'}, 200
+        if not item:
+            return {'success': False, 'message': 'pipeline not found'}, 404
 
-            jobs = PipelineService.select_pipeline(author=author, _to='jobs/'+pipeline_job_id, pipeline=pipeline_id)
-            res = []
-            if jobs is not None:
-                for job in jobs:
-                    res.append(PipelineService.recursion_query(job['_to'], {}, 0, pipeline_id))
+        jobs = PipelineService.select_pipeline(
+            _to=f'jobs/{pipeline_job_id}',
+            pipeline=pipeline_id,
+            author=author,
+        )
 
-            pipeline_.update({'jobs': res})
-            children_to_delete = PipelineService.get_jobs(pipeline_.get('jobs'))
+        res = []
+        for job in (jobs if jobs else []):
+            res.append(PipelineService.recursion_query(job['_to'], {}, 0, pipeline_id))
+
+        item.update({'jobs': res})
+        children_to_delete = PipelineService.get_jobs(item.get('jobs'))
 
         for child in reversed(children_to_delete):
             PipelineService.delete(_from=child, pipeline=pipeline_id)
             PipelineService.delete(_to=child, pipeline=pipeline_id)
-        if pipeline_job_id == pipeline_id:
-            PipelineService.delete(collection='pipeline', _key=pipeline_.get('id'))
-            PipelineService.delete(_to=pipeline_.get('_id'))
 
         return {'success': True}, 200
 
 
-@namespace.route('/conn/<string:parent_id>/<string:child_id>/<string:pipeline_id>')
+@namespace.route('/link/<string:parent_id>/<string:child_id>/<string:pipeline_id>')
 @namespace.param('parent_id', 'parent id(job or pipeline)')
 @namespace.param('child_id', 'child id only job')
 @namespace.param('pipeline_id', 'pipeline id')
@@ -323,7 +233,7 @@ class PipelineConnect(Resource):
     @namespace.response(404, 'Object not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
-    def get(self, parent_id, child_id, pipeline_id):
+    def post(self, parent_id, child_id, pipeline_id):
 
         author = get_jwt_identity()
         if child_id == parent_id:
