@@ -13,7 +13,7 @@ jobs_model = Model('JobBase', {
     ),
     'omeroIds': fields.List(
         fields.String,
-        required=True,
+        required=False,
         description='image id'),
     'status': fields.Integer(
         requred=False,

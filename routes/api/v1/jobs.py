@@ -1,11 +1,8 @@
 import spex_common.services.Job as JobService
 import spex_common.services.Task as TaskService
-import spex_common.services.Script_worker as ScriptService
-import os
-from glob import glob
+import spex_common.services.Script as ScriptService
 from flask_restx import Namespace, Resource
 from flask import request
-# from models.Job import Job
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import jobs, responses
 
@@ -36,14 +33,15 @@ class JobCreateGetPost(Resource):
         body['author'] = get_jwt_identity()
         if body.get('status') is None or body.get('status') == '':
             body.update(status=0)
+
         if body.get('params') is None:
-            body["params"] = {}
+            body['params'] = {}
 
         result = JobService.insert(body)
         tasks = TaskService.create_tasks(body, result)
-        res = result.to_json()
-        res['tasks'] = tasks
-        return {'success': True, 'data': res}, 200
+        result = result.to_json()
+        result['tasks'] = tasks
+        return {'success': True, 'data': result}, 200
 
     @namespace.doc('job/get', security='Bearer')
     @namespace.marshal_with(jobs.list_jobs_response)
@@ -54,8 +52,9 @@ class JobCreateGetPost(Resource):
     def get(self):
 
         result = JobService.select_jobs(**{'author': get_jwt_identity()})
-        if result is None:
+        if not result:
             return {'success': False, 'message': 'jobs not found', 'data': {}}, 200
+
         for job in result:
             job['tasks'] = TaskService.select_tasks_edge(job.get('_id'))
             if job.get('status') is None or job.get('status') == '':
@@ -74,13 +73,15 @@ class Item(Resource):
     def get(self, _id):
 
         result = JobService.select_jobs(**{'author': get_jwt_identity(), '_key': _id})
-        if result is None or result == []:
+        if not result:
             return {'success': False, 'message': 'job not found', 'data': {}}, 200
-        for job in result:
-            job['tasks'] = TaskService.select_tasks_edge(job.get('_id'))
-            if job.get('status') is None or job.get('status') == '':
-                job.update(status=0)
-        return {'success': True, 'data': result[0]}, 200
+
+        [job] = result
+        job['tasks'] = TaskService.select_tasks_edge(_id)
+        if job.get('status') is None or job.get('status') == '':
+            job.update(status=0)
+
+        return {'success': True, 'data': job}, 200
 
     @namespace.doc('job/put', security='Bearer')
     @namespace.marshal_with(jobs.a_jobs_response)
@@ -91,12 +92,11 @@ class Item(Resource):
     def put(self, _id):
 
         result = JobService.select_jobs(**{'author': get_jwt_identity(), '_key': _id})
-        if result is None or result == []:
+        if not result:
             return {'success': False, 'message': 'job not found', 'data': {}}, 200
 
-        for job in result:
-            updated_job = JobService.update_job(id=_id, data=request.json)
-            return {'success': True, 'data': updated_job}, 200
+        updated_job = JobService.update_job(id=_id, data=request.json)
+        return {'success': True, 'data': updated_job}, 200
 
     @namespace.doc('job/delete', security='Bearer')
     @namespace.marshal_with(jobs.a_jobs_response)
@@ -106,20 +106,20 @@ class Item(Resource):
     def delete(self, _id):
 
         result = JobService.select_jobs(**{'author': get_jwt_identity(), '_key': _id})
-        if result is None or result == []:
+        if not result:
             return {'success': False, 'message': 'job not found', 'data': {}}, 200
-        for job in result:
-            tasks = TaskService.select_tasks_edge(job['_id'])
-            for task in tasks:
-                JobService.delete_connection(_from=job['_id'], _to=task['_id'])
-                TaskService.delete(task['id'])
 
-            deleted = JobService.delete(_id).to_json()
-            deleted['tasks'] = tasks
-            if deleted.get('status') is None or deleted.get('status') == '':
-                deleted.update(status=0)
+        tasks = TaskService.select_tasks_edge(_id)
+        for task in tasks:
+            JobService.delete_connection(_from=_id, _to=task['_id'])
+            TaskService.delete(task['id'])
 
-            return {'success': True, 'data': deleted}, 200
+        deleted = JobService.delete(_id).to_json()
+        deleted['tasks'] = tasks
+        if deleted.get('status') is None or deleted.get('status') == '':
+            deleted.update(status=0)
+
+        return {'success': True, 'data': deleted}, 200
 
 
 @namespace.route('/type/<string:job_type>')
@@ -148,3 +148,32 @@ class Type(Resource):
     def get(self):
 
         return {'success': True, 'data': ScriptService.scripts_list()}, 200
+
+
+@namespace.param('status', 'status')
+@namespace.param('name', 'name')
+@namespace.route('/find/<string:name>/<int:status>')
+class JobFind(Resource):
+    @namespace.doc('job/find', security='Bearer')
+    @namespace.marshal_with(jobs.list_jobs_response)
+    @namespace.response(200, 'list jobs current user', jobs.list_jobs_response)
+    @namespace.response(404, 'jobs not found', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @jwt_required()
+    def get(self, status: int = 100, name: str = ''):
+
+        result = JobService.select_jobs(**{
+            'author': get_jwt_identity(),
+            'status': status,
+            'name': name
+        })
+
+        if not result:
+            return {'success': False, 'message': 'jobs not found', 'data': {}}, 200
+
+        for job in result:
+            job['tasks'] = TaskService.select_tasks_edge(job.get('_id'))
+            if job.get('status') is None or job.get('status') == '':
+                job.update(status=0)
+
+        return {'success': True, 'data': result}, 200
