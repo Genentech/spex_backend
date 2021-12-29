@@ -231,36 +231,66 @@ class PipelineConnect(Resource):
     @namespace.doc('pipeline_jobs_connect_job/connect', security='Bearer', description='Second step connect between pipeline and created job or existed')
     @namespace.marshal_with(pipeline.a_pipeline_response)
     @namespace.response(404, 'Object not found', responses.error_response)
+    @namespace.response(400, 'Bad request', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
     def post(self, parent_id, child_id, pipeline_id):
 
         author = get_jwt_identity()
         if child_id == parent_id:
-            return {'success': False, 'message': 'child and parent id can not be same'}
-        _pipeline = PipelineService.select_pipeline(collection='pipeline', _key=pipeline_id, author=author, one=True)
-        if _pipeline is None:
-            return {'success': False, 'message': 'pipeline not found'}, 200
-        project_id = _pipeline['project']
+            return {'success': False, 'message': 'child and parent id can not be same'}, 400
 
-        _parent = PipelineService.select_pipeline(collection='pipeline', _key=parent_id, author=author, project=project_id, one=True)
-        if _parent is None:
-            _parent = PipelineService.select_pipeline(collection='jobs', _key=parent_id, author=author, one=True)
-            if _parent is None:
-                return {'success': False, 'message': 'parent not found'}, 200
+        item = PipelineService.select_pipeline(
+            collection='pipeline',
+            _key=pipeline_id,
+            author=author,
+            one=True
+        )
 
-        _child = PipelineService.select_pipeline(collection='jobs', _key=child_id, author=author, one=True)
-        if _child is None:
-            return {'success': False, 'message': 'child not found'}, 200
+        if item is None:
+            return {'success': False, 'message': 'pipeline not found'}, 404
 
-        if lines := PipelineService.select_pipeline(collection='pipeline_direction', _to=_child['_id'], author=author, project=project_id, pipeline=pipeline_id, one=False):
-            return {'success': False, 'message': 'child already connected in this pipeline, remove connection first'}, 200
+        project_id = item['project']
+
+        parent = PipelineService.select_pipeline(
+            collection='pipeline',
+            _key=parent_id,
+            author=author,
+            project=project_id,
+            one=True
+        )
+        if not parent:
+            parent = PipelineService.select_pipeline(
+                collection='jobs',
+                _key=parent_id,
+                author=author,
+                one=True
+            )
+            if not parent:
+                return {'success': False, 'message': 'parent not found'}, 404
+
+        child = PipelineService.select_pipeline(collection='jobs', _key=child_id, author=author, one=True)
+        if not child:
+            return {'success': False, 'message': 'child not found'}, 404
+
+        connection = PipelineService.select_pipeline(
+            collection='pipeline_direction',
+            _to=child['_id'],
+            author=author,
+            project=project_id,
+            pipeline=pipeline_id,
+            one=False
+        )
+        if connection:
+            return {'success': False, 'message': 'child already connected in this pipeline, remove connection first'}, 400
             # PipelineService.delete(collection='pipeline_direction', _to=_child['_id'], author=author, project=project_id)
 
-        ft = {'_from': str(_parent['_id']),
-              '_to': str(_child['_id']),
-              'author': author,
-              'project': str(project_id),
-              'pipeline': str(pipeline_id)}
-        data = PipelineService.insert(data=ft, collection='pipeline_direction')
+        link = {
+            '_from': str(parent['_id']),
+            '_to': str(child['_id']),
+            'author': author,
+            'project': str(project_id),
+            'pipeline': str(pipeline_id)
+        }
+        data = PipelineService.insert(data=link, collection='pipeline_direction')
         return {'success': True, 'data': data}, 200

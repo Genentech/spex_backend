@@ -76,7 +76,7 @@ class Item(Resource):
         if not result:
             return {'success': False, 'message': 'job not found', 'data': {}}, 200
 
-        [job] = result
+        job = result[0]
         job['tasks'] = TaskService.select_tasks_edge(_id)
         if job.get('status') is None or job.get('status') == '':
             job.update(status=0)
@@ -122,22 +122,6 @@ class Item(Resource):
         return {'success': True, 'data': deleted}, 200
 
 
-@namespace.route('/type/<string:job_type>')
-class Type(Resource):
-    @namespace.doc('job/get_job_info', security='Bearer')
-    # @namespace.marshal_with(jobs.a_jobs_response)
-    @namespace.response(404, 'job type not found', responses.error_response)
-    @namespace.response(401, 'Unauthorized', responses.error_response)
-    # @jwt_required()
-    def get(self, job_type):
-        if job_type not in ScriptService.scripts_list():
-            return {'success': False, 'message': 'Cannot find this type of job'}, 200
-
-        data = ScriptService.get_script_structure(job_type)
-
-        return {'success': True, 'data': data}, 200
-
-
 @namespace.route('/type')
 class Type(Resource):
     @namespace.doc('job/get_types', security='Bearer')
@@ -146,8 +130,25 @@ class Type(Resource):
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
     def get(self):
+        data = ScriptService.scripts_list()
+        return {'success': True, 'data': data}, 200
 
-        return {'success': True, 'data': ScriptService.scripts_list()}, 200
+
+@namespace.route('/type/<string:script_type>')
+@namespace.param('script_type', 'script type')
+class Type(Resource):
+    @namespace.doc('job/get_script_info', security='Bearer')
+    # @namespace.marshal_with(jobs.a_jobs_response)
+    @namespace.response(404, 'script type not found', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @jwt_required()
+    def get(self, script_type):
+        if script_type not in ScriptService.scripts_list():
+            return {'success': False, 'message': 'Cannot find this type of job'}, 404
+
+        data = ScriptService.get_script_structure(script_type)
+
+        return {'success': True, 'data': data}, 200
 
 
 @namespace.param('status', 'status')
