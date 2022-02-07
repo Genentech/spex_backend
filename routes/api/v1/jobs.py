@@ -77,7 +77,7 @@ class Item(Resource):
             return {'success': False, 'message': 'job not found', 'data': {}}, 200
 
         job = result[0]
-        job['tasks'] = TaskService.select_tasks_edge(_id)
+        job['tasks'] = TaskService.select_tasks_edge(job.get('_id'))
         if job.get('status') is None or job.get('status') == '':
             job.update(status=0)
 
