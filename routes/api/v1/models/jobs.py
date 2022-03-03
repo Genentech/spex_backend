@@ -18,6 +18,7 @@ jobs_model = Model('JobBase', {
     'status': fields.Integer(
         requred=False,
         description='status'),
+    'status_name': fields.String,
 })
 
 jobs_update_model = Model('JobUpdate', {

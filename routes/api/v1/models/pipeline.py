@@ -17,6 +17,7 @@ pipeline_model = pipeline_create_model.inherit('Pipeline base1', {
         required=False,
         description='status'
     ),
+    'status_name': fields.String,
     'project': fields.String(
         required=False,
         description='project id'
