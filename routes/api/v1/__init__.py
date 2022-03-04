@@ -11,7 +11,7 @@ from .projects import namespace as projects
 from .pipeline import namespace as pipeline
 from .images import namespace as images
 from .files import namespace as files
-# from .docker import namespace as docker
+from .history import namespace as history
 
 
 class OverrideApi(Api):
@@ -82,4 +82,4 @@ api.add_namespace(projects, '{}/projects'.format(prefix))
 api.add_namespace(pipeline, '{}/pipeline'.format(prefix))
 api.add_namespace(images, '{}/images'.format(prefix))
 api.add_namespace(files, '{}/files'.format(prefix))
-# api.add_namespace(docker, '{}/docker'.format(prefix))
+api.add_namespace(history, '{}/history'.format(prefix))
