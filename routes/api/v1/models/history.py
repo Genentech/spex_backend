@@ -3,7 +3,7 @@ from .responses import response
 
 history_model = Model('HistsBase', {
     'content': fields.String,
-    'date': fields.DateTime,
+    'date': fields.DateTime(dt_format='rfc822'),
     'parent': fields.String,
 })
 

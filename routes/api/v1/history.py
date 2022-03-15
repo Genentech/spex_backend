@@ -67,14 +67,14 @@ class HistoryResPost(Resource):
         return {'success': True, 'data': history.to_json()}, 200
 
     @namespace.doc('history/getmany', security='Bearer')
-    @namespace.marshal_with(_history.list_history_response)
-    @namespace.response(200, 'list history current user', _history.list_history_response)
+    # @namespace.marshal_with(_history.list_history_response)
+    # @namespace.response(200, 'list history current user', _history.list_history_response)
     @namespace.response(404, 'history not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
     def get(self):
         author = get_jwt_identity()
-        result = HistService.select_history(author=author)
+        result = HistService.select_history()
 
         if result is None:
             abort(404, 'history not found')
