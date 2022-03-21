@@ -1,5 +1,6 @@
 from flask_restx import fields, Model
 from .responses import response
+from spex_common.models.Status import Text
 
 pipeline_create_model = Model('PipelineBase', {
     'name': fields.String(
@@ -50,4 +51,13 @@ list_pipeline_response = response.inherit('PipelineListResponse', {
 a_pipeline_response = response.inherit('PipelineResponse', {
     'data': fields.Nested(pipeline_get_model, required=False),
     'message': fields.String(required=False, description='error reason')
+})
+
+
+pipeline_status_model = Model('PipelineStatus', {
+    'status': fields.String(
+        description='pipeline name',
+        required=True,
+        enum=Text._member_names_
+    )
 })

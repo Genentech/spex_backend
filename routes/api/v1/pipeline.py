@@ -1,5 +1,7 @@
 import spex_common.services.Pipeline as PipelineService
 import spex_common.services.Project as ProjectService
+import spex_common.services.Task as TaskService
+from spex_common.models.Status import Text
 from flask_restx import Namespace, Resource
 from flask import request
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -16,6 +18,7 @@ namespace.add_model(responses.error_response.name, responses.error_response)
 namespace.add_model(pipeline.list_pipeline_response.name, pipeline.list_pipeline_response)
 namespace.add_model(pipeline.pipeline_get_model.name, pipeline.pipeline_get_model)
 namespace.add_model(pipeline.task_resource_image_connect_to_job.name, pipeline.task_resource_image_connect_to_job)
+namespace.add_model(pipeline.pipeline_status_model.name, pipeline.pipeline_status_model)
 
 
 # get pipelines list with child's
@@ -23,8 +26,6 @@ namespace.add_model(pipeline.task_resource_image_connect_to_job.name, pipeline.t
 @namespace.param('project_id', 'project id')
 class PipelineGet(Resource):
     @namespace.doc('pipelines/get', security='Bearer', description="get all project pipelines with children ")
-    # @namespace.expect(projects.projects_model)
-    # @namespace.marshal_with(projects.a_project_response)
     @namespace.response(200, 'Get pipeline and children', pipeline.a_pipeline_response)
     @namespace.response(400, 'Message about reason of error', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
@@ -108,9 +109,29 @@ class PipelineGet(Resource):
 @namespace.route('/<string:pipeline_id>')
 @namespace.param('pipeline_id', 'pipeline_id')
 class PipelineGetList(Resource):
+    @namespace.doc('pipelines/post', security='Bearer', description='actions with pipeline')
+    @namespace.expect(pipeline.pipeline_status_model)
+    @namespace.response(200, 'Changed pipeline', pipeline.a_pipeline_response)
+    @namespace.response(400, 'Message about reason of error', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @namespace.response(404, 'Object not found', responses.error_response)
+    @jwt_required()
+    def post(self, pipeline_id):
+        author = get_jwt_identity()
+
+        item = PipelineService.select_pipeline(collection='pipeline', _key=pipeline_id, author=author)
+        if not item:
+            return {'success': False, 'message': f'pipeline with id: {pipeline_id} not found'}, 404
+
+        pipelines = PipelineService.get_tree(pipeline_id=pipeline_id, author=author)
+        jobs = PipelineService.get_jobs(pipelines, prefix=False)
+
+        status_to_upd = {"status": Text.from_str(request.json['status'])}
+        tasks = TaskService.update_tasks("in", data=status_to_upd, parent=jobs)
+
+        return {'success': True, 'data': {"tasks": tasks}}, 200
+
     @namespace.doc('pipelines/get', security='Bearer', description='get full content for one pipeline')
-    # @namespace.expect(projects.projects_model)
-    # @namespace.marshal_with(projects.a_project_response)
     @namespace.response(200, 'Get pipeline and child as list', pipeline.a_pipeline_response)
     @namespace.response(400, 'Message about reason of error', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
@@ -283,7 +304,6 @@ class PipelineConnect(Resource):
         )
         if connection:
             return {'success': False, 'message': 'child already connected in this pipeline, remove connection first'}, 400
-            # PipelineService.delete(collection='pipeline_direction', _to=_child['_id'], author=author, project=project_id)
 
         link = {
             '_from': str(parent['_id']),
