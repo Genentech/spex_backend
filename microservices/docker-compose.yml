@@ -19,20 +19,6 @@ services:
       context: ./redis
       dockerfile: Dockerfile
 
-  memcached:
-    image: memcached:latest
-    container_name: spex-memcached
-    restart: always
-    networks:
-      spex:
-        aliases:
-          - spex-memcached
-    ports:
-      - '11211:11211'
-    entrypoint:
-      - memcached
-      - -m 64
-
   ms_omero_sessions:
     container_name: spex-ms-omero-sessions
     restart: always
@@ -51,7 +37,7 @@ services:
       context: ./../..
       dockerfile: ./microservices/ms-omero-sessions/Dockerfile
     depends_on:
-      - memcached
+      - redisjson
 
   ms_image_loader:
     container_name: spex-ms-image-loader

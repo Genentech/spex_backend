@@ -21,7 +21,8 @@ namespace.add_model(responses.response.name, responses.response)
 namespace.add_model(responses.error_response.name, responses.error_response)
 
 
-# TODO @namespace.param(name='filenames', _in='formData', description='Upload file', required=True, type='array', items={'type': 'file'}, collectionFormat='multi') multi uploading
+#  TODO @namespace.param(name='filenames', _in='formData', description='Upload file',
+#   required=True, type='array', items={'type': 'file'}, collectionFormat='multi') multi uploading
 
 @namespace.route('')
 class FileResPost(Resource):

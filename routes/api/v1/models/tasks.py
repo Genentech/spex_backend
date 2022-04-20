@@ -7,6 +7,7 @@ tasks_model = Model('TasksBase', {
     'omeroId': fields.String,
     'parent': fields.String,
     'status': fields.Integer,
+    'status_name': fields.String,
 })
 
 task_get_model = tasks_model.inherit('Task get', {

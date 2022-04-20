@@ -196,8 +196,8 @@ class TasksGetIm(Resource):
                 data = pickle.load(infile)
 
                 if not key:
-                    data = json.dumps(data, cls=NumpyEncoder)
-                    return {'success': True, 'data': data}, 200
+                    # data = json.dumps(data, cls=NumpyEncoder)
+                    return {'success': True, 'data': list(data.keys())}, 200
 
                 data = data.get(key)
 
@@ -210,6 +210,10 @@ class TasksGetIm(Resource):
                     temp_file_name,
                     attachment_filename=f"{_id}_result_{key}.csv",
                 )
+
+        except AttributeError:
+            data = json.dumps(data, cls=NumpyEncoder)
+            return {'success': True, 'data': data}, 200
 
         except Exception as error:
             logger.warn(error)
