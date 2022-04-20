@@ -12,6 +12,7 @@ from .pipeline import namespace as pipeline
 from .images import namespace as images
 from .files import namespace as files
 from .history import namespace as history
+from .templates import namespace as templates
 
 
 class OverrideApi(Api):
@@ -83,3 +84,4 @@ api.add_namespace(pipeline, '{}/pipeline'.format(prefix))
 api.add_namespace(images, '{}/images'.format(prefix))
 api.add_namespace(files, '{}/files'.format(prefix))
 api.add_namespace(history, '{}/history'.format(prefix))
+api.add_namespace(templates, '{}/templates'.format(prefix))
