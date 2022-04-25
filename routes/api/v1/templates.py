@@ -25,7 +25,7 @@ class TemplateResGetPut(Resource):
     @namespace.doc('templates/getone', security='Bearer')
     @namespace.response(404, 'template not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
-    @namespace.marshal_with(_templates.a_templates_response)
+    # @namespace.marshal_with(_templates.a_templates_response)
     @jwt_required()
     def get(self, id):
 
@@ -69,9 +69,11 @@ class TemplateResPost(Resource):
         item = PipelineService.select_pipeline(collection='pipeline', _key=pipeline_id, author=author)
         if not item:
             return {'success': False, 'message': f'pipeline with id: {pipeline_id} not found'}, 404
-        pipelines = PipelineService.get_tree(pipeline_id=pipeline_id, author=author)
 
-        return {'success': True, 'data': pipelines}, 200
+        body["data"] = TemplateService.get_template_tree(pipeline_id=pipeline_id, author=author)
+        resp = TemplateService.insert(body)
+
+        return {'success': True, 'data': resp.to_json()}, 200
 
     @namespace.doc('template/getmany', security='Bearer')
     # @namespace.marshal_with(_template.list_template_response)
