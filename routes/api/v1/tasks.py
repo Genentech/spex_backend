@@ -202,7 +202,7 @@ class TasksGetIm(Resource):
                 data = data.get(key)
 
                 fd, temp_file_name = tempfile.mkstemp()
-                fd.close()
+                # fd.close()
 
                 data.to_csv(temp_file_name)
 
