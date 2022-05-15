@@ -9,7 +9,18 @@ COPY ./common /app/common
 COPY ./backend /app/backend
 WORKDIR /app/backend
 
+RUN echo "[uwsgi]" > /app/uwsgi.ini
+RUN echo "module = app" >> /app/uwsgi.ini
+RUN echo "callable = application" >> /app/uwsgi.ini
+RUN echo "processes = 5" >> /app/uwsgi.ini
+RUN echo "threads = 5" >> /app/uwsgi.ini
+RUN echo "master = true" >> /app/uwsgi.ini
+RUN echo "chmod-socket = 664" >> /app/uwsgi.ini
+RUN echo "vacuum = true" >> /app/uwsgi.ini
+RUN echo "die-on-term = true" >> /app/uwsgi.ini
+
+RUN pip install uwsgi
 RUN pipenv install --system --deploy --ignore-pipfile
 
 EXPOSE 8080
-CMD ["python", "app.py"]
+CMD uwsgi --ini /app/uwsgi.ini --socket 0.0.0.0:8080
