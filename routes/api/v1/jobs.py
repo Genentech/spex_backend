@@ -1,7 +1,7 @@
 import spex_common.services.Job as JobService
 import spex_common.services.Task as TaskService
 import spex_common.services.Script as ScriptService
-from spex_common.models.Status import Text
+from spex_common.models.Status import TaskStatus
 from flask_restx import Namespace, Resource
 from flask import request
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -32,7 +32,7 @@ class JobCreateGetPost(Resource):
     def post(self):
         body = request.json
         body['author'] = get_jwt_identity()
-        body.update(status=Text.pending_approval.value)
+        body.update(status=TaskStatus.pending_approval.value)
 
         if body.get('params') is None:
             body['params'] = {}
@@ -58,7 +58,7 @@ class JobCreateGetPost(Resource):
         for job in result:
             job['tasks'] = TaskService.select_tasks_edge(job.get('_id'))
             if job.get('status') is None or job.get('status') == '':
-                job.update(status=Text.pending_approval.value)
+                job.update(status=TaskStatus.pending_approval.value)
 
         return {'success': True, 'data': result}, 200
 
@@ -79,7 +79,7 @@ class Item(Resource):
         job = result[0]
         job['tasks'] = TaskService.select_tasks_edge(job.get('_id'))
         if job.get('status') is None or job.get('status') == '':
-            job.update(status=Text.pending_approval.value)
+            job.update(status=TaskStatus.pending_approval.value)
 
         return {'success': True, 'data': job}, 200
 
@@ -117,7 +117,7 @@ class Item(Resource):
         deleted = JobService.delete(_id).to_json()
         deleted['tasks'] = tasks
         if deleted.get('status') is None or deleted.get('status') == '':
-            deleted.update(status=Text.pending_approval.value)
+            deleted.update(status=TaskStatus.pending_approval.value)
 
         return {'success': True, 'data': deleted}, 200
 
@@ -175,6 +175,6 @@ class JobFind(Resource):
         for job in result:
             job['tasks'] = TaskService.select_tasks_edge(job.get('_id'))
             if job.get('status') is None or job.get('status') == '':
-                job.update(status=Text.pending_approval.value)
+                job.update(status=TaskStatus.pending_approval.value)
 
         return {'success': True, 'data': result}, 200
