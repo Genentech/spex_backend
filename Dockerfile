@@ -18,6 +18,7 @@ RUN echo "master = true" >> /app/uwsgi.ini
 RUN echo "chmod-socket = 664" >> /app/uwsgi.ini
 RUN echo "vacuum = true" >> /app/uwsgi.ini
 RUN echo "die-on-term = true" >> /app/uwsgi.ini
+RUN echo "buffer-size = 65535" >> /app/uwsgi.ini
 
 RUN pip install uwsgi
 RUN pipenv install --system --deploy --ignore-pipfile
