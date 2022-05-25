@@ -32,7 +32,7 @@ class JobCreateGetPost(Resource):
     def post(self):
         body = request.json
         body['author'] = get_jwt_identity()
-        body.update(status=TaskStatus.pending_approval.value)
+        body.update(status=TaskStatus.ready.value)
 
         if body.get('params') is None:
             body['params'] = {}
