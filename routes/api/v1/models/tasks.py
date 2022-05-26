@@ -8,6 +8,7 @@ tasks_model = Model('TasksBase', {
     'parent': fields.String,
     'status': fields.Integer,
     'status_name': fields.String,
+    'error': fields.String
 })
 
 task_get_model = tasks_model.inherit('Task get', {

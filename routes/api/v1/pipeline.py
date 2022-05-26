@@ -1,7 +1,7 @@
 import spex_common.services.Pipeline as PipelineService
 import spex_common.services.Project as ProjectService
 import spex_common.services.Task as TaskService
-from spex_common.models.Status import Text
+from spex_common.models.Status import TaskStatus
 from flask_restx import Namespace, Resource
 from flask import request
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -126,7 +126,7 @@ class PipelineGetList(Resource):
         pipelines = PipelineService.get_tree(pipeline_id=pipeline_id, author=author)
         jobs = PipelineService.get_jobs(pipelines, prefix=False)
 
-        status_to_upd = {"status": Text.from_str(request.json['status'])}
+        status_to_upd = {"status": TaskStatus.from_str(request.json['status'])}
         tasks = TaskService.update_tasks("in", data=status_to_upd, parent=jobs)
 
         return {'success': True, 'data': {"tasks": tasks}}, 200

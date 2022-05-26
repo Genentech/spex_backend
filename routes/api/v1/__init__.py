@@ -19,10 +19,10 @@ class OverrideApi(Api):
     @property
     def specs_url(self):
         specs_url = super(OverrideApi, self).specs_url
-        origin = request.headers.get('X-Original-Request')
+        origin = request.headers.get_all('X-Original-Request')
 
-        if origin:
-            origin = f'{origin}swagger.json'
+        if len(origin) > 0:
+            origin = f'{origin[0]}swagger.json'
 
         return origin if origin else specs_url
 

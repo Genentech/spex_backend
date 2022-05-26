@@ -188,8 +188,10 @@ class TasksGetIm(Resource):
         path = task.get('result')
         path = Utils.getAbsoluteRelative(path, absolute=True)
 
+        message = 'result not found'
+
         if not os.path.exists(path):
-            return {'success': False, 'message': 'result not found', 'data': {}}, 200
+            return {'success': False, 'message': message, 'data': {}}, 200
 
         try:
             with open(path, 'rb') as infile:
@@ -202,21 +204,25 @@ class TasksGetIm(Resource):
                 data = data.get(key)
 
                 fd, temp_file_name = tempfile.mkstemp()
-                fd.close()
+                # fd.close()
 
-                data.to_csv(temp_file_name)
+                if isinstance(data, np.ndarray):
+                    np.savetxt(temp_file_name, data, delimiter=',')
+                else:
+                    data.to_csv(temp_file_name, index=None)
 
                 return send_file(
                     temp_file_name,
                     attachment_filename=f"{_id}_result_{key}.csv",
                 )
 
-        except AttributeError:
+        except AttributeError as error:
+            logger.warning(error)
             data = json.dumps(data, cls=NumpyEncoder)
             return {'success': True, 'data': data}, 200
 
         except Exception as error:
-            logger.warn(error)
-            print(f'Error: {error}')
+            message = str(error)
+            logger.warning(error)
 
-        return {'success': False, 'message': 'result not found', 'data': {}}, 200
+        return {'success': False, 'message': message, 'data': {}}, 200

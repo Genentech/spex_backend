@@ -1,6 +1,6 @@
 from flask_restx import fields, Model
 from .responses import response
-from spex_common.models.Status import Text
+from spex_common.models.Status import PipelineStatus
 
 pipeline_create_model = Model('PipelineBase', {
     'name': fields.String(
@@ -58,6 +58,6 @@ pipeline_status_model = Model('PipelineStatus', {
     'status': fields.String(
         description='pipeline name',
         required=True,
-        enum=Text._member_names_
+        enum=PipelineStatus._member_names_
     )
 })
