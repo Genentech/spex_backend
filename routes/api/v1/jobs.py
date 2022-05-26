@@ -37,7 +37,7 @@ class JobCreateGetPost(Resource):
         if body.get('params') is None:
             body['params'] = {}
 
-        result = JobService.insert(body)
+        result = JobService.insert(body, history=body)
         tasks = TaskService.create_tasks(body, result)
         result = result.to_json()
         result['tasks'] = tasks

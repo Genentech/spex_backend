@@ -80,3 +80,18 @@ class HistoryResPost(Resource):
             abort(404, 'history not found')
 
         return {'success': True, 'data': result}, 200
+
+
+@namespace.route('/get_by_parent')
+class HistoryResGet(Resource):
+    @namespace.doc('history/getone/parent_id', security='Bearer')
+    @namespace.response(404, 'history not found', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @namespace.marshal_with(_history.a_history_response)
+    @jwt_required()
+    def post(self):
+        history = HistService.select_history(**request.json)
+        if history is None:
+            abort(404, 'history not found')
+
+        return {'success': True, 'data': history}, 200
