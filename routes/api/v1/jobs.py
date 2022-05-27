@@ -95,7 +95,7 @@ class Item(Resource):
         if not result:
             return {'success': False, 'message': 'job not found', 'data': {}}, 200
 
-        updated_job = JobService.update_job(id=_id, data=request.json)
+        updated_job = JobService.update_job(id=_id, data=request.json, history=request.json)
         return {'success': True, 'data': updated_job}, 200
 
     @namespace.doc('job/delete', security='Bearer')
