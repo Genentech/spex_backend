@@ -4,14 +4,17 @@ import tempfile
 import os
 import pickle
 import numpy as np
+import io
+
 import spex_common.services.Task as TaskService
 import spex_common.services.Job as JobService
 import spex_common.services.Utils as Utils
 from spex_common.modules.logging import get_logger
 from flask_restx import Namespace, Resource
-from flask import request, send_file
+from flask import request, send_file, make_response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import tasks, responses
+import matplotlib.pyplot as plt
 
 logger = get_logger('spex.backend')
 
@@ -226,3 +229,67 @@ class TasksGetIm(Resource):
             logger.warning(error)
 
         return {'success': False, 'message': message, 'data': {}}, 200
+
+
+@namespace.route('/viz/<_id>')
+@namespace.param('_id', 'task id')
+@namespace.param('key', 'key name')
+class TasksGetIm(Resource):
+    @namespace.doc('tasks/visualizer', security='Bearer')
+    @namespace.response(404, 'Task not found', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    # @namespace.marshal_with(tasks.a_tasks_response)
+    @jwt_required()
+    def get(self, _id):
+        key: str = ''
+        for arg in request.args:
+            key = request.args.get(arg)
+
+        task = TaskService.select(_id)
+        if task is None:
+            return {'success': False, 'message': 'task not found', 'data': {}}, 200
+        task = task.to_json()
+        if task.get('result') is None:
+            return {'success': False, 'message': 'result not found', 'data': {}}, 200
+
+        path = task.get('result')
+        path = Utils.getAbsoluteRelative(path, absolute=True)
+
+        message = 'result not found'
+
+        if not os.path.exists(path):
+            return {'success': False, 'message': message, 'data': {}}, 200
+
+        try:
+            with open(path, 'rb') as infile:
+                data = pickle.load(infile)
+
+                if not key:
+                    # data = json.dumps(data, cls=NumpyEncoder)
+                    return {'success': True, 'data': list(data.keys())}, 200
+
+                data = data.get(key)
+
+                # fd, temp_file_name = tempfile.mkstemp()
+                # data = json.dumps(data, cls=NumpyEncoder)
+                return {'success': True, 'data': list(data.keys())}, 200
+        except Exception as error:
+            message = str(error)
+            logger.warning(message)
+        finally:
+
+            x, y = data['centroid-0'], data['centroid-1']
+            plt.scatter(x, y)
+            buf = io.BytesIO()
+
+            plt.savefig(buf, format="png")
+            buf.seek(0)
+            data = buf.read()
+            data = base64.b64encode(data)
+            data = data.decode("utf-8")
+
+            img = '<img src="data:image/png;base64,{}">'.format(data)
+            resp = make_response(img)
+            resp.headers["Content-Type"] = "text/html"
+
+            return resp

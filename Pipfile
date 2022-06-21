@@ -22,6 +22,7 @@ flask = "==1.1.4"
 flask-compress = "*"
 docker = "*"
 spex-common = {editable = true, path = "../common"}
+seaborn = "*"
 
 [dev-packages]
 flake8 = "3.9.0"
