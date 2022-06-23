@@ -15,6 +15,14 @@ from flask import request, send_file, make_response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import tasks, responses
 import matplotlib.pyplot as plt
+from enum import Enum
+import seaborn as sns
+
+
+class VisType(str, Enum):
+    scatter = 'scatter'
+    boxplot = 'boxplot'
+
 
 logger = get_logger('spex.backend')
 
@@ -231,19 +239,25 @@ class TasksGetIm(Resource):
         return {'success': False, 'message': message, 'data': {}}, 200
 
 
-@namespace.route('/viz/<_id>')
+@namespace.route('/vis/<_id>')
 @namespace.param('_id', 'task id')
 @namespace.param('key', 'key name')
+@namespace.param('vis_name', 'visualisation name')
 class TasksGetIm(Resource):
     @namespace.doc('tasks/visualizer', security='Bearer')
     @namespace.response(404, 'Task not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     # @namespace.marshal_with(tasks.a_tasks_response)
-    @jwt_required()
+    # @jwt_required()
     def get(self, _id):
         key: str = ''
-        for arg in request.args:
-            key = request.args.get(arg)
+        vis_name: str = ''
+
+        for k in request.args.keys():
+            if k == 'key':
+                key = request.args.get(k)
+            if k == 'vis_name':
+                vis_name = request.args.get(k)
 
         task = TaskService.select(_id)
         if task is None:
@@ -278,18 +292,39 @@ class TasksGetIm(Resource):
             logger.warning(message)
         finally:
 
-            x, y = data['centroid-0'], data['centroid-1']
-            plt.scatter(x, y)
-            buf = io.BytesIO()
+            if vis_name == VisType.scatter:
 
-            plt.savefig(buf, format="png")
-            buf.seek(0)
-            data = buf.read()
-            data = base64.b64encode(data)
-            data = data.decode("utf-8")
+                x, y = data['centroid-0'], data['centroid-1']
+                plt.scatter(x, y)
+                buf = io.BytesIO()
 
-            img = '<img src="data:image/png;base64,{}">'.format(data)
-            resp = make_response(img)
-            resp.headers["Content-Type"] = "text/html"
+                plt.savefig(buf, format="png")
+                buf.seek(0)
+                data = buf.read()
+                data = base64.b64encode(data)
+                data = data.decode("utf-8")
 
-            return resp
+                img = '<img src="data:image/png;base64,{}">'.format(data)
+                resp = make_response(img)
+                resp.headers["Content-Type"] = "text/html"
+
+                return resp
+
+            if vis_name == VisType.boxplot:
+                sns.set_theme(style="whitegrid")
+                # x, y, intense = data['centroid-0'], data['centroid-1'], data['131Xe']
+
+                ax = sns.boxplot(x="centroid-0", y="131Xe", data=data, palette="Set3")
+                fig = ax.get_figure()
+                buf = io.BytesIO()
+                fig.savefig(buf, format="png")
+                buf.seek(0)
+                data = buf.read()
+                data = base64.b64encode(data)
+                data = data.decode("utf-8")
+
+                img = '<img src="data:image/png;base64,{}">'.format(data)
+                resp = make_response(img)
+                resp.headers["Content-Type"] = "text/html"
+
+                return resp
