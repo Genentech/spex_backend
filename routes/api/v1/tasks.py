@@ -14,9 +14,10 @@ from flask_restx import Namespace, Resource
 from flask import request, send_file, make_response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import tasks, responses
-import matplotlib.pyplot as plt
 from enum import Enum
 import seaborn as sns
+import matplotlib
+from distutils.util import strtobool
 
 
 class VisType(str, Enum):
@@ -239,6 +240,18 @@ class TasksGetIm(Resource):
         return {'success': False, 'message': message, 'data': {}}, 200
 
 
+def create_resp_from_data(data, debug):
+    if debug:
+        img = '<img src="data:image/png;base64,{}">'.format(data)
+        resp = make_response(img)
+        resp.headers["Content-Type"] = "text/html"
+    else:
+        img = 'data:image/png;base64,{}'.format(data)
+        resp = make_response(img)
+
+    return resp
+
+
 @namespace.route('/vis/<_id>')
 @namespace.param('_id', 'task id')
 @namespace.param('key', 'key name')
@@ -252,12 +265,18 @@ class TasksGetIm(Resource):
     def get(self, _id):
         key: str = ''
         vis_name: str = ''
+        debug: bool = False
+        matplotlib.rc_file_defaults()
+        matplotlib.pyplot.clf()
 
         for k in request.args.keys():
             if k == 'key':
                 key = request.args.get(k)
             if k == 'vis_name':
                 vis_name = request.args.get(k)
+            if k == 'debug':
+                if strtobool(request.args.get(k)):
+                    debug = True
 
         task = TaskService.select(_id)
         if task is None:
@@ -279,13 +298,10 @@ class TasksGetIm(Resource):
                 data = pickle.load(infile)
 
                 if not key:
-                    # data = json.dumps(data, cls=NumpyEncoder)
                     return {'success': True, 'data': list(data.keys())}, 200
 
                 data = data.get(key)
 
-                # fd, temp_file_name = tempfile.mkstemp()
-                # data = json.dumps(data, cls=NumpyEncoder)
                 return {'success': True, 'data': list(data.keys())}, 200
         except Exception as error:
             message = str(error)
@@ -295,36 +311,35 @@ class TasksGetIm(Resource):
             if vis_name == VisType.scatter:
 
                 x, y = data['centroid-0'], data['centroid-1']
-                plt.scatter(x, y)
-                buf = io.BytesIO()
 
-                plt.savefig(buf, format="png")
+                matplotlib.pyplot.scatter(x, y)
+
+                buf = io.BytesIO()
+                matplotlib.pyplot.savefig(buf, format="png")
                 buf.seek(0)
+
                 data = buf.read()
                 data = base64.b64encode(data)
                 data = data.decode("utf-8")
 
-                img = '<img src="data:image/png;base64,{}">'.format(data)
-                resp = make_response(img)
-                resp.headers["Content-Type"] = "text/html"
-
-                return resp
+                return create_resp_from_data(data, debug)
 
             if vis_name == VisType.boxplot:
-                sns.set_theme(style="whitegrid")
-                # x, y, intense = data['centroid-0'], data['centroid-1'], data['131Xe']
 
-                ax = sns.boxplot(x="centroid-0", y="131Xe", data=data, palette="Set3")
+                sns.set_theme(style="whitegrid")
+                sns.reset_orig()
+                # x="centroid-0",
+                ax = sns.boxplot(y="131Xe", data=data, palette="Set3")
                 fig = ax.get_figure()
+
                 buf = io.BytesIO()
                 fig.savefig(buf, format="png")
+
                 buf.seek(0)
                 data = buf.read()
                 data = base64.b64encode(data)
                 data = data.decode("utf-8")
 
-                img = '<img src="data:image/png;base64,{}">'.format(data)
-                resp = make_response(img)
-                resp.headers["Content-Type"] = "text/html"
+                return create_resp_from_data(data, debug)
 
-                return resp
+
