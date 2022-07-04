@@ -329,17 +329,20 @@ class TasksGetIm(Resource):
                 sns.set_theme(style="whitegrid")
                 sns.reset_orig()
                 # x="centroid-0",
-                ax = sns.boxplot(y="131Xe", data=data, palette="Set3")
-                fig = ax.get_figure()
+                if y := data.keys()[len(data.keys())-1]:
+                    ax = sns.boxplot(y=y, data=data, palette="Set3")
+                    fig = ax.get_figure()
 
-                buf = io.BytesIO()
-                fig.savefig(buf, format="png")
+                    buf = io.BytesIO()
+                    fig.savefig(buf, format="png")
 
-                buf.seek(0)
-                data = buf.read()
-                data = base64.b64encode(data)
-                data = data.decode("utf-8")
+                    buf.seek(0)
+                    data = buf.read()
+                    data = base64.b64encode(data)
+                    data = data.decode("utf-8")
 
-                return create_resp_from_data(data, debug)
+                    return create_resp_from_data(data, debug)
+                else:
+                    return {'success': False, 'message': message, 'data': {}}, 200
 
 
