@@ -17,6 +17,7 @@ from .models import tasks, responses
 from enum import Enum
 import seaborn as sns
 import matplotlib
+from matplotlib import pyplot
 from distutils.util import strtobool
 
 
@@ -266,8 +267,9 @@ class TasksGetIm(Resource):
         key: str = ''
         vis_name: str = ''
         debug: bool = False
+
         matplotlib.rc_file_defaults()
-        matplotlib.pyplot.clf()
+        pyplot.clf()
 
         for k in request.args.keys():
             if k == 'key':
@@ -312,10 +314,12 @@ class TasksGetIm(Resource):
 
                 x, y = data['centroid-0'], data['centroid-1']
 
-                matplotlib.pyplot.scatter(x, y)
+                pyplot.scatter(x, y)
 
                 buf = io.BytesIO()
-                matplotlib.pyplot.savefig(buf, format="png")
+                pyplot.savefig(buf, format="png")
+                pyplot.close()
+                pyplot.clf()
                 buf.seek(0)
 
                 data = buf.read()

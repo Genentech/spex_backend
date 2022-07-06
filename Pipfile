@@ -23,6 +23,7 @@ flask-compress = "*"
 docker = "*"
 spex-common = {editable = true, path = "../common"}
 seaborn = "*"
+matplotlib = "==3.5.1"
 
 [dev-packages]
 flake8 = "3.9.0"
