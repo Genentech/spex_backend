@@ -19,11 +19,13 @@ import seaborn as sns
 import matplotlib
 from matplotlib import pyplot
 from distutils.util import strtobool
+import pandas as pd
 
 
 class VisType(str, Enum):
     scatter = 'scatter'
     boxplot = 'boxplot'
+    heatmap = 'heatmap'
 
 
 logger = get_logger('spex.backend')
@@ -304,49 +306,68 @@ class TasksGetIm(Resource):
 
                 data = data.get(key)
 
-                return {'success': True, 'data': list(data.keys())}, 200
         except Exception as error:
             message = str(error)
             logger.warning(message)
-        finally:
+            return {'success': True, 'data': list(data.keys())}, 200
 
-            if vis_name == VisType.scatter:
+        if vis_name == VisType.scatter:
 
-                x, y = data['centroid-0'], data['centroid-1']
+            x, y = data['centroid-0'], data['centroid-1']
+            to_show_data = pd.melt(data, id_vars=['label', 'centroid-0', 'centroid-1'])
 
-                pyplot.scatter(x, y)
+            sns.set_theme(style="whitegrid")
+            sns.reset_orig()
 
-                buf = io.BytesIO()
-                pyplot.savefig(buf, format="png")
-                pyplot.close()
-                pyplot.clf()
-                buf.seek(0)
+            to_show_data['value'] = to_show_data['value'].round()
 
-                data = buf.read()
-                data = base64.b64encode(data)
-                data = data.decode("utf-8")
+            ax = sns.scatterplot(y='centroid-0', x='centroid-1', hue='value', data=to_show_data, palette="Set3")
+            fig = ax.get_figure()
 
-                return create_resp_from_data(data, debug)
+            buf = io.BytesIO()
+            fig.savefig(buf, format="png")
 
-            if vis_name == VisType.boxplot:
+            buf.seek(0)
+            data = buf.read()
+            data = base64.b64encode(data)
+            data = data.decode("utf-8")
 
-                sns.set_theme(style="whitegrid")
-                sns.reset_orig()
-                # x="centroid-0",
-                if y := data.keys()[len(data.keys())-1]:
-                    ax = sns.boxplot(y=y, data=data, palette="Set3")
-                    fig = ax.get_figure()
+            return create_resp_from_data(data, debug)
 
-                    buf = io.BytesIO()
-                    fig.savefig(buf, format="png")
+        if vis_name == VisType.boxplot:
 
-                    buf.seek(0)
-                    data = buf.read()
-                    data = base64.b64encode(data)
-                    data = data.decode("utf-8")
+            sns.set_theme(style="whitegrid")
+            sns.reset_orig()
+            to_show_data = pd.melt(data, id_vars=['label', 'centroid-0', 'centroid-1'])
 
-                    return create_resp_from_data(data, debug)
-                else:
-                    return {'success': False, 'message': message, 'data': {}}, 200
+            ax = sns.boxplot(y='variable', x='value', data=to_show_data, palette="Set3")
+            fig = ax.get_figure()
 
+            buf = io.BytesIO()
+            fig.savefig(buf, format="png")
+
+            buf.seek(0)
+            data = buf.read()
+            data = base64.b64encode(data)
+            data = data.decode("utf-8")
+
+            return create_resp_from_data(data, debug)
+
+        if vis_name == VisType.heatmap:
+
+            sns.set_theme(style="whitegrid")
+            sns.reset_orig()
+
+            ax = sns.heatmap(data, linewidth=1, robust=True)
+            fig = ax.get_figure()
+
+            buf = io.BytesIO()
+            fig.savefig(buf, format="png")
+
+            buf.seek(0)
+            data = buf.read()
+            data = base64.b64encode(data)
+            data = data.decode("utf-8")
+
+            return create_resp_from_data(data, debug)
 
