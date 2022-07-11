@@ -4,14 +4,29 @@ import tempfile
 import os
 import pickle
 import numpy as np
+import io
+
 import spex_common.services.Task as TaskService
 import spex_common.services.Job as JobService
 import spex_common.services.Utils as Utils
 from spex_common.modules.logging import get_logger
 from flask_restx import Namespace, Resource
-from flask import request, send_file
+from flask import request, send_file, make_response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import tasks, responses
+from enum import Enum
+import seaborn as sns
+import matplotlib
+from matplotlib import pyplot
+from distutils.util import strtobool
+import pandas as pd
+
+
+class VisType(str, Enum):
+    scatter = 'scatter'
+    boxplot = 'boxplot'
+    heatmap = 'heatmap'
+
 
 logger = get_logger('spex.backend')
 
@@ -226,3 +241,133 @@ class TasksGetIm(Resource):
             logger.warning(error)
 
         return {'success': False, 'message': message, 'data': {}}, 200
+
+
+def create_resp_from_data(data, debug):
+    if debug:
+        img = '<img src="data:image/png;base64,{}">'.format(data)
+        resp = make_response(img)
+        resp.headers["Content-Type"] = "text/html"
+    else:
+        img = 'data:image/png;base64,{}'.format(data)
+        resp = make_response(img)
+
+    return resp
+
+
+@namespace.route('/vis/<_id>')
+@namespace.param('_id', 'task id')
+@namespace.param('key', 'key name')
+@namespace.param('vis_name', 'visualisation name')
+class TasksGetIm(Resource):
+    @namespace.doc('tasks/visualizer', security='Bearer')
+    @namespace.response(404, 'Task not found', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    # @namespace.marshal_with(tasks.a_tasks_response)
+    # @jwt_required()
+    def get(self, _id):
+        key: str = ''
+        vis_name: str = ''
+        debug: bool = False
+
+        matplotlib.rc_file_defaults()
+        pyplot.clf()
+
+        for k in request.args.keys():
+            if k == 'key':
+                key = request.args.get(k)
+            if k == 'vis_name':
+                vis_name = request.args.get(k)
+            if k == 'debug':
+                if strtobool(request.args.get(k)):
+                    debug = True
+
+        task = TaskService.select(_id)
+        if task is None:
+            return {'success': False, 'message': 'task not found', 'data': {}}, 200
+        task = task.to_json()
+        if task.get('result') is None:
+            return {'success': False, 'message': 'result not found', 'data': {}}, 200
+
+        path = task.get('result')
+        path = Utils.getAbsoluteRelative(path, absolute=True)
+
+        message = 'result not found'
+
+        if not os.path.exists(path):
+            return {'success': False, 'message': message, 'data': {}}, 200
+
+        try:
+            with open(path, 'rb') as infile:
+                data = pickle.load(infile)
+
+                if not key:
+                    return {'success': True, 'data': list(data.keys())}, 200
+
+                data = data.get(key)
+
+        except Exception as error:
+            message = str(error)
+            logger.warning(message)
+            return {'success': True, 'data': list(data.keys())}, 200
+
+        if vis_name == VisType.scatter:
+
+            x, y = data['centroid-0'], data['centroid-1']
+            to_show_data = pd.melt(data, id_vars=['label', 'centroid-0', 'centroid-1'])
+
+            sns.set_theme(style="whitegrid")
+            sns.reset_orig()
+
+            to_show_data['value'] = to_show_data['value'].round()
+
+            ax = sns.scatterplot(y='centroid-0', x='centroid-1', hue='value', data=to_show_data, palette="Set3")
+            fig = ax.get_figure()
+
+            buf = io.BytesIO()
+            fig.savefig(buf, format="png")
+
+            buf.seek(0)
+            data = buf.read()
+            data = base64.b64encode(data)
+            data = data.decode("utf-8")
+
+            return create_resp_from_data(data, debug)
+
+        if vis_name == VisType.boxplot:
+
+            sns.set_theme(style="whitegrid")
+            sns.reset_orig()
+            to_show_data = pd.melt(data, id_vars=['label', 'centroid-0', 'centroid-1'])
+
+            ax = sns.boxplot(y='variable', x='value', data=to_show_data, palette="Set3")
+            fig = ax.get_figure()
+
+            buf = io.BytesIO()
+            fig.savefig(buf, format="png")
+
+            buf.seek(0)
+            data = buf.read()
+            data = base64.b64encode(data)
+            data = data.decode("utf-8")
+
+            return create_resp_from_data(data, debug)
+
+        if vis_name == VisType.heatmap:
+
+            sns.set_theme(style="whitegrid")
+            sns.reset_orig()
+
+            ax = sns.heatmap(np.delete(data, [0, 1, 2], axis=1), center=np.max(data)/2)
+            fig = ax.get_figure()
+
+            buf = io.BytesIO()
+            fig.savefig(buf, format="png")
+
+            buf.seek(0)
+            data = buf.read()
+            data = base64.b64encode(data)
+            data = data.decode("utf-8")
+
+            return create_resp_from_data(data, debug)
+

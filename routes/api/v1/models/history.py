@@ -5,6 +5,7 @@ history_model = Model('HistsBase', {
     'content': fields.String,
     'date': fields.DateTime(dt_format='iso8601'),
     'parent': fields.String,
+    'event_type': fields.String,
 })
 
 history_get_model = history_model.inherit('History get', {
