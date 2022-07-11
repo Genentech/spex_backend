@@ -358,7 +358,7 @@ class TasksGetIm(Resource):
             sns.set_theme(style="whitegrid")
             sns.reset_orig()
 
-            ax = sns.heatmap(data, linewidth=1, robust=True)
+            ax = sns.heatmap(np.delete(data, [0, 1, 2], axis=1), center=np.max(data)/2)
             fig = ax.get_figure()
 
             buf = io.BytesIO()
