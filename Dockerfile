@@ -21,6 +21,7 @@ RUN echo "die-on-term = true" >> /app/uwsgi.ini
 RUN echo "buffer-size = 65535" >> /app/uwsgi.ini
 
 RUN pip install uwsgi
+RUN pip install seaborn
 RUN pipenv install --system --deploy --ignore-pipfile
 
 EXPOSE 8080
