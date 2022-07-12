@@ -243,13 +243,23 @@ class TasksGetIm(Resource):
         return {'success': False, 'message': message, 'data': {}}, 200
 
 
-def create_resp_from_data(data, debug):
+def create_resp_from_data(ax, debug):
+    fig = ax.get_figure()
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png")
+
+    buf.seek(0)
+    resp_data = buf.read()
+    resp_data = base64.b64encode(resp_data)
+    resp_data = resp_data.decode("utf-8")
+
     if debug:
-        img = '<img src="data:image/png;base64,{}">'.format(data)
+        img = '<img src="data:image/png;base64,{}">'.format(resp_data)
         resp = make_response(img)
         resp.headers["Content-Type"] = "text/html"
     else:
-        img = 'data:image/png;base64,{}'.format(data)
+        img = 'data:image/png;base64,{}'.format(resp_data)
         resp = make_response(img)
 
     return resp
@@ -311,63 +321,27 @@ class TasksGetIm(Resource):
             logger.warning(message)
             return {'success': True, 'data': list(data.keys())}, 200
 
+        sns.set_theme(style="whitegrid")
+        sns.reset_orig()
+
         if vis_name == VisType.scatter:
 
-            x, y = data['centroid-0'], data['centroid-1']
             to_show_data = pd.melt(data, id_vars=['label', 'centroid-0', 'centroid-1'])
-
-            sns.set_theme(style="whitegrid")
-            sns.reset_orig()
-
             to_show_data['value'] = to_show_data['value'].round()
 
             ax = sns.scatterplot(y='centroid-0', x='centroid-1', hue='value', data=to_show_data, palette="Set3")
-            fig = ax.get_figure()
-
-            buf = io.BytesIO()
-            fig.savefig(buf, format="png")
-
-            buf.seek(0)
-            data = buf.read()
-            data = base64.b64encode(data)
-            data = data.decode("utf-8")
-
-            return create_resp_from_data(data, debug)
+            return create_resp_from_data(ax, debug)
 
         if vis_name == VisType.boxplot:
 
-            sns.set_theme(style="whitegrid")
-            sns.reset_orig()
             to_show_data = pd.melt(data, id_vars=['label', 'centroid-0', 'centroid-1'])
-
             ax = sns.boxplot(y='variable', x='value', data=to_show_data, palette="Set3")
-            fig = ax.get_figure()
-
-            buf = io.BytesIO()
-            fig.savefig(buf, format="png")
-
-            buf.seek(0)
-            data = buf.read()
-            data = base64.b64encode(data)
-            data = data.decode("utf-8")
-
-            return create_resp_from_data(data, debug)
+            return create_resp_from_data(ax, debug)
 
         if vis_name == VisType.heatmap:
 
-            sns.set_theme(style="whitegrid")
-            sns.reset_orig()
+            to_show = np.delete(data, [0, 1, 2], axis=1)
+            ax = sns.heatmap(to_show, center=np.max(to_show)/2)
 
-            ax = sns.heatmap(np.delete(data, [0, 1, 2], axis=1), center=np.max(data)/2)
-            fig = ax.get_figure()
-
-            buf = io.BytesIO()
-            fig.savefig(buf, format="png")
-
-            buf.seek(0)
-            data = buf.read()
-            data = base64.b64encode(data)
-            data = data.decode("utf-8")
-
-            return create_resp_from_data(data, debug)
+            return create_resp_from_data(ax, debug)
 
