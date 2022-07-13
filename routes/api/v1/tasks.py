@@ -26,6 +26,7 @@ class VisType(str, Enum):
     scatter = 'scatter'
     boxplot = 'boxplot'
     heatmap = 'heatmap'
+    barplot = 'barplot'
 
 
 logger = get_logger('spex.backend')
@@ -325,12 +326,20 @@ class TasksGetIm(Resource):
         sns.reset_orig()
 
         if vis_name == VisType.scatter:
+            if key in ('cluster', 'dml'):
+                # pd
+                df = pd.DataFrame(data)
+                to_show_data = pd.melt(df, id_vars=[0, 1, 2])
+                to_show_data['value'] = to_show_data['value'].round()
+                ax = sns.scatterplot(y=1, x=2, hue='value', data=to_show_data, palette="Set3")
 
-            to_show_data = pd.melt(data, id_vars=['label', 'centroid-0', 'centroid-1'])
-            to_show_data['value'] = to_show_data['value'].round()
+                return create_resp_from_data(ax, debug)
+            else:
+                to_show_data = pd.melt(data, id_vars=['label', 'centroid-0', 'centroid-1'])
+                to_show_data['value'] = to_show_data['value'].round()
+                ax = sns.scatterplot(y='centroid-0', x='centroid-1', hue='value', data=to_show_data, palette="Set3")
 
-            ax = sns.scatterplot(y='centroid-0', x='centroid-1', hue='value', data=to_show_data, palette="Set3")
-            return create_resp_from_data(ax, debug)
+                return create_resp_from_data(ax, debug)
 
         if vis_name == VisType.boxplot:
 
@@ -342,6 +351,13 @@ class TasksGetIm(Resource):
 
             to_show = np.delete(data, [0, 1, 2], axis=1)
             ax = sns.heatmap(to_show, center=np.max(to_show)/2)
+
+            return create_resp_from_data(ax, debug)
+
+        if vis_name == VisType.barplot:
+
+            to_show = np.delete(data, [0, 1, 2], axis=1)
+            ax = sns.barplot(data=to_show, label="Total", color="b")
 
             return create_resp_from_data(ax, debug)
 
