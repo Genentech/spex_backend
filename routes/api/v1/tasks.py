@@ -20,6 +20,8 @@ import matplotlib
 from matplotlib import pyplot
 from distutils.util import strtobool
 import pandas as pd
+import matplotlib.pyplot as plt
+from PIL import Image
 
 
 class VisType(str, Enum):
@@ -266,6 +268,31 @@ def create_resp_from_data(ax, debug):
     return resp
 
 
+def create_resp_from_df(pd_data, debug):
+    buf = io.BytesIO()
+    plt.imsave(buf, pd_data, format="png")
+    im = Image.open(buf)
+    im.thumbnail((640, 480), Image.ANTIALIAS)
+
+    img_buf = io.BytesIO()
+    im.save(img_buf, format="png")
+
+    img_buf.seek(0)
+    resp_data = img_buf.read()
+    resp_data = base64.b64encode(resp_data)
+    resp_data = resp_data.decode("utf-8")
+
+    if debug:
+        img = '<img src="data:image/png;base64,{}">'.format(resp_data)
+        resp = make_response(img)
+        resp.headers["Content-Type"] = "text/html"
+    else:
+        img = 'data:image/png;base64,{}'.format(resp_data)
+        resp = make_response(img)
+
+    return resp
+
+
 @namespace.route('/vis/<_id>')
 @namespace.param('_id', 'task id')
 @namespace.param('key', 'key name')
@@ -324,6 +351,11 @@ class TasksGetIm(Resource):
 
         sns.set_theme(style="whitegrid")
         sns.reset_orig()
+        ax = None
+        img_list_keys = ['labels']
+
+        if all([key in img_list_keys, type(data) == np.ndarray]):
+            return create_resp_from_df(data, debug)
 
         if vis_name == VisType.scatter:
             if key in ('cluster', 'dml'):
@@ -333,31 +365,27 @@ class TasksGetIm(Resource):
                 to_show_data['value'] = to_show_data['value'].round()
                 ax = sns.scatterplot(y=1, x=2, hue='value', data=to_show_data, palette="Set3")
 
-                return create_resp_from_data(ax, debug)
             else:
                 to_show_data = pd.melt(data, id_vars=['label', 'centroid-0', 'centroid-1'])
                 to_show_data['value'] = to_show_data['value'].round()
                 ax = sns.scatterplot(y='centroid-0', x='centroid-1', hue='value', data=to_show_data, palette="Set3")
 
-                return create_resp_from_data(ax, debug)
-
         if vis_name == VisType.boxplot:
 
             to_show_data = pd.melt(data, id_vars=['label', 'centroid-0', 'centroid-1'])
             ax = sns.boxplot(y='variable', x='value', data=to_show_data, palette="Set3")
-            return create_resp_from_data(ax, debug)
 
         if vis_name == VisType.heatmap:
 
             to_show = np.delete(data, [0, 1, 2], axis=1)
             ax = sns.heatmap(to_show, center=np.max(to_show)/2)
 
-            return create_resp_from_data(ax, debug)
-
         if vis_name == VisType.barplot:
 
             to_show = np.delete(data, [0, 1, 2], axis=1)
             ax = sns.barplot(data=to_show, label="Total", color="b")
 
-            return create_resp_from_data(ax, debug)
+        if not ax:
+            return {'success': False, 'message': 'result not found', 'data': {}}, 200
 
+        return create_resp_from_data(ax, debug)
