@@ -342,6 +342,8 @@ class TasksGetIm(Resource):
                 if not key:
                     return {'success': True, 'data': list(data.keys())}, 200
 
+                channels_str = data.get('channel_list', [])
+
                 data = data.get(key)
 
         except Exception as error:
@@ -351,6 +353,7 @@ class TasksGetIm(Resource):
 
         sns.set_theme(style="whitegrid")
         sns.reset_orig()
+        sns.set(font_scale=0.7)
         ax = None
         img_list_keys = ['labels']
 
@@ -378,12 +381,16 @@ class TasksGetIm(Resource):
         if vis_name == VisType.heatmap:
 
             to_show = np.delete(data, [0, 1, 2], axis=1)
-            ax = sns.heatmap(to_show, center=np.max(to_show)/2)
+            ax = sns.heatmap(to_show, center=np.max(to_show)/2, xticklabels=channels_str)
 
         if vis_name == VisType.barplot:
 
             to_show = np.delete(data, [0, 1, 2], axis=1)
             ax = sns.barplot(data=to_show, label="Total", color="b")
+            try:
+                ax.set_xticklabels(channels_str)
+            except ValueError as error:
+                logger.info(error)
 
         if not ax:
             return {'success': False, 'message': 'result not found', 'data': {}}, 200
