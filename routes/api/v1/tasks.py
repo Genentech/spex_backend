@@ -223,15 +223,22 @@ class TasksGetIm(Resource):
 
                 fd, temp_file_name = tempfile.mkstemp()
                 # fd.close()
+                ext = '.csv'
 
                 if isinstance(data, np.ndarray):
-                    np.savetxt(temp_file_name, data, delimiter=',')
+                    # np.savetxt(temp_file_name, data, delimiter=',')
+                    ext = 'tiff'
+                    buf = io.BytesIO()
+                    plt.imsave(buf, data, format=ext)
+                    im = Image.open(buf)
+                    im.save(temp_file_name, format=ext)
+
                 else:
                     data.to_csv(temp_file_name, index=None)
 
                 return send_file(
                     temp_file_name,
-                    attachment_filename=f"{_id}_result_{key}.csv",
+                    attachment_filename=f"{_id}_result_{key}.{ext}",
                 )
 
         except AttributeError as error:
@@ -268,14 +275,14 @@ def create_resp_from_data(ax, debug):
     return resp
 
 
-def create_resp_from_df(pd_data, debug):
+def create_resp_from_df(pd_data, debug, _format='png'):
     buf = io.BytesIO()
-    plt.imsave(buf, pd_data, format="png")
+    plt.imsave(buf, pd_data, format=_format)
     im = Image.open(buf)
     im.thumbnail((640, 480), Image.ANTIALIAS)
 
     img_buf = io.BytesIO()
-    im.save(img_buf, format="png")
+    im.save(img_buf, format=_format)
 
     img_buf.seek(0)
     resp_data = img_buf.read()
@@ -310,6 +317,7 @@ class TasksGetIm(Resource):
 
         matplotlib.rc_file_defaults()
         pyplot.clf()
+        plt.subplots(ncols=1, figsize=(5, 5))
 
         for k in request.args.keys():
             if k == 'key':
@@ -367,26 +375,82 @@ class TasksGetIm(Resource):
                 to_show_data = pd.melt(df, id_vars=[0, 1, 2])
                 to_show_data['value'] = to_show_data['value'].round()
                 ax = sns.scatterplot(y=1, x=2, hue='value', data=to_show_data, palette="Set3")
+                ax.set(title=vis_name)
 
             else:
                 to_show_data = pd.melt(data, id_vars=['label', 'centroid-0', 'centroid-1'])
                 to_show_data['value'] = to_show_data['value'].round()
-                ax = sns.scatterplot(y='centroid-0', x='centroid-1', hue='value', data=to_show_data, palette="Set3")
+
+                cols = len(to_show_data['variable'].unique())
+
+                fig, axs = plt.subplots(ncols=cols, figsize=(cols*5, 5))
+                fig.suptitle(vis_name)
+                index = 0
+
+                for channel in to_show_data['variable'].unique():
+
+                    df = to_show_data.loc[(to_show_data['variable'] == channel) & (to_show_data['value'] > 0)]
+
+                    sns.scatterplot(
+                        y='centroid-0',
+                        x='centroid-1',
+                        data=df,
+                        palette="Set3",
+                        hue=df['value'],
+                        ax=axs[index]
+                    )
+
+                    ax = axs[index]
+                    index += 1
+                    ax.set(xlabel=None, ylabel=None)
+
+                    box = ax.get_position()
+                    ax.set_position([box.x0, box.y0 + box.height * 0.1,
+                                     box.width, box.height * 0.9])
+
+                    # Put a legend below current axis
+                    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.06),
+                              fancybox=True, shadow=True, ncol=5, title=channel)
 
         if vis_name == VisType.boxplot:
 
             to_show_data = pd.melt(data, id_vars=['label', 'centroid-0', 'centroid-1'])
             ax = sns.boxplot(y='variable', x='value', data=to_show_data, palette="Set3")
+            ax.set(title=vis_name)
 
         if vis_name == VisType.heatmap:
 
             to_show = np.delete(data, [0, 1, 2], axis=1)
-            ax = sns.heatmap(to_show, center=np.max(to_show)/2, xticklabels=channels_str)
+            to_show = to_show[:, [3, 0, 1, 2]]
+
+            result = np.empty(shape=(0, 4), dtype=to_show.dtype)
+
+            clusters = np.unique(to_show[:, 0])
+            for cluster in clusters:
+                df = to_show[(to_show[:, 0] == cluster)]
+                if len(df):
+                    result = np.append(result, [np.average(df, axis=0)], axis=0)
+
+            result = np.delete(result, [0], axis=1)
+
+            ax = sns.heatmap(
+                result,
+                vmin=np.min(result[(result[:]) > 0]),
+                vmax=np.max(result),
+                xticklabels=channels_str,
+                annot=True,
+                cmap='coolwarm',
+                fmt='g',
+            )
+            ax.xaxis.set_tick_params(labelsize='small')
+            ax.set(title=vis_name)
 
         if vis_name == VisType.barplot:
 
             to_show = np.delete(data, [0, 1, 2], axis=1)
             ax = sns.barplot(data=to_show, label="Total", color="b")
+            ax.set(title=vis_name)
+
             try:
                 ax.set_xticklabels(channels_str)
             except ValueError as error:
