@@ -382,14 +382,29 @@ class TasksGetIm(Resource):
                 to_show_data['value'] = to_show_data['value'].round()
 
                 cols = len(to_show_data['variable'].unique())
-
-                fig, axs = plt.subplots(ncols=cols, figsize=(cols*5, 5))
+                # cols = 10
+                fig, axs = plt.subplots(ncols=1, nrows=cols, figsize=(8, 4*cols))
+                fig.tight_layout()
+                fig.subplots_adjust(top=0.95)
                 fig.suptitle(vis_name)
                 index = 0
 
                 for channel in to_show_data['variable'].unique():
+                    # if index == 10:
+                    #     continue
 
                     df = to_show_data.loc[(to_show_data['variable'] == channel) & (to_show_data['value'] > 0)]
+                    ax = axs[index]
+
+                    ax.set(xlabel=None, ylabel=None)
+                    asp = np.diff(ax.get_xlim())[0] / np.diff(ax.get_ylim())[0]
+                    ax.set_aspect(asp)
+
+                    box = ax.get_position()
+                    width = box.x1 - box.x0
+                    height = box.y1 - box.y0
+                    ax.set_position([0.08, box.y1 + 0.03,
+                                     width, height])
 
                     sns.scatterplot(
                         y='centroid-0',
@@ -399,17 +414,10 @@ class TasksGetIm(Resource):
                         hue=df['value'],
                         ax=axs[index]
                     )
-
-                    ax = axs[index]
                     index += 1
-                    ax.set(xlabel=None, ylabel=None)
-
-                    box = ax.get_position()
-                    ax.set_position([box.x0, box.y0 + box.height * 0.1,
-                                     box.width, box.height * 0.9])
 
                     # Put a legend below current axis
-                    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.06),
+                    ax.legend(loc='center left', bbox_to_anchor=(1.04, 0.5),
                               fancybox=True, shadow=True, ncol=5, title=channel)
 
         if vis_name == VisType.boxplot:
@@ -421,9 +429,13 @@ class TasksGetIm(Resource):
         if vis_name == VisType.heatmap:
 
             to_show = np.delete(data, [0, 1, 2], axis=1)
-            to_show = to_show[:, [3, 0, 1, 2]]
+            _, c = to_show.shape
+            rows = [element for element in range(c)]
+            rows.insert(0, rows.pop())
 
-            result = np.empty(shape=(0, 4), dtype=to_show.dtype)
+            to_show = to_show[:, rows]
+
+            result = np.empty(shape=(0, c), dtype=to_show.dtype)
 
             clusters = np.unique(to_show[:, 0])
             for cluster in clusters:
