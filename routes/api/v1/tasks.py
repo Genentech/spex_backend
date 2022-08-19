@@ -206,6 +206,7 @@ class TasksGetIm(Resource):
         path = task.get('result')
         path = Utils.getAbsoluteRelative(path, absolute=True)
 
+
         message = 'result not found'
 
         if not os.path.exists(path):
@@ -225,7 +226,7 @@ class TasksGetIm(Resource):
                 # fd.close()
                 ext = '.csv'
 
-                if isinstance(data, np.ndarray):
+                if isinstance(data, np.ndarray) and key == 'labels':
                     # np.savetxt(temp_file_name, data, delimiter=',')
                     ext = 'tiff'
                     buf = io.BytesIO()
@@ -233,6 +234,8 @@ class TasksGetIm(Resource):
                     im = Image.open(buf)
                     im.save(temp_file_name, format=ext)
 
+                elif isinstance(data, np.ndarray) and key != 'labels':
+                    pd.DataFrame(data).to_csv(temp_file_name, index=None)
                 else:
                     data.to_csv(temp_file_name, index=None)
 
@@ -351,6 +354,8 @@ class TasksGetIm(Resource):
                     return {'success': True, 'data': list(data.keys())}, 200
 
                 channels_str = data.get('channel_list', [])
+                if not channels_str:
+                    channels_str = data.get('all_channels')
 
                 data = data.get(key)
 
@@ -369,13 +374,58 @@ class TasksGetIm(Resource):
             return create_resp_from_df(data, debug)
 
         if vis_name == VisType.scatter:
-            if key in ('cluster', 'dml'):
+            if key == 'dml':
                 # pd
                 df = pd.DataFrame(data)
                 to_show_data = pd.melt(df, id_vars=[0, 1, 2])
                 to_show_data['value'] = to_show_data['value'].round()
-                ax = sns.scatterplot(y=1, x=2, hue='value', data=to_show_data, palette="Set3")
+                ax = sns.scatterplot(y=1, x=2, hue='variable', data=to_show_data, palette="Set3")
                 ax.set(title=vis_name)
+
+            elif key == 'cluster':
+
+                df = pd.DataFrame(data)
+                to_show_data = pd.melt(df, id_vars=[0, 1, 2])
+                to_show_data['value'] = to_show_data['value'].round()
+
+                cols = len(to_show_data['variable'].unique())
+                # cols = 10
+                fig, axs = plt.subplots(ncols=1, nrows=cols, figsize=(8, 4*cols))
+                fig.tight_layout()
+                fig.subplots_adjust(top=0.95)
+                fig.suptitle(vis_name)
+                index = 0
+
+                for channel in to_show_data['variable'].unique():
+                    # if index == 10:
+                    #     continue
+
+                    df = to_show_data.loc[(to_show_data['variable'] == channel) & (to_show_data['value'] > 0)]
+                    ax = axs[index]
+
+                    ax.set(xlabel=None, ylabel=None)
+                    asp = np.diff(ax.get_xlim())[0] / np.diff(ax.get_ylim())[0]
+                    ax.set_aspect(asp)
+
+                    box = ax.get_position()
+                    width = box.x1 - box.x0
+                    height = box.y1 - box.y0
+                    ax.set_position([0.08, box.y1 + 0.03,
+                                     width, height])
+
+                    sns.scatterplot(
+                        y=1,
+                        x=2,
+                        data=df,
+                        palette="Set3",
+                        hue=df['value'],
+                        ax=axs[index]
+                    )
+                    index += 1
+
+                    # Put a legend below current axis
+                    ax.legend(loc='center left', bbox_to_anchor=(1.04, 0.5),
+                              fancybox=True, shadow=True, ncol=5, title=channel)
 
             else:
                 to_show_data = pd.melt(data, id_vars=['label', 'centroid-0', 'centroid-1'])
