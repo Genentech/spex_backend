@@ -235,9 +235,9 @@ class TasksGetIm(Resource):
                     im.save(temp_file_name, format=ext)
 
                 elif isinstance(data, np.ndarray) and key != 'labels':
-                    pd.DataFrame(data).to_csv(temp_file_name, index=None, format=ext)
+                    pd.DataFrame(data).to_csv(temp_file_name, index=None)
                 else:
-                    data.to_csv(temp_file_name, index=None, format=ext)
+                    data.to_csv(temp_file_name, index=None)
 
                 return send_file(
                     temp_file_name,
