@@ -385,23 +385,38 @@ class TasksGetIm(Resource):
             elif key == 'cluster':
 
                 df = pd.DataFrame(data)
-                to_show_data = pd.melt(df, id_vars=[0, 1, 2])
+                cluster_column_id = len(df.columns)-1
+                replace_dict: dict = {}
+                if len(channels_str) == len(df.columns)-4:
+                    for item in range(len(channels_str)):
+                        replace_dict[item+3] = channels_str[item]
+
+                if replace_dict.keys():
+                    df.rename(columns=replace_dict, inplace=True)
+
+                df.rename(columns={cluster_column_id: 'cluster'}, inplace=True)
+
+                to_show_data = pd.melt(df, id_vars=[0, 1, 2, 'cluster'])
                 to_show_data['value'] = to_show_data['value'].round()
 
                 cols = len(to_show_data['variable'].unique())
-                # cols = 10
+                # cols = 5
                 fig, axs = plt.subplots(ncols=1, nrows=cols, figsize=(8, 4*cols))
                 fig.tight_layout()
                 fig.subplots_adjust(top=0.95)
-                fig.suptitle(vis_name)
                 index = 0
 
                 for channel in to_show_data['variable'].unique():
-                    # if index == 10:
+                    # if index == 5:
                     #     continue
 
                     df = to_show_data.loc[(to_show_data['variable'] == channel) & (to_show_data['value'] > 0)]
-                    ax = axs[index]
+
+                    if type(axs) == np.ndarray:
+                        ax = axs[index]
+                    else:
+                        ax = axs
+                        axs = [ax]
 
                     ax.set(xlabel=None, ylabel=None)
                     asp = np.diff(ax.get_xlim())[0] / np.diff(ax.get_ylim())[0]
@@ -410,41 +425,45 @@ class TasksGetIm(Resource):
                     box = ax.get_position()
                     width = box.x1 - box.x0
                     height = box.y1 - box.y0
-                    ax.set_position([0.08, box.y1 + 0.03,
-                                     width, height])
+                    if len(axs) <= 10:
+                        ax.set_position([0.08, box.y0, width, height])
+                    else:
+                        ax.set_position([0.08, box.y1 + 0.03, width, height])
 
                     sns.scatterplot(
                         y=1,
                         x=2,
                         data=df,
                         palette="Set3",
-                        hue=df['value'],
-                        ax=axs[index]
+                        hue=df['cluster'],
+                        ax=ax
                     )
                     index += 1
 
                     # Put a legend below current axis
                     ax.legend(loc='center left', bbox_to_anchor=(1.04, 0.5),
                               fancybox=True, shadow=True, ncol=5, title=channel)
+                fig.suptitle(vis_name)
 
-            else:
+            elif key == 'dataframe':
+
                 to_show_data = pd.melt(data, id_vars=['label', 'centroid-0', 'centroid-1'])
                 to_show_data['value'] = to_show_data['value'].round()
 
                 cols = len(to_show_data['variable'].unique())
-                # cols = 10
                 fig, axs = plt.subplots(ncols=1, nrows=cols, figsize=(8, 4*cols))
                 fig.tight_layout()
                 fig.subplots_adjust(top=0.95)
-                fig.suptitle(vis_name)
                 index = 0
 
                 for channel in to_show_data['variable'].unique():
-                    # if index == 10:
-                    #     continue
 
                     df = to_show_data.loc[(to_show_data['variable'] == channel) & (to_show_data['value'] > 0)]
-                    ax = axs[index]
+                    if type(axs) == np.ndarray:
+                        ax = axs[index]
+                    else:
+                        ax = axs
+                        axs = [ax]
 
                     ax.set(xlabel=None, ylabel=None)
                     asp = np.diff(ax.get_xlim())[0] / np.diff(ax.get_ylim())[0]
@@ -453,8 +472,10 @@ class TasksGetIm(Resource):
                     box = ax.get_position()
                     width = box.x1 - box.x0
                     height = box.y1 - box.y0
-                    ax.set_position([0.08, box.y1 + 0.03,
-                                     width, height])
+                    if len(axs) <= 10:
+                        ax.set_position([0.08, box.y0, width, height])
+                    else:
+                        ax.set_position([0.08, box.y1 + 0.03, width, height])
 
                     sns.scatterplot(
                         y='centroid-0',
@@ -469,6 +490,8 @@ class TasksGetIm(Resource):
                     # Put a legend below current axis
                     ax.legend(loc='center left', bbox_to_anchor=(1.04, 0.5),
                               fancybox=True, shadow=True, ncol=5, title=channel)
+
+                fig.suptitle(vis_name)
 
         if vis_name == VisType.boxplot:
 
@@ -495,16 +518,19 @@ class TasksGetIm(Resource):
 
             result = np.delete(result, [0], axis=1)
 
-            ax = sns.heatmap(
+            fig, ax = plt.subplots(1, 1, figsize=(10,5))
+            fig.tight_layout()
+
+            sns.heatmap(
                 result,
                 vmin=np.min(result[(result[:]) > 0]),
                 vmax=np.max(result),
                 xticklabels=channels_str,
-                annot=True,
-                cmap='coolwarm',
+                cmap='rocket',
                 fmt='g',
+                ax=ax
             )
-            ax.xaxis.set_tick_params(labelsize='small')
+            # ax.xaxis.set_tick_params(labelsize='small')
             ax.set(title=vis_name)
 
         if vis_name == VisType.barplot:
