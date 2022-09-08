@@ -539,17 +539,16 @@ class TasksGetIm(Resource):
                 fig, ax = plt.subplots(1, 1, figsize=(10, 5))
                 fig.tight_layout()
 
-                ax.set(title=vis_name)
-                ax = sns.heatmap(
+                sns.heatmap(
                     result,
                     vmin=np.min(result[(result[:]) > 0]),
                     vmax=np.max(result),
                     xticklabels=channels_str,
-                    annot=True,
-                    cmap='coolwarm',
+                    cmap='rocket',
                     fmt='g',
+                    ax=ax
                 )
-                ax.xaxis.set_tick_params(labelsize='small')
+                # ax.xaxis.set_tick_params(labelsize='small')
                 ax.set(title=vis_name)
 
         if vis_name == VisType.barplot:
