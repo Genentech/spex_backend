@@ -235,9 +235,9 @@ class TasksGetIm(Resource):
                     im.save(temp_file_name, format=ext)
 
                 elif isinstance(data, np.ndarray) and key != 'labels':
-                    pd.DataFrame(data).to_csv(temp_file_name, index=None)
+                    pd.DataFrame(data).to_csv(temp_file_name, index=None, format=ext)
                 else:
-                    data.to_csv(temp_file_name, index=None)
+                    data.to_csv(temp_file_name, index=None, format=ext)
 
                 return send_file(
                     temp_file_name,
@@ -501,37 +501,56 @@ class TasksGetIm(Resource):
 
         if vis_name == VisType.heatmap:
 
-            to_show = np.delete(data, [0, 1, 2], axis=1)
-            _, c = to_show.shape
-            rows = [element for element in range(c)]
-            rows.insert(0, rows.pop())
+            if key == 'CellCell':
+                to_show_data = data.get('pVal', [])
+                to_show_data = np.delete(to_show_data, 0, 0)
+                to_show_data = np.delete(to_show_data, 0, 1)
 
-            to_show = to_show[:, rows]
+                ax = sns.heatmap(
+                    to_show_data,
+                    cmap='coolwarm',
+                    fmt='g',
+                )
+                ax.xaxis.set_tick_params(labelsize='small')
+                ax.set(title=vis_name)
+                ax.set(
+                    xlabel="Cell phenotype in neighborhood",
+                    ylabel="Cell phenotype of interest"
+                )
 
-            result = np.empty(shape=(0, c), dtype=to_show.dtype)
+            else:
+                to_show = np.delete(data, [0, 1, 2], axis=1)
+                _, c = to_show.shape
+                rows = [element for element in range(c)]
+                rows.insert(0, rows.pop())
 
-            clusters = np.unique(to_show[:, 0])
-            for cluster in clusters:
-                df = to_show[(to_show[:, 0] == cluster)]
-                if len(df):
-                    result = np.append(result, [np.average(df, axis=0)], axis=0)
+                to_show = to_show[:, rows]
 
-            result = np.delete(result, [0], axis=1)
+                result = np.empty(shape=(0, c), dtype=to_show.dtype)
 
-            fig, ax = plt.subplots(1, 1, figsize=(10,5))
-            fig.tight_layout()
+                clusters = np.unique(to_show[:, 0])
+                for cluster in clusters:
+                    df = to_show[(to_show[:, 0] == cluster)]
+                    if len(df):
+                        result = np.append(result, [np.average(df, axis=0)], axis=0)
 
-            sns.heatmap(
-                result,
-                vmin=np.min(result[(result[:]) > 0]),
-                vmax=np.max(result),
-                xticklabels=channels_str,
-                cmap='rocket',
-                fmt='g',
-                ax=ax
-            )
-            # ax.xaxis.set_tick_params(labelsize='small')
-            ax.set(title=vis_name)
+                result = np.delete(result, [0], axis=1)
+
+                fig, ax = plt.subplots(1, 1, figsize=(10, 5))
+                fig.tight_layout()
+
+                ax.set(title=vis_name)
+                ax = sns.heatmap(
+                    result,
+                    vmin=np.min(result[(result[:]) > 0]),
+                    vmax=np.max(result),
+                    xticklabels=channels_str,
+                    annot=True,
+                    cmap='coolwarm',
+                    fmt='g',
+                )
+                ax.xaxis.set_tick_params(labelsize='small')
+                ax.set(title=vis_name)
 
         if vis_name == VisType.barplot:
 
