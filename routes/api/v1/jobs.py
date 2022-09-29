@@ -1,6 +1,7 @@
 import spex_common.services.Job as JobService
 import spex_common.services.Task as TaskService
 import spex_common.services.Script as ScriptService
+import spex_common.services.Pipeline as PipelineService
 from spex_common.models.Status import TaskStatus
 from flask_restx import Namespace, Resource
 from flask import request
@@ -163,11 +164,17 @@ class JobFind(Resource):
     @jwt_required()
     def get(self, status: int = 100, name: str = ''):
 
-        result = JobService.select_jobs(**{
+        condition = {
             'author': get_jwt_identity(),
             'status': status,
-            'name': name
-        })
+            'name': name,
+        }
+        if pipeline_id := request.args.get('pipeline_id', None):
+            pipelines = PipelineService.get_tree(pipeline_id=pipeline_id)
+            jobs_list = PipelineService.get_jobs(pipelines, prefix=True)
+            condition['_id'] = jobs_list
+
+        result = JobService.select_jobs(**condition)
 
         if not result:
             return {'success': False, 'message': 'jobs not found', 'data': {}}, 200

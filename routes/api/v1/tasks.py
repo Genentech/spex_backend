@@ -206,7 +206,6 @@ class TasksGetIm(Resource):
         path = task.get('result')
         path = Utils.getAbsoluteRelative(path, absolute=True)
 
-
         message = 'result not found'
 
         if not os.path.exists(path):
