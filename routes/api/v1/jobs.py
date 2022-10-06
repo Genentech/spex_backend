@@ -154,25 +154,31 @@ class Type(Resource):
 
 @namespace.param('status', 'status')
 @namespace.param('name', 'name')
-@namespace.route('/find/<string:name>/<int:status>')
+@namespace.route('/find/')
 class JobFind(Resource):
-    @namespace.doc('job/find', security='Bearer')
+    @namespace.doc('job/find_all', security='Bearer')
     @namespace.marshal_with(jobs.list_jobs_response)
     @namespace.response(200, 'list jobs current user', jobs.list_jobs_response)
     @namespace.response(404, 'jobs not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
-    def get(self, status: int = 100, name: str = ''):
+    def get(self):
 
         condition = {
             'author': get_jwt_identity(),
-            'status': status,
-            'name': name,
         }
         if pipeline_id := request.args.get('pipeline_id', None):
             pipelines = PipelineService.get_tree(pipeline_id=pipeline_id)
             jobs_list = PipelineService.get_jobs(pipelines, prefix=True)
             condition['_id'] = jobs_list
+        for arg in request.args:
+            if arg == 'pipeline_id':
+                continue
+            value = request.args.getlist(arg)
+            if arg == 'status':
+                condition[arg] = [int(item) for item in value]
+            else:
+                condition[arg] = value
 
         result = JobService.select_jobs(**condition)
 
