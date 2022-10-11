@@ -355,7 +355,9 @@ class TasksGetIm(Resource):
                 channels_str = data.get('channel_list', [])
                 if not channels_str:
                     channels_str = data.get('all_channels')
-
+                dml_0 = None
+                if key == 'dml':
+                    dml_0 = data.get('dml_0', None)
                 data = data.get(key)
 
         except Exception as error:
@@ -374,12 +376,51 @@ class TasksGetIm(Resource):
 
         if vis_name == VisType.scatter:
             if key == 'dml':
-                # pd
-                df = pd.DataFrame(data)
-                to_show_data = pd.melt(df, id_vars=[0, 1, 2])
-                to_show_data['value'] = to_show_data['value'].round()
-                ax = sns.scatterplot(y=1, x=2, hue='variable', data=to_show_data, palette="Set3")
-                ax.set(title=vis_name)
+                index = 0
+                data_dict = {'dml': data}
+                if dml_0 is not None:
+                    data_dict['related_task'] = dml_0
+                cols = len(data_dict.keys())
+                fig, axs = plt.subplots(ncols=1, nrows=cols, figsize=(8, 4*cols))
+                fig.tight_layout()
+                fig.subplots_adjust(top=0.95)
+                melted_data = {}
+                for item in data_dict.keys():
+                    df = pd.DataFrame(data_dict.get(item))
+                    to_show_data = pd.melt(df, id_vars=[0, 1, 2])
+                    to_show_data['value'] = to_show_data['value'].round()
+                    melted_data[item] = to_show_data
+
+                for item in melted_data.keys():
+                    ax = axs[index]
+                    ax.set(xlabel=None, ylabel=None)
+
+                    asp = np.diff(ax.get_xlim())[0] / np.diff(ax.get_ylim())[0]
+                    ax.set_aspect(asp)
+
+                    box = ax.get_position()
+                    width = box.x1 - box.x0
+                    height = box.y1 - box.y0
+                    if len(axs) <= 10:
+                        ax.set_position([0.08, box.y0, width, height])
+                    else:
+                        ax.set_position([0.08, box.y1 + 0.03, width, height])
+
+                    df = melted_data.get(item).loc[(melted_data.get(item)['value'] > 0)]
+                    ax.set(xlabel='x', ylabel='y')
+                    sns.scatterplot(
+                        y=1,
+                        x=2,
+                        hue='variable',
+                        data=df,
+                        palette="Set3",
+                        ax=ax,
+                        s=df.value,
+                    )
+                    ax.set(title=item)
+                    ax.legend(loc='center left', bbox_to_anchor=(1.1, 0.5), labelspacing=3)
+
+                    index += 1
 
             elif key == 'cluster':
 
