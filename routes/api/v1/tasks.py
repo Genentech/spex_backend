@@ -533,6 +533,15 @@ class TasksGetIm(Resource):
 
                 fig.suptitle(vis_name)
 
+            elif key == 'qfmatch':
+                if debug:
+                    img = '<img src="data:image/png;base64,{}">'.format(data)
+                    resp = make_response(img)
+                    resp.headers["Content-Type"] = "text/html"
+                else:
+                    img = 'data:image/png;base64,{}'.format(data)
+                    resp = make_response(img)
+                return resp
         if vis_name == VisType.boxplot:
 
             to_show_data = pd.melt(data, id_vars=['label', 'centroid-0', 'centroid-1'])
