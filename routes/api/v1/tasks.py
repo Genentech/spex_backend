@@ -369,7 +369,7 @@ class TasksGetIm(Resource):
         sns.reset_orig()
         sns.set(font_scale=0.7)
         ax = None
-        img_list_keys = ['labels']
+        img_list_keys = ['labels', 'image']
 
         if all([key in img_list_keys, type(data) == np.ndarray]):
             return create_resp_from_df(data, debug)
@@ -382,7 +382,7 @@ class TasksGetIm(Resource):
                     data_dict['related_task'] = dml_0
                 cols = len(data_dict.keys())
                 fig, axs = plt.subplots(ncols=1, nrows=cols, figsize=(8, 4*cols))
-                fig.tight_layout()
+                fig.tight_layout( )
                 fig.subplots_adjust(top=0.95)
                 melted_data = {}
                 for item in data_dict.keys():
