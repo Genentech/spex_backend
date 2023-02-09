@@ -542,6 +542,62 @@ class TasksGetIm(Resource):
                     img = 'data:image/png;base64,{}'.format(data)
                     resp = make_response(img)
                 return resp
+            elif key == 'spatial':
+                cols = len(data)
+
+                fig, axs = plt.subplots(ncols=1, nrows=cols, figsize=(8, 4*cols))
+                fig.tight_layout()
+                fig.subplots_adjust(top=0.95)
+                sns.set_style("whitegrid")
+
+                if cols == 1:
+                    axs = [axs]
+                for index, item in enumerate(data):
+                    for tmp in item:
+                        f_clusid = tmp["from_type"]
+                        t_clusid = tmp["to_type"]
+                        LCLQ_catrgory = pd.DataFrame(tmp['LCLQ_catrgory'])
+                        spp_df = LCLQ_catrgory[LCLQ_catrgory["cluster_id"].isin([f_clusid, t_clusid])]
+
+                        if type(axs) == np.ndarray:
+                            ax = axs[index]
+                        else:
+                            ax = axs
+                            axs = [ax]
+
+                        asp = np.diff(ax.get_xlim())[0] / np.diff(ax.get_ylim())[0]
+                        ax.set_aspect(asp)
+
+                        box = ax.get_position()
+                        width = box.x1 - box.x0
+                        height = box.y1 - box.y0
+                        if len(axs) <= 10:
+                            ax.set_position([0.08, box.y0, width, height])
+                        else:
+                            ax.set_position([0.08, box.y1 + 0.03, width, height])
+
+                        sns.scatterplot(
+                            x="x",
+                            y="y",
+                            hue="cluster_id",
+                            data=spp_df,
+                            palette="Set3",
+                            ax=ax,
+                        )
+                        ax.set_title("Spatial distribution of annotated clusters")
+                        p_val = tmp['CLQ_Pval']
+
+                        try:
+                            p_val = round(p_val, 3)
+                        except TypeError:
+                            pass
+
+                        ax.text(
+                            2000,
+                            2000,
+                            f"CLQ = {round(tmp['CLQ_global'], 3)}; P_val = {p_val}",
+                        )
+
         if vis_name == VisType.boxplot:
 
             to_show_data = pd.melt(data, id_vars=['label', 'centroid-0', 'centroid-1'])

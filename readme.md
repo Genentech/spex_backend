@@ -24,7 +24,7 @@ These instructions will get you a copy of the project up and running on your loc
 
 ## Deployment
 
-1. Memcached
+1. Memcached 
 
 `$ docker run --name spex_memcached -p 11211:11211 -d memcached memcached -m 64`
 
@@ -36,7 +36,7 @@ $ docker build --pull --rm -t spex_redisjson .
 $ docker run -p 6379:6379 --name spex_redisjson -d spex_redisjson
 $ cd ../..
 ```
-
+ 
 3. ArangoDB
 
 `$ docker run -p 8529:8529 -e ARANGO_ROOT_PASSWORD=pass --name spex_arangodb -d arangodb:3.7.7`
