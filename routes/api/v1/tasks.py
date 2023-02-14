@@ -25,15 +25,15 @@ from PIL import Image
 
 
 class VisType(str, Enum):
-    scatter = 'scatter'
-    boxplot = 'boxplot'
-    heatmap = 'heatmap'
-    barplot = 'barplot'
+    scatter = "scatter"
+    boxplot = "boxplot"
+    heatmap = "heatmap"
+    barplot = "barplot"
 
 
-logger = get_logger('spex.backend')
+logger = get_logger("spex.backend")
 
-namespace = Namespace('Tasks', description='Tasks CRUD operations')
+namespace = Namespace("Tasks", description="Tasks CRUD operations")
 
 namespace.add_model(tasks.tasks_model.name, tasks.tasks_model)
 namespace.add_model(tasks.task_post_model.name, tasks.task_post_model)
@@ -44,135 +44,135 @@ namespace.add_model(tasks.list_tasks_response.name, tasks.list_tasks_response)
 namespace.add_model(tasks.task_get_model.name, tasks.task_get_model)
 
 
-@namespace.route('/<_id>')
-@namespace.param('_id', 'task id')
+@namespace.route("/<_id>")
+@namespace.param("_id", "task id")
 class TaskGetPut(Resource):
-    @namespace.doc('tasks/get_one', security='Bearer')
-    @namespace.response(404, 'Task not found', responses.error_response)
-    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @namespace.doc("tasks/get_one", security="Bearer")
+    @namespace.response(404, "Task not found", responses.error_response)
+    @namespace.response(401, "Unauthorized", responses.error_response)
     @namespace.marshal_with(tasks.a_tasks_response)
     @jwt_required()
     def get(self, _id):
         _task = TaskService.select(_id)
         if _task is None:
-            return {'success': False, 'message': 'task not found', 'data': {}}, 200
+            return {"success": False, "message": "task not found", "data": {}}, 200
 
-        return {'success': True, 'data': _task.to_json()}, 200
+        return {"success": True, "data": _task.to_json()}, 200
 
-    @namespace.doc('tasks/update_one', security='Bearer')
+    @namespace.doc("tasks/update_one", security="Bearer")
     @namespace.marshal_with(tasks.a_tasks_response)
     @namespace.expect(tasks.tasks_model)
-    @namespace.response(404, 'Task not found', responses.error_response)
-    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @namespace.response(404, "Task not found", responses.error_response)
+    @namespace.response(401, "Unauthorized", responses.error_response)
     @jwt_required()
     def put(self, _id):
         _task = TaskService.select(_id)
         if _task is None:
-            return {'success': False, 'message': 'task not found', 'data': {}}, 200
+            return {"success": False, "message": "task not found", "data": {}}, 200
         body = request.json
         _task = TaskService.update(_id, data=body)
 
-        return {'success': True, 'data': _task.to_json()}, 200
+        return {"success": True, "data": _task.to_json()}, 200
 
-    @namespace.doc('task/delete', security='Bearer')
+    @namespace.doc("task/delete", security="Bearer")
     @namespace.marshal_with(tasks.a_tasks_response)
-    @namespace.response(404, 'task not found', responses.error_response)
-    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @namespace.response(404, "task not found", responses.error_response)
+    @namespace.response(401, "Unauthorized", responses.error_response)
     @jwt_required()
     def delete(self, _id):
         _task = TaskService.select(_id)
         if _task is None:
-            return {'success': False, 'message': 'task not found', 'data': {}}, 200
+            return {"success": False, "message": "task not found", "data": {}}, 200
 
         JobService.delete_connection(_to=_task.id)
         deleted = TaskService.delete(_task.id).to_json()
-        return {'success': True, 'data': deleted}, 200
+        return {"success": True, "data": deleted}, 200
 
 
-@namespace.route('/image/<_id>')
-@namespace.param('_id', 'task id')
+@namespace.route("/image/<_id>")
+@namespace.param("_id", "task id")
 class TasksGetIm(Resource):
-    @namespace.doc('tasks/getimage', security='Bearer')
-    @namespace.response(404, 'Task not found', responses.error_response)
-    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @namespace.doc("tasks/getimage", security="Bearer")
+    @namespace.response(404, "Task not found", responses.error_response)
+    @namespace.response(401, "Unauthorized", responses.error_response)
     # @namespace.marshal_with(tasks.a_tasks_response)
     @jwt_required()
     def get(self, _id):
         _task = TaskService.select(_id)
         if _task is None:
-            return {'success': False, 'message': 'task not found', 'data': {}}, 200
+            return {"success": False, "message": "task not found", "data": {}}, 200
         _task = _task.to_json()
-        if _task.get('impath') is None:
-            return {'success': False, 'message': 'image not found', 'data': {}}, 200
+        if _task.get("impath") is None:
+            return {"success": False, "message": "image not found", "data": {}}, 200
 
-        path = _task.get('impath')
+        path = _task.get("impath")
         path = Utils.getAbsoluteRelative(path, absolute=True)
 
         if not os.path.exists(path):
-            return {'success': False, 'message': 'image not found', 'data': {}}, 200
+            return {"success": False, "message": "image not found", "data": {}}, 200
 
         try:
-            with open(path, 'rb') as image:
+            with open(path, "rb") as image:
                 encoded = base64.b64encode(image.read())
 
                 encoded = f'data:image/png;base64,{encoded.decode("utf-8")}'
 
-                return {'success': True, 'data': {'image': encoded}}, 200
+                return {"success": True, "data": {"image": encoded}}, 200
         except Exception as error:
-            print(f'Error: {error}')
+            print(f"Error: {error}")
 
-        return {'success': False, 'message': 'image not found', 'data': {}}, 200
+        return {"success": False, "message": "image not found", "data": {}}, 200
 
 
-@namespace.route('/list')
+@namespace.route("/list")
 class TaskListPost(Resource):
-    @namespace.doc('tasks/getlist', security='Bearer')
+    @namespace.doc("tasks/getlist", security="Bearer")
     @namespace.expect(tasks.task_post_model)
     @namespace.marshal_with(tasks.list_tasks_response)
-    @namespace.response(404, 'Tasks not found', responses.error_response)
-    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @namespace.response(404, "Tasks not found", responses.error_response)
+    @namespace.response(401, "Unauthorized", responses.error_response)
     @jwt_required()
     def post(self):
         body = request.json
-        _tasks = TaskService.select_tasks(condition='in', _key=body['ids'])
+        _tasks = TaskService.select_tasks(condition="in", _key=body["ids"])
         if _tasks is None:
-            return {'success': False, 'data': []}, 200
-        return {'success': True, 'data': _tasks}, 200
+            return {"success": False, "data": []}, 200
+        return {"success": True, "data": _tasks}, 200
 
 
-@namespace.route('')
+@namespace.route("")
 class TaskPost(Resource):
-    @namespace.doc('tasks/update', security='Bearer')
+    @namespace.doc("tasks/update", security="Bearer")
     @namespace.expect(tasks.task_post_model)
     @namespace.marshal_with(tasks.list_tasks_response)
-    @namespace.response(404, 'Task not found', responses.error_response)
-    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @namespace.response(404, "Task not found", responses.error_response)
+    @namespace.response(401, "Unauthorized", responses.error_response)
     @jwt_required()
     def post(self):
         body = request.json
         arr = []
-        for _id in body['ids']:
+        for _id in body["ids"]:
             data = dict(body)
-            del data['ids']
+            del data["ids"]
             task = TaskService.update(_id, data=data)
             if task is not None:
                 arr.append(task.to_json())
-        return {'success': True, 'data': arr}, 200
+        return {"success": True, "data": arr}, 200
 
-    @namespace.doc('task/get', security='Bearer')
+    @namespace.doc("task/get", security="Bearer")
     @namespace.marshal_with(tasks.list_tasks_response)
-    @namespace.response(200, 'list tasks current user', tasks.list_tasks_response)
-    @namespace.response(404, 'tasks not found', responses.error_response)
-    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @namespace.response(200, "list tasks current user", tasks.list_tasks_response)
+    @namespace.response(404, "tasks not found", responses.error_response)
+    @namespace.response(401, "Unauthorized", responses.error_response)
     @jwt_required()
     def get(self):
         author = get_jwt_identity()
         result = TaskService.select_tasks(author=author)
 
         if result is None:
-            return {'success': False, 'message': 'tasks not found', 'data': {}}, 200
+            return {"success": False, "message": "tasks not found", "data": {}}, 200
 
-        return {'success': True, 'data': result}, 200
+        return {"success": True, "data": result}, 200
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -182,58 +182,58 @@ class NumpyEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-@namespace.route('/file/<_id>')
-@namespace.param('_id', 'task id')
-@namespace.param('key', 'key name')
+@namespace.route("/file/<_id>")
+@namespace.param("_id", "task id")
+@namespace.param("key", "key name")
 class TasksGetIm(Resource):
-    @namespace.doc('tasks/get_file', security='Bearer')
-    @namespace.response(404, 'Task not found', responses.error_response)
-    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @namespace.doc("tasks/get_file", security="Bearer")
+    @namespace.response(404, "Task not found", responses.error_response)
+    @namespace.response(401, "Unauthorized", responses.error_response)
     # @namespace.marshal_with(tasks.a_tasks_response)
     @jwt_required()
     def get(self, _id):
-        key: str = ''
+        key: str = ""
         for arg in request.args:
             key = request.args.get(arg)
 
         task = TaskService.select(_id)
         if task is None:
-            return {'success': False, 'message': 'task not found', 'data': {}}, 200
+            return {"success": False, "message": "task not found", "data": {}}, 200
         task = task.to_json()
-        if task.get('result') is None:
-            return {'success': False, 'message': 'result not found', 'data': {}}, 200
+        if task.get("result") is None:
+            return {"success": False, "message": "result not found", "data": {}}, 200
 
-        path = task.get('result')
+        path = task.get("result")
         path = Utils.getAbsoluteRelative(path, absolute=True)
 
-        message = 'result not found'
+        message = "result not found"
 
         if not os.path.exists(path):
-            return {'success': False, 'message': message, 'data': {}}, 200
+            return {"success": False, "message": message, "data": {}}, 200
 
         try:
-            with open(path, 'rb') as infile:
+            with open(path, "rb") as infile:
                 data = pickle.load(infile)
 
                 if not key:
                     # data = json.dumps(data, cls=NumpyEncoder)
-                    return {'success': True, 'data': list(data.keys())}, 200
+                    return {"success": True, "data": list(data.keys())}, 200
 
                 data = data.get(key)
 
                 fd, temp_file_name = tempfile.mkstemp()
                 # fd.close()
-                ext = '.csv'
+                ext = ".csv"
 
-                if isinstance(data, np.ndarray) and key == 'labels':
+                if isinstance(data, np.ndarray) and key == "labels":
                     # np.savetxt(temp_file_name, data, delimiter=',')
-                    ext = 'tiff'
+                    ext = "tiff"
                     buf = io.BytesIO()
                     plt.imsave(buf, data, format=ext)
                     im = Image.open(buf)
                     im.save(temp_file_name, format=ext)
 
-                elif isinstance(data, np.ndarray) and key != 'labels':
+                elif isinstance(data, np.ndarray) and key != "labels":
                     pd.DataFrame(data).to_csv(temp_file_name, index=None, format=ext)
                 else:
                     data.to_csv(temp_file_name, index=None)
@@ -246,13 +246,13 @@ class TasksGetIm(Resource):
         except AttributeError as error:
             logger.warning(error)
             data = json.dumps(data, cls=NumpyEncoder)
-            return {'success': True, 'data': data}, 200
+            return {"success": True, "data": data}, 200
 
         except Exception as error:
             message = str(error)
             logger.warning(error)
 
-        return {'success': False, 'message': message, 'data': {}}, 200
+        return {"success": False, "message": message, "data": {}}, 200
 
 
 def create_resp_from_data(ax, debug):
@@ -271,13 +271,13 @@ def create_resp_from_data(ax, debug):
         resp = make_response(img)
         resp.headers["Content-Type"] = "text/html"
     else:
-        img = 'data:image/png;base64,{}'.format(resp_data)
+        img = "data:image/png;base64,{}".format(resp_data)
         resp = make_response(img)
 
     return resp
 
 
-def create_resp_from_df(pd_data, debug, _format='png'):
+def create_resp_from_df(pd_data, debug, _format="png"):
     buf = io.BytesIO()
     plt.imsave(buf, pd_data, format=_format)
     im = Image.open(buf)
@@ -296,25 +296,25 @@ def create_resp_from_df(pd_data, debug, _format='png'):
         resp = make_response(img)
         resp.headers["Content-Type"] = "text/html"
     else:
-        img = 'data:image/png;base64,{}'.format(resp_data)
+        img = "data:image/png;base64,{}".format(resp_data)
         resp = make_response(img)
 
     return resp
 
 
-@namespace.route('/vis/<_id>')
-@namespace.param('_id', 'task id')
-@namespace.param('key', 'key name')
-@namespace.param('vis_name', 'visualisation name')
+@namespace.route("/vis/<_id>")
+@namespace.param("_id", "task id")
+@namespace.param("key", "key name")
+@namespace.param("vis_name", "visualisation name")
 class TasksGetIm(Resource):
-    @namespace.doc('tasks/visualizer', security='Bearer')
-    @namespace.response(404, 'Task not found', responses.error_response)
-    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @namespace.doc("tasks/visualizer", security="Bearer")
+    @namespace.response(404, "Task not found", responses.error_response)
+    @namespace.response(401, "Unauthorized", responses.error_response)
     # @namespace.marshal_with(tasks.a_tasks_response)
     # @jwt_required()
     def get(self, _id):
-        key: str = ''
-        vis_name: str = ''
+        key: str = ""
+        vis_name: str = ""
         debug: bool = False
 
         matplotlib.rc_file_defaults()
@@ -322,73 +322,73 @@ class TasksGetIm(Resource):
         plt.subplots(ncols=1, figsize=(5, 5))
 
         for k in request.args.keys():
-            if k == 'key':
+            if k == "key":
                 key = request.args.get(k)
-            if k == 'vis_name':
+            if k == "vis_name":
                 vis_name = request.args.get(k)
-            if k == 'debug':
+            if k == "debug":
                 if strtobool(request.args.get(k)):
                     debug = True
 
         task = TaskService.select(_id)
         if task is None:
-            return {'success': False, 'message': 'task not found', 'data': {}}, 200
+            return {"success": False, "message": "task not found", "data": {}}, 200
         task = task.to_json()
-        if task.get('result') is None:
-            return {'success': False, 'message': 'result not found', 'data': {}}, 200
+        if task.get("result") is None:
+            return {"success": False, "message": "result not found", "data": {}}, 200
 
-        path = task.get('result')
+        path = task.get("result")
         path = Utils.getAbsoluteRelative(path, absolute=True)
 
-        message = 'result not found'
+        message = "result not found"
 
         if not os.path.exists(path):
-            return {'success': False, 'message': message, 'data': {}}, 200
+            return {"success": False, "message": message, "data": {}}, 200
 
         try:
-            with open(path, 'rb') as infile:
+            with open(path, "rb") as infile:
                 data = pickle.load(infile)
 
                 if not key:
-                    return {'success': True, 'data': list(data.keys())}, 200
+                    return {"success": True, "data": list(data.keys())}, 200
 
-                channels_str = data.get('channel_list', [])
+                channels_str = data.get("channel_list", [])
                 if not channels_str:
-                    channels_str = data.get('all_channels')
+                    channels_str = data.get("all_channels")
                 dml_0 = None
-                if key == 'dml':
-                    dml_0 = data.get('dml_0', None)
+                if key == "dml":
+                    dml_0 = data.get("dml_0", None)
                 data = data.get(key)
 
         except Exception as error:
             message = str(error)
             logger.warning(message)
-            return {'success': True, 'data': list(data.keys())}, 200
+            return {"success": True, "data": list(data.keys())}, 200
 
         sns.set_theme(style="whitegrid")
         sns.reset_orig()
         sns.set(font_scale=0.7)
         ax = None
-        img_list_keys = ['labels', 'image']
+        img_list_keys = ["labels", "image"]
 
         if all([key in img_list_keys, type(data) == np.ndarray]):
             return create_resp_from_df(data, debug)
 
         if vis_name == VisType.scatter:
-            if key == 'dml':
+            if key == "dml":
                 index = 0
-                data_dict = {'dml': data}
+                data_dict = {"dml": data}
                 if dml_0 is not None:
-                    data_dict['related_task'] = dml_0
+                    data_dict["related_task"] = dml_0
                 cols = len(data_dict.keys())
-                fig, axs = plt.subplots(ncols=1, nrows=cols, figsize=(8, 4*cols))
-                fig.tight_layout( )
+                fig, axs = plt.subplots(ncols=1, nrows=cols, figsize=(8, 4 * cols))
+                fig.tight_layout()
                 fig.subplots_adjust(top=0.95)
                 melted_data = {}
                 for item in data_dict.keys():
                     df = pd.DataFrame(data_dict.get(item))
                     to_show_data = pd.melt(df, id_vars=[0, 1, 2])
-                    to_show_data['value'] = to_show_data['value'].round()
+                    to_show_data["value"] = to_show_data["value"].round()
                     melted_data[item] = to_show_data
 
                 for item in melted_data.keys():
@@ -406,51 +406,55 @@ class TasksGetIm(Resource):
                     else:
                         ax.set_position([0.08, box.y1 + 0.03, width, height])
 
-                    df = melted_data.get(item).loc[(melted_data.get(item)['value'] > 0)]
-                    ax.set(xlabel='x', ylabel='y')
+                    df = melted_data.get(item).loc[(melted_data.get(item)["value"] > 0)]
+                    ax.set(xlabel="x", ylabel="y")
                     sns.scatterplot(
                         y=1,
                         x=2,
-                        hue='variable',
+                        hue="variable",
                         data=df,
                         palette="Set3",
                         ax=ax,
                         s=df.value,
                     )
                     ax.set(title=item)
-                    ax.legend(loc='center left', bbox_to_anchor=(1.1, 0.5), labelspacing=3)
+                    ax.legend(
+                        loc="center left", bbox_to_anchor=(1.1, 0.5), labelspacing=3
+                    )
 
                     index += 1
 
-            elif key == 'cluster':
-
+            elif key == "cluster":
                 df = pd.DataFrame(data)
-                cluster_column_id = len(df.columns)-1
+                cluster_column_id = len(df.columns) - 1
                 replace_dict: dict = {}
-                if len(channels_str) == len(df.columns)-4:
+                if len(channels_str) == len(df.columns) - 4:
                     for item in range(len(channels_str)):
-                        replace_dict[item+3] = channels_str[item]
+                        replace_dict[item + 3] = channels_str[item]
 
                 if replace_dict.keys():
                     df.rename(columns=replace_dict, inplace=True)
 
-                df.rename(columns={cluster_column_id: 'cluster'}, inplace=True)
+                df.rename(columns={cluster_column_id: "cluster"}, inplace=True)
 
-                to_show_data = pd.melt(df, id_vars=[0, 1, 2, 'cluster'])
-                to_show_data['value'] = to_show_data['value'].round()
+                to_show_data = pd.melt(df, id_vars=[0, 1, 2, "cluster"])
+                to_show_data["value"] = to_show_data["value"].round()
 
-                cols = len(to_show_data['variable'].unique())
+                cols = len(to_show_data["variable"].unique())
                 # cols = 5
-                fig, axs = plt.subplots(ncols=1, nrows=cols, figsize=(8, 4*cols))
+                fig, axs = plt.subplots(ncols=1, nrows=cols, figsize=(8, 4 * cols))
                 fig.tight_layout()
                 fig.subplots_adjust(top=0.95)
                 index = 0
 
-                for channel in to_show_data['variable'].unique():
+                for channel in to_show_data["variable"].unique():
                     # if index == 5:
                     #     continue
 
-                    df = to_show_data.loc[(to_show_data['variable'] == channel) & (to_show_data['value'] > 0)]
+                    df = to_show_data.loc[
+                        (to_show_data["variable"] == channel)
+                        & (to_show_data["value"] > 0)
+                    ]
 
                     if type(axs) == np.ndarray:
                         ax = axs[index]
@@ -471,34 +475,38 @@ class TasksGetIm(Resource):
                         ax.set_position([0.08, box.y1 + 0.03, width, height])
 
                     sns.scatterplot(
-                        y=1,
-                        x=2,
-                        data=df,
-                        palette="Set3",
-                        hue=df['cluster'],
-                        ax=ax
+                        y=1, x=2, data=df, palette="Set3", hue=df["cluster"], ax=ax
                     )
                     index += 1
 
                     # Put a legend below current axis
-                    ax.legend(loc='center left', bbox_to_anchor=(1.04, 0.5),
-                              fancybox=True, shadow=True, ncol=5, title=channel)
+                    ax.legend(
+                        loc="center left",
+                        bbox_to_anchor=(1.04, 0.5),
+                        fancybox=True,
+                        shadow=True,
+                        ncol=5,
+                        title=channel,
+                    )
                 fig.suptitle(vis_name)
 
-            elif key == 'dataframe':
+            elif key == "dataframe":
+                to_show_data = pd.melt(
+                    data, id_vars=["label", "centroid-0", "centroid-1"]
+                )
+                to_show_data["value"] = to_show_data["value"].round()
 
-                to_show_data = pd.melt(data, id_vars=['label', 'centroid-0', 'centroid-1'])
-                to_show_data['value'] = to_show_data['value'].round()
-
-                cols = len(to_show_data['variable'].unique())
-                fig, axs = plt.subplots(ncols=1, nrows=cols, figsize=(8, 4*cols))
+                cols = len(to_show_data["variable"].unique())
+                fig, axs = plt.subplots(ncols=1, nrows=cols, figsize=(8, 4 * cols))
                 fig.tight_layout()
                 fig.subplots_adjust(top=0.95)
                 index = 0
 
-                for channel in to_show_data['variable'].unique():
-
-                    df = to_show_data.loc[(to_show_data['variable'] == channel) & (to_show_data['value'] > 0)]
+                for channel in to_show_data["variable"].unique():
+                    df = to_show_data.loc[
+                        (to_show_data["variable"] == channel)
+                        & (to_show_data["value"] > 0)
+                    ]
                     if type(axs) == np.ndarray:
                         ax = axs[index]
                     else:
@@ -518,109 +526,109 @@ class TasksGetIm(Resource):
                         ax.set_position([0.08, box.y1 + 0.03, width, height])
 
                     sns.scatterplot(
-                        y='centroid-0',
-                        x='centroid-1',
+                        y="centroid-0",
+                        x="centroid-1",
                         data=df,
                         palette="Set3",
-                        hue=df['value'],
-                        ax=axs[index]
+                        hue=df["value"],
+                        ax=axs[index],
                     )
                     index += 1
 
                     # Put a legend below current axis
-                    ax.legend(loc='center left', bbox_to_anchor=(1.04, 0.5),
-                              fancybox=True, shadow=True, ncol=5, title=channel)
+                    ax.legend(
+                        loc="center left",
+                        bbox_to_anchor=(1.04, 0.5),
+                        fancybox=True,
+                        shadow=True,
+                        ncol=5,
+                        title=channel,
+                    )
 
                 fig.suptitle(vis_name)
 
-            elif key == 'qfmatch':
+            elif key == "qfmatch":
                 if debug:
                     img = '<img src="data:image/png;base64,{}">'.format(data)
                     resp = make_response(img)
                     resp.headers["Content-Type"] = "text/html"
                 else:
-                    img = 'data:image/png;base64,{}'.format(data)
+                    img = "data:image/png;base64,{}".format(data)
                     resp = make_response(img)
                 return resp
-            elif key == 'spatial':
-                cols = len(data)
+            elif key == "spatial":
+                df_all = pd.DataFrame()
+                fig, axs = plt.subplots(ncols=1, nrows=2, figsize=(7, 14))
+                for d in data:
+                    for item in d:
+                        CLQ_Pval = item["CLQ_Pval"]
+                        CLQ_global = item["CLQ_global"]
+                        CLQ_local = item["CLQ_local"]
+                        cluster_id = item["LCLQ_catrgory"]["cluster_id"]
+                        x = item["LCLQ_catrgory"]["x"]
+                        y = item["LCLQ_catrgory"]["y"]
+                        CLQ_value = item["LCLQ_catrgory"]["CLQ_value"]
+                        CLQ_group = item["LCLQ_catrgory"]["CLQ_group"]
 
-                fig, axs = plt.subplots(ncols=1, nrows=cols, figsize=(8, 4*cols))
-                fig.tight_layout()
-                fig.subplots_adjust(top=0.95)
-                sns.set_style("whitegrid")
-
-                if cols == 1:
-                    axs = [axs]
-                for index, item in enumerate(data):
-                    for tmp in item:
-                        f_clusid = tmp["from_type"]
-                        t_clusid = tmp["to_type"]
-                        LCLQ_catrgory = pd.DataFrame(tmp['LCLQ_catrgory'])
-                        spp_df = LCLQ_catrgory[LCLQ_catrgory["cluster_id"].isin([f_clusid, t_clusid])]
-
-                        if type(axs) == np.ndarray:
-                            ax = axs[index]
-                        else:
-                            ax = axs
-                            axs = [ax]
-
-                        asp = np.diff(ax.get_xlim())[0] / np.diff(ax.get_ylim())[0]
-                        ax.set_aspect(asp)
-
-                        box = ax.get_position()
-                        width = box.x1 - box.x0
-                        height = box.y1 - box.y0
-                        if len(axs) <= 10:
-                            ax.set_position([0.08, box.y0, width, height])
-                        else:
-                            ax.set_position([0.08, box.y1 + 0.03, width, height])
-
-                        sns.scatterplot(
-                            x="x",
-                            y="y",
-                            hue="cluster_id",
-                            data=spp_df,
-                            palette="Set3",
-                            ax=ax,
+                        df = pd.DataFrame(
+                            {
+                                "x": x,
+                                "y": y,
+                                "cluster_id": cluster_id,
+                                "CLQ_group": CLQ_group,
+                                "CLQ_value": CLQ_value,
+                                "CLQ_local": CLQ_local,
+                                "CLQ_global": CLQ_global,
+                                "CLQ_Pval": CLQ_Pval,
+                            }
                         )
-                        ax.set_title("Spatial distribution of annotated clusters")
-                        p_val = tmp['CLQ_Pval']
+                        df_all = df_all.append(df)
 
-                        try:
-                            p_val = round(p_val, 3)
-                        except TypeError:
-                            pass
+                df_all = df_all.dropna()
+                df_all["CLQ_Pval_alpha"] = (
+                    df_all["CLQ_Pval"]
+                    .map({"non-significant": 0.5, "attractive": 0.7, "avoidance": 1.0})
+                    .astype(float)
+                )
+                ax = axs[0]
 
-                        ax.text(
-                            2000,
-                            2000,
-                            f"CLQ = {round(tmp['CLQ_global'], 3)}; P_val = {p_val}",
-                        )
+                sns.scatterplot(
+                    data=df_all,
+                    x="x",
+                    y="y",
+                    hue="cluster_id",
+                    style="CLQ_group",
+                    size="CLQ_local",
+                    alpha=df_all["CLQ_Pval_alpha"],
+                    markers=["o", "s", "^"],
+                    ax=ax,
+                )
+                ax.legend(bbox_to_anchor=(0.5, 1.2), loc="upper center", ncol=4)
+
+                ax = axs[1]
+                sns.boxplot(x="cluster_id", y="CLQ_Pval_alpha", data=df_all, ax=ax)
 
         if vis_name == VisType.boxplot:
-
-            to_show_data = pd.melt(data, id_vars=['label', 'centroid-0', 'centroid-1'])
-            ax = sns.boxplot(y='variable', x='value', data=to_show_data, palette="Set3")
+            to_show_data = pd.melt(data, id_vars=["label", "centroid-0", "centroid-1"])
+            ax = sns.boxplot(y="variable", x="value", data=to_show_data, palette="Set3")
             ax.set(title=vis_name)
 
         if vis_name == VisType.heatmap:
-
-            if key == 'CellCell':
-                to_show_data = data.get('pVal', [])
+            if key == "CellCell":
+                to_show_data = data.get("pVal", [])
                 to_show_data = np.delete(to_show_data, 0, 0)
                 to_show_data = np.delete(to_show_data, 0, 1)
 
                 ax = sns.heatmap(
                     to_show_data,
-                    cmap='coolwarm',
-                    fmt='g',
+                    cmap="coolwarm",
+                    fmt="g",
                 )
-                ax.xaxis.set_tick_params(labelsize='small')
+                ax.xaxis.set_tick_params(labelsize="small")
                 ax.set(title=vis_name)
                 ax.set(
                     xlabel="Cell phenotype in neighborhood",
-                    ylabel="Cell phenotype of interest"
+                    ylabel="Cell phenotype of interest",
                 )
 
             else:
@@ -649,15 +657,14 @@ class TasksGetIm(Resource):
                     vmin=np.min(result[(result[:]) > 0]),
                     vmax=np.max(result),
                     xticklabels=channels_str,
-                    cmap='rocket',
-                    fmt='g',
-                    ax=ax
+                    cmap="rocket",
+                    fmt="g",
+                    ax=ax,
                 )
                 # ax.xaxis.set_tick_params(labelsize='small')
                 ax.set(title=vis_name)
 
         if vis_name == VisType.barplot:
-
             to_show = np.delete(data, [0, 1, 2], axis=1)
             ax = sns.barplot(data=to_show, label="Total", color="b")
             ax.set(title=vis_name)
@@ -668,6 +675,6 @@ class TasksGetIm(Resource):
                 logger.info(error)
 
         if not ax:
-            return {'success': False, 'message': 'result not found', 'data': {}}, 200
+            return {"success": False, "message": "result not found", "data": {}}, 200
 
         return create_resp_from_data(ax, debug)
