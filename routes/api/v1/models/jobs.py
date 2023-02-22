@@ -39,6 +39,13 @@ jobs_update_model = Model('JobUpdate', {
         description='status'),
 })
 
+jobs_status_update_model = Model('JobStatusUpdate', {
+    'status': fields.Integer(
+        requred=False,
+        description='status'),
+})
+
+
 job_get_model = jobs_model.inherit('JobsGet', {
     'id': fields.String(
         required=True,

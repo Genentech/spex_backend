@@ -591,7 +591,6 @@ class TasksGetIm(Resource):
                     .astype(float)
                 )
                 ax = axs[0]
-
                 sns.scatterplot(
                     data=df_all,
                     x="x",

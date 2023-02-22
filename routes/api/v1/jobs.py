@@ -16,6 +16,7 @@ namespace.add_model(jobs.job_get_model.name, jobs.job_get_model)
 namespace.add_model(responses.response.name, responses.response)
 namespace.add_model(jobs.a_jobs_response.name, jobs.a_jobs_response)
 namespace.add_model(jobs.jobs_update_model.name, jobs.jobs_update_model)
+namespace.add_model(jobs.jobs_status_update_model.name, jobs.jobs_status_update_model)
 namespace.add_model(responses.error_response.name, responses.error_response)
 namespace.add_model(jobs.list_jobs_response.name, jobs.list_jobs_response)
 namespace.add_model(jobs.a_jobs_type_response.name, jobs.a_jobs_type_response)
@@ -33,7 +34,7 @@ class JobCreateGetPost(Resource):
     def post(self):
         body = request.json
         body['author'] = get_jwt_identity()
-        body.update(status=TaskStatus.ready.value)
+        body.update(status=TaskStatus.pending_approval.value)
 
         if body.get('params') is None:
             body['params'] = {}
@@ -189,5 +190,44 @@ class JobFind(Resource):
             job['tasks'] = TaskService.select_tasks_edge(job.get('_id'))
             if job.get('status') is None or job.get('status') == '':
                 job.update(status=TaskStatus.pending_approval.value)
+
+        return {'success': True, 'data': result}, 200
+
+    @namespace.doc('job/edit_all', security='Bearer')
+    @namespace.expect(jobs.jobs_status_update_model)
+    @namespace.response(200, 'list updated jobs current user', jobs.list_jobs_response)
+    @namespace.response(404, 'jobs not found', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @jwt_required()
+    def put(self):
+
+        condition = {
+            'author': get_jwt_identity(),
+        }
+        if pipeline_id := request.args.get('pipeline_id', None):
+            pipelines = PipelineService.get_tree(pipeline_id=pipeline_id)
+            jobs_list = PipelineService.get_jobs(pipelines, prefix=True)
+            condition['_id'] = jobs_list
+        for arg in request.args:
+            if arg == 'pipeline_id':
+                continue
+            value = request.args.getlist(arg)
+            if arg == 'status':
+                condition[arg] = [int(item) for item in value]
+            else:
+                condition[arg] = value
+
+        result = JobService.select_jobs(**condition)
+
+        if not result:
+            return {'success': False, 'message': 'jobs not found', 'data': {}}, 200
+
+        statuses = [status.value for status in TaskStatus]
+        to_update = request.json["status"]
+        if to_update not in statuses:
+            return {'success': False, 'message': f'status can be in {statuses}', 'data': {}}, 200
+
+        for job in result:
+            JobService.update_job(id=job.get("id"), data={"status": to_update})
 
         return {'success': True, 'data': result}, 200
