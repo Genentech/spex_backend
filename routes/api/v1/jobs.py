@@ -228,6 +228,12 @@ class JobFind(Resource):
             return {'success': False, 'message': f'status can be in {statuses}', 'data': {}}, 200
 
         for job in result:
-            JobService.update_job(id=job.get("id"), data={"status": to_update})
+            updated_job = JobService.update_job(id=job.get("id"), data={"status": to_update})
+            if updated_job.get('status') == to_update:
+                job['status'] = to_update
+                job['tasks'] = TaskService.select_tasks_edge(job.get('_id'))
+                if job.get('status') is None or job.get('status') == '':
+                    for task in job['tasks']:
+                        task['status'] = to_update
 
         return {'success': True, 'data': result}, 200
