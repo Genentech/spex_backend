@@ -21,7 +21,9 @@ from matplotlib import pyplot
 from distutils.util import strtobool
 import pandas as pd
 import matplotlib.pyplot as plt
-from PIL import Image
+from PIL import Image, ImageOps
+import re
+from skimage.segmentation import mark_boundaries
 
 
 class VisType(str, Enum):
@@ -277,12 +279,25 @@ def create_resp_from_data(ax, debug):
     return resp
 
 
-def create_resp_from_df(pd_data, debug, _format="png"):
-    buf = io.BytesIO()
-    plt.imsave(buf, pd_data, format=_format)
-    im = Image.open(buf)
-    im.thumbnail((640, 480), Image.ANTIALIAS)
+def create_resp_from_df(pd_data, debug, _format="png", channels=[]):
 
+    nuc = np.zeros_like(pd_data)
+    for i in channels:
+        nuc += pd_data[i]
+
+    fig, ax = plt.subplots(figsize=(10, 10))
+
+    ax.imshow(mark_boundaries(np.squeeze(nuc), pd_data, background_label=None))
+    ax.grid(False)
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format=_format, photometric='minisblack')
+    buf.seek(0)
+
+    im = Image.open(buf).convert("L")
+    im = ImageOps.invert(im)
+
+    im.thumbnail((800, 600), Image.ANTIALIAS)
     img_buf = io.BytesIO()
     im.save(img_buf, format=_format)
 
@@ -353,8 +368,20 @@ class TasksGetIm(Resource):
                     return {"success": True, "data": list(data.keys())}, 200
 
                 channels_str = data.get("channel_list", [])
+                all_channels = data.get("all_channels", [])
                 if not channels_str:
-                    channels_str = data.get("all_channels")
+                    channels_str = all_channels
+                channel_list_parsed = [
+                    re.sub("[^0-9a-zA-Z]", "", item).lower().replace("target", "") for item in channels_str
+                ]
+                all_channels_parsed = [
+                    re.sub("[^0-9a-zA-Z]", "", item).lower().replace("target", "") for item in all_channels
+                ]
+                channel_ind: list[int] = []
+                for channel in channel_list_parsed:
+                    if channel in all_channels_parsed:
+                        channel_ind.append(all_channels_parsed.index(channel))
+
                 dml_0 = None
                 if key == "dml":
                     dml_0 = data.get("dml_0", None)
@@ -372,7 +399,7 @@ class TasksGetIm(Resource):
         img_list_keys = ["labels", "image"]
 
         if all([key in img_list_keys, type(data) == np.ndarray]):
-            return create_resp_from_df(data, debug)
+            return create_resp_from_df(data, debug, "png", channel_ind)
 
         if vis_name == VisType.scatter:
             if key == "dml":
