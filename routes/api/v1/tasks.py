@@ -297,6 +297,13 @@ def create_resp_from_df(pd_data, debug, _format="png", channels=[]):
     im = Image.open(buf).convert("L")
     im = ImageOps.invert(im)
 
+    im.thumbnail((640, 480), Image.ANTIALIAS)
+    fig.savefig(buf, format=_format, photometric='minisblack')
+    buf.seek(0)
+
+    im = Image.open(buf).convert("L")
+    im = ImageOps.invert(im)
+
     im.thumbnail((800, 600), Image.ANTIALIAS)
     img_buf = io.BytesIO()
     im.save(img_buf, format=_format)
