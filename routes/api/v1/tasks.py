@@ -228,11 +228,7 @@ class TasksGetIm(Resource):
                 ext = ".csv"
 
                 if isinstance(data, np.ndarray) and key == "labels":
-                    # np.savetxt(temp_file_name, data, delimiter=',')
-                    ext = "tiff"
-                    buf = io.BytesIO()
-                    plt.imsave(buf, data, format=ext)
-                    im = Image.open(buf)
+                    im = create_resp_from_df(data, debug=False, _format='tiff', file=True)
                     im.save(temp_file_name, format=ext)
 
                 elif isinstance(data, np.ndarray) and key != "labels":
@@ -279,7 +275,7 @@ def create_resp_from_data(ax, debug):
     return resp
 
 
-def create_resp_from_df(pd_data, debug, _format="png", channels=[]):
+def create_resp_from_df(pd_data, debug, _format="png", channels=[], file=False):
 
     nuc = np.zeros_like(pd_data)
     for i in channels:
@@ -287,22 +283,19 @@ def create_resp_from_df(pd_data, debug, _format="png", channels=[]):
 
     fig, ax = plt.subplots(figsize=(10, 10))
 
-    ax.imshow(mark_boundaries(np.squeeze(nuc), pd_data, background_label=None))
+    boundary = mark_boundaries(np.squeeze(nuc), pd_data, (0, 0, 255)).astype('uint8')
+    ax.imshow(boundary)
     ax.grid(False)
 
     buf = io.BytesIO()
     fig.savefig(buf, format=_format, photometric='minisblack')
     buf.seek(0)
 
-    im = Image.open(buf).convert("L")
-    im = ImageOps.invert(im)
+    im = Image.open(buf)
 
-    im.thumbnail((640, 480), Image.ANTIALIAS)
-    fig.savefig(buf, format=_format, photometric='minisblack')
-    buf.seek(0)
-
-    im = Image.open(buf).convert("L")
-    im = ImageOps.invert(im)
+    im_arr = np.array(im)
+    im_arr[np.all(im_arr == [0, 0, 0, 255], axis=-1)] = [255, 255, 255, 255]
+    im = Image.fromarray(im_arr)
 
     im.thumbnail((800, 600), Image.ANTIALIAS)
     img_buf = io.BytesIO()
@@ -312,6 +305,8 @@ def create_resp_from_df(pd_data, debug, _format="png", channels=[]):
     resp_data = img_buf.read()
     resp_data = base64.b64encode(resp_data)
     resp_data = resp_data.decode("utf-8")
+    if file:
+        return im
 
     if debug:
         img = '<img src="data:image/png;base64,{}">'.format(resp_data)
@@ -375,20 +370,8 @@ class TasksGetIm(Resource):
                     return {"success": True, "data": list(data.keys())}, 200
 
                 channels_str = data.get("channel_list", [])
-                all_channels = data.get("all_channels", [])
                 if not channels_str:
-                    channels_str = all_channels
-                channel_list_parsed = [
-                    re.sub("[^0-9a-zA-Z]", "", item).lower().replace("target", "") for item in channels_str
-                ]
-                all_channels_parsed = [
-                    re.sub("[^0-9a-zA-Z]", "", item).lower().replace("target", "") for item in all_channels
-                ]
-                channel_ind: list[int] = []
-                for channel in channel_list_parsed:
-                    if channel in all_channels_parsed:
-                        channel_ind.append(all_channels_parsed.index(channel))
-
+                    channels_str = data.get("all_channels")
                 dml_0 = None
                 if key == "dml":
                     dml_0 = data.get("dml_0", None)
@@ -406,7 +389,7 @@ class TasksGetIm(Resource):
         img_list_keys = ["labels", "image"]
 
         if all([key in img_list_keys, type(data) == np.ndarray]):
-            return create_resp_from_df(data, debug, "png", channel_ind)
+            return create_resp_from_df(data, debug)
 
         if vis_name == VisType.scatter:
             if key == "dml":
