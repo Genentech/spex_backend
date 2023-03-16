@@ -21,10 +21,10 @@ from matplotlib import pyplot
 from distutils.util import strtobool
 import pandas as pd
 import matplotlib.pyplot as plt
-from PIL import Image, ImageOps
-import re
+from PIL import Image
 from skimage.segmentation import mark_boundaries
-
+from anndata import AnnData
+from scipy.stats import zscore
 
 class VisType(str, Enum):
     scatter = "scatter"
@@ -249,6 +249,60 @@ class TasksGetIm(Resource):
         except Exception as error:
             message = str(error)
             logger.warning(error)
+
+        return {"success": False, "message": message, "data": {}}, 200
+
+
+@namespace.route("/anndata/<_id>")
+@namespace.param("_id", "task id")
+class TasksGetIm(Resource):
+    @namespace.doc("tasks/get_anndata_file", security="Bearer")
+    @namespace.response(404, "Task not found", responses.error_response)
+    @namespace.response(401, "Unauthorized", responses.error_response)
+    @jwt_required()
+    def get(self, _id):
+
+        task = TaskService.select(_id)
+        if task is None:
+            return {"success": False, "message": "task not found", "data": {}}, 200
+        task = task.to_json()
+        if task.get("result") is None:
+            return {"success": False, "message": "result not found", "data": {}}, 200
+
+        path = task.get("result")
+        path = Utils.getAbsoluteRelative(path, absolute=True)
+
+        message = "result not found"
+
+        if not os.path.exists(path):
+            return {"success": False, "message": message, "data": {}}, 200
+
+        with open(path, "rb") as infile:
+            data = pickle.load(infile)
+            coordinates = []
+            df = data['dataframe']
+            for k in range(0, len(df), 1):
+                coordinates.append([df.loc[df.index[k], 'centroid-1'], df.loc[df.index[k], 'centroid-0']])
+
+            celltype = df[['label']]
+            celltype['label'] = celltype.label.astype('category')
+            celltype = celltype.rename(columns={'label': 'Cell_ID'})
+            expression_data = np.array(df[data["channel_list"][0].lower().replace('target:', '')])
+            expression_data = expression_data.reshape(-1, 1)
+            coordinates = np.asarray(coordinates)
+
+            adata = AnnData(X=expression_data, obsm={"spatial": coordinates})
+            adata.obs['Cell_ID'] = np.array(celltype['Cell_ID']).astype(str)
+            adata.layers["zscored"] = np.apply_along_axis(zscore, axis=0, arr=expression_data)
+            buffer = io.BytesIO()
+            buffer.seek(0)
+
+            return send_file(
+                buffer,
+                attachment_filename='file.h5ad',
+                as_attachment=True,
+                mimetype='application/octet-stream'
+            )
 
         return {"success": False, "message": message, "data": {}}, 200
 
