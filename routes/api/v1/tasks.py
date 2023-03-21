@@ -24,6 +24,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 from skimage.segmentation import mark_boundaries
 from anndata import AnnData
+
 from scipy.stats import zscore
 
 class VisType(str, Enum):
@@ -294,12 +295,16 @@ class TasksGetIm(Resource):
             adata = AnnData(X=expression_data, obsm={"spatial": coordinates})
             adata.obs['Cell_ID'] = np.array(celltype['Cell_ID']).astype(str)
             adata.layers["zscored"] = np.apply_along_axis(zscore, axis=0, arr=expression_data)
-            buffer = io.BytesIO()
-            buffer.seek(0)
+
+            tmpdir = tempfile.gettempdir()
+            filename = tempfile.mkstemp(suffix=".h5ad", dir=tmpdir)[1]
+            adata.write_h5ad(filename)
 
             return send_file(
-                buffer,
+                filename,
                 attachment_filename='file.h5ad',
+                as_attachment=True,
+                mimetype='application/octet-stream'
             )
 
         return {"success": False, "message": message, "data": {}}, 200
@@ -523,7 +528,7 @@ class TasksGetIm(Resource):
                     df = to_show_data.loc[
                         (to_show_data["variable"] == channel)
                         & (to_show_data["value"] > 0)
-                    ]
+                        ]
 
                     if type(axs) == np.ndarray:
                         ax = axs[index]
@@ -575,7 +580,7 @@ class TasksGetIm(Resource):
                     df = to_show_data.loc[
                         (to_show_data["variable"] == channel)
                         & (to_show_data["value"] > 0)
-                    ]
+                        ]
                     if type(axs) == np.ndarray:
                         ax = axs[index]
                     else:
@@ -594,25 +599,19 @@ class TasksGetIm(Resource):
                     else:
                         ax.set_position([0.08, box.y1 + 0.03, width, height])
 
-                    sns.scatterplot(
-                        y="centroid-0",
-                        x="centroid-1",
-                        data=df,
-                        palette="Set3",
-                        hue=df["value"],
-                        ax=axs[index],
-                    )
-                    index += 1
-
-                    # Put a legend below current axis
-                    ax.legend(
-                        loc="center left",
-                        bbox_to_anchor=(1.04, 0.5),
-                        fancybox=True,
-                        shadow=True,
-                        ncol=5,
-                        title=channel,
-                    )
+                g = sns.relplot(
+                    x="centroid-1",
+                    y="centroid-0",
+                    hue=df["value"],
+                    alpha=0.8,
+                    s=12,
+                    palette="plasma",
+                    data=df,
+                    ax=ax,
+                )
+                for ax in g.axes[0]:
+                    ax.invert_yaxis()
+                index += 1
 
                 fig.suptitle(vis_name)
 
