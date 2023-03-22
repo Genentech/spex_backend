@@ -24,6 +24,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 from skimage.segmentation import mark_boundaries
 from anndata import AnnData
+import h5py
 
 from scipy.stats import zscore
 
@@ -285,26 +286,24 @@ class TasksGetIm(Resource):
             for k in range(0, len(df), 1):
                 coordinates.append([df.loc[df.index[k], 'centroid-1'], df.loc[df.index[k], 'centroid-0']])
 
-            celltype = df[['label']]
+            celltype = df[['label']].copy()
             celltype['label'] = celltype.label.astype('category')
             celltype = celltype.rename(columns={'label': 'Cell_ID'})
             expression_data = np.array(df[data["channel_list"][0].lower().replace('target:', '')])
             expression_data = expression_data.reshape(-1, 1)
             coordinates = np.asarray(coordinates)
-
-            adata = AnnData(X=expression_data, obsm={"spatial": coordinates})
-            adata.obs['Cell_ID'] = np.array(celltype['Cell_ID']).astype(str)
-            adata.layers["zscored"] = np.apply_along_axis(zscore, axis=0, arr=expression_data)
-
-            tmpdir = tempfile.gettempdir()
-            filename = tempfile.mkstemp(suffix=".h5ad", dir=tmpdir)[1]
-            adata.write_h5ad(filename)
-
+            buf = io.BytesIO()
+            with h5py.File(buf, "w") as f:
+                f.create_dataset("X", data=expression_data)
+                f.create_dataset("obsm/spatial", data=coordinates)
+                f.create_dataset("obs/Cell_ID", data=celltype['Cell_ID'].values.astype('S'))
+                f.create_dataset("layers/zscored", data=np.apply_along_axis(zscore, axis=0, arr=expression_data))
+            buf.seek(0)
             return send_file(
-                filename,
+                buf,
                 attachment_filename='file.h5ad',
                 as_attachment=True,
-                mimetype='application/octet-stream'
+                mimetype='application/octet-stream',
             )
 
         return {"success": False, "message": message, "data": {}}, 200

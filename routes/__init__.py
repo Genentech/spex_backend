@@ -19,9 +19,6 @@ def after_request(response):
     if token:
         set_access_cookies(response, token, datetime.timedelta(days=7))
 
-    if content := response.headers.get('Content-Disposition'):
-        print(content)
-
     return response
 
 
