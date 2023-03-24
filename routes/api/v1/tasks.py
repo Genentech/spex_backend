@@ -23,10 +23,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from PIL import Image
 from skimage.segmentation import mark_boundaries
-from anndata import AnnData
 import h5py
-
+import scanpy as sc
+import anndata
 from scipy.stats import zscore
+
 
 class VisType(str, Enum):
     scatter = "scatter"
@@ -698,38 +699,25 @@ class TasksGetIm(Resource):
                 )
 
             else:
+                fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(14, 7))
                 to_show = np.delete(data, [0, 1, 2], axis=1)
+                columns = channels_str + ["cluster"]
                 _, c = to_show.shape
-                rows = [element for element in range(c)]
-                rows.insert(0, rows.pop())
+                adata = sc.AnnData(to_show)
+                adata.var_names = columns
 
-                to_show = to_show[:, rows]
+                cluster_labels = to_show[:, -1]
+                cluster_labels = pd.Categorical(cluster_labels.astype(int))
+                adata.obs['cluster_labels'] = cluster_labels
 
-                result = np.empty(shape=(0, c), dtype=to_show.dtype)
-
-                clusters = np.unique(to_show[:, 0])
-                for cluster in clusters:
-                    df = to_show[(to_show[:, 0] == cluster)]
-                    if len(df):
-                        result = np.append(result, [np.average(df, axis=0)], axis=0)
-
-                result = np.delete(result, [0], axis=1)
-
-                fig, ax = plt.subplots(1, 1, figsize=(10, 5))
-                fig.tight_layout()
-
-                sns.heatmap(
-                    result,
-                    vmin=np.min(result[(result[:]) > 0]),
-                    vmax=np.max(result),
-                    xticklabels=channels_str,
-                    cmap="rocket",
-                    fmt="g",
+                sc.pl.matrixplot(
+                    adata,
+                    var_names=columns,
+                    groupby='cluster_labels',
+                    dendrogram=True,
                     ax=ax,
+                    show=False,
                 )
-                # ax.xaxis.set_tick_params(labelsize='small')
-                ax.set(title=vis_name)
-
         if vis_name == VisType.barplot:
             to_show = np.delete(data, [0, 1, 2], axis=1)
             ax = sns.barplot(data=to_show, label="Total", color="b")
