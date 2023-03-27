@@ -34,6 +34,7 @@ class VisType(str, Enum):
     boxplot = "boxplot"
     heatmap = "heatmap"
     barplot = "barplot"
+    violin = "violin"
 
 
 logger = get_logger("spex.backend")
@@ -394,6 +395,7 @@ class TasksGetIm(Resource):
         matplotlib.rc_file_defaults()
         pyplot.clf()
         plt.subplots(ncols=1, figsize=(5, 5))
+        marker_list = []
 
         for k in request.args.keys():
             if k == "key":
@@ -403,6 +405,11 @@ class TasksGetIm(Resource):
             if k == "debug":
                 if strtobool(request.args.get(k)):
                     debug = True
+            if k == 'marker_list':
+                marker_list = request.args.get(k).split(',')
+
+        if marker_list is None and vis_name is VisType.violin:
+            return {"success": False, "message": "channels not found", "data": {}}, 200
 
         task = TaskService.select(_id)
         if task is None:
@@ -548,9 +555,15 @@ class TasksGetIm(Resource):
                     else:
                         ax.set_position([0.08, box.y1 + 0.03, width, height])
 
-                    sns.scatterplot(
-                        y=1, x=2, data=df, palette="Set3", hue=df["cluster"], ax=ax
-                    )
+                    if len(df["cluster"]):
+                        sns.scatterplot(
+                            y=1, x=2, data=df, palette="Set3", hue=df["cluster"], ax=ax
+                        )
+                    else:
+                        sns.scatterplot(
+                            y=1, x=2, data=df, hue=df["cluster"], ax=ax
+                        )
+
                     index += 1
 
                     # Put a legend below current axis
@@ -703,7 +716,7 @@ class TasksGetIm(Resource):
                 to_show = np.delete(data, [0, 1, 2], axis=1)
                 columns = channels_str + ["cluster"]
                 _, c = to_show.shape
-                adata = sc.AnnData(to_show)
+                adata = sc.AnnData(to_show, dtype='float64')
                 adata.var_names = columns
 
                 cluster_labels = to_show[:, -1]
@@ -712,12 +725,48 @@ class TasksGetIm(Resource):
 
                 sc.pl.matrixplot(
                     adata,
-                    var_names=columns,
+                    var_names=columns[:-1],
                     groupby='cluster_labels',
                     dendrogram=True,
+                    standard_scale='var',
                     ax=ax,
                     show=False,
                 )
+        if vis_name == VisType.violin:
+
+            fig, axs = plt.subplots(
+                nrows=len(marker_list),
+                ncols=1,
+                figsize=(7, 7*len(marker_list))
+            )
+            if len(marker_list) == 1:
+                axs = [axs]
+
+            to_show = np.delete(data, [0, 1, 2], axis=1)
+            columns = channels_str + ["cluster"]
+            _, c = to_show.shape
+            adata = sc.AnnData(to_show, dtype='float64')
+            adata.var_names = columns
+            cluster_labels = to_show[:, -1]
+            adata.obs['cluster_labels'] = cluster_labels
+
+            cluster_labels = to_show[:, -1]
+            cluster_labels = pd.Categorical(cluster_labels.astype(int))
+            adata.obs['cluster_labels'] = cluster_labels
+
+            for i, marker in enumerate(marker_list):
+                ax = axs[i]
+                sc.pl.violin(
+                    adata,
+                    marker,
+                    groupby='cluster_labels',
+                    rotation=45,
+                    show=False,
+                    ax=ax
+                )
+
+            plt.tight_layout()
+
         if vis_name == VisType.barplot:
             to_show = np.delete(data, [0, 1, 2], axis=1)
             ax = sns.barplot(data=to_show, label="Total", color="b")
