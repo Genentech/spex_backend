@@ -269,7 +269,9 @@ class TasksGetIm(Resource):
         task = TaskService.select(_id)
         if task is None:
             return {"success": False, "message": "task not found", "data": {}}, 200
+
         task = task.to_json()
+
         if task.get("result") is None:
             return {"success": False, "message": "result not found", "data": {}}, 200
 
@@ -283,30 +285,41 @@ class TasksGetIm(Resource):
 
         with open(path, "rb") as infile:
             data = pickle.load(infile)
-            coordinates = []
             df = data['dataframe']
-            for k in range(0, len(df), 1):
-                coordinates.append([df.loc[df.index[k], 'centroid-1'], df.loc[df.index[k], 'centroid-0']])
+            df.index = df.index.astype(str)
 
+            coordinates = np.column_stack((df['centroid-1'], df['centroid-0']))
             celltype = df[['label']].copy()
-            celltype['label'] = celltype.label.astype('category')
             celltype = celltype.rename(columns={'label': 'Cell_ID'})
-            expression_data = np.array(df[data["channel_list"][0].lower().replace('target:', '')])
+            celltype['Cell_ID'] = celltype['Cell_ID'].astype('category')
+            cl = data["channel_list"]
+            if not cl:
+                cl = data["all_channels"]
+            expression_data = np.array(df[cl[0].lower().replace('target:', '')])
             expression_data = expression_data.reshape(-1, 1)
-            coordinates = np.asarray(coordinates)
-            buf = io.BytesIO()
-            with h5py.File(buf, "w") as f:
-                f.create_dataset("X", data=expression_data)
-                f.create_dataset("obsm/spatial", data=coordinates)
-                f.create_dataset("obs/Cell_ID", data=celltype['Cell_ID'].values.astype('S'))
-                f.create_dataset("layers/zscored", data=np.apply_along_axis(zscore, axis=0, arr=expression_data))
-            buf.seek(0)
-            return send_file(
-                buf,
-                attachment_filename='file.h5ad',
-                as_attachment=True,
-                mimetype='application/octet-stream',
+            expression_data = np.apply_along_axis(zscore, axis=0, arr=expression_data)
+
+            adata = anndata.AnnData(
+                X=expression_data.astype(np.float32),
+                obs=pd.DataFrame(index=df.index),
+                obsm={'spatial': coordinates},
+                layers={'zscored': expression_data.astype(np.float32)},
             )
+
+            for col in df.columns:
+                adata.obs[col] = df[col]
+
+            adata.obs['Cell_ID'] = celltype['Cell_ID']
+
+            with tempfile.NamedTemporaryFile(delete=False) as f:
+                adata.write(f.name)
+                f.seek(0)
+                return send_file(
+                    f.name,
+                    attachment_filename='file.h5ad',
+                    as_attachment=True,
+                    mimetype='application/octet-stream',
+                )
 
         return {"success": False, "message": message, "data": {}}, 200
 
