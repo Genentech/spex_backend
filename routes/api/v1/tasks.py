@@ -23,7 +23,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from PIL import Image
 from skimage.segmentation import mark_boundaries
-import h5py
 import scanpy as sc
 import anndata
 from scipy.stats import zscore
@@ -222,19 +221,17 @@ class TasksGetIm(Resource):
                 data = pickle.load(infile)
 
                 if not key:
-                    # data = json.dumps(data, cls=NumpyEncoder)
                     return {"success": True, "data": list(data.keys())}, 200
 
                 data = data.get(key)
 
                 fd, temp_file_name = tempfile.mkstemp()
-                # fd.close()
                 ext = ".csv"
 
                 if isinstance(data, np.ndarray) and key == "labels":
                     im = create_resp_from_df(data, debug=False, _format='tiff', file=True)
-                    im.save(temp_file_name, format=ext)
-
+                    im.save(temp_file_name, format='tiff')
+                    ext = ".tiff"
                 elif isinstance(data, np.ndarray) and key != "labels":
                     pd.DataFrame(data).to_csv(temp_file_name, index=None, format=ext)
                 else:
@@ -371,13 +368,13 @@ def create_resp_from_df(pd_data, debug, _format="png", channels=[], file=False):
     im.thumbnail((800, 600), Image.ANTIALIAS)
     img_buf = io.BytesIO()
     im.save(img_buf, format=_format)
+    if file:
+        return im
 
     img_buf.seek(0)
     resp_data = img_buf.read()
     resp_data = base64.b64encode(resp_data)
     resp_data = resp_data.decode("utf-8")
-    if file:
-        return im
 
     if debug:
         img = '<img src="data:image/png;base64,{}">'.format(resp_data)
