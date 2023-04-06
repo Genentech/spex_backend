@@ -530,6 +530,8 @@ class TasksGetIm(Resource):
 
                 to_show_data = pd.melt(df, id_vars=[0, 1, 2, "cluster"])
                 to_show_data["value"] = to_show_data["value"].round()
+                if marker_list:
+                    to_show_data = to_show_data[to_show_data["variable"].isin(marker_list)]
 
                 cols = len(to_show_data["variable"].unique())
                 # cols = 5
@@ -539,8 +541,6 @@ class TasksGetIm(Resource):
                 index = 0
 
                 for channel in to_show_data["variable"].unique():
-                    # if index == 5:
-                    #     continue
 
                     df = to_show_data.loc[
                         (to_show_data["variable"] == channel)
@@ -592,6 +592,9 @@ class TasksGetIm(Resource):
                     data, id_vars=["label", "centroid-0", "centroid-1"]
                 )
                 to_show_data["value"] = to_show_data["value"].round()
+                if marker_list:
+                    to_show_data = to_show_data[to_show_data["variable"].isin(marker_list)]
+
 
                 cols = len(to_show_data["variable"].unique())
                 fig, axs = plt.subplots(ncols=1, nrows=cols, figsize=(8, 4 * cols))
@@ -700,6 +703,7 @@ class TasksGetIm(Resource):
 
         if vis_name == VisType.boxplot:
             to_show_data = pd.melt(data, id_vars=["label", "centroid-0", "centroid-1"])
+            to_show_data = to_show_data[to_show_data["variable"].isin(marker_list)]
             ax = sns.boxplot(y="variable", x="value", data=to_show_data, palette="Set3")
             ax.set(title=vis_name)
 
@@ -733,9 +737,13 @@ class TasksGetIm(Resource):
                 cluster_labels = pd.Categorical(cluster_labels.astype(int))
                 adata.obs['cluster_labels'] = cluster_labels
 
+                cols: set = set(columns[:-1])
+                if marker_list:
+                    cols = cols.intersection(set(marker_list))
+
                 sc.pl.matrixplot(
                     adata,
-                    var_names=columns[:-1],
+                    var_names=list(cols),
                     groupby='cluster_labels',
                     dendrogram=True,
                     standard_scale='var',
