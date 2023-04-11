@@ -8,6 +8,7 @@ from .models import files as _file
 from .models import responses
 from werkzeug.datastructures import FileStorage
 import spex_common.services.Utils as Utils
+import anndata
 
 
 namespace = Namespace('Files', description='Files operations CRUD operations')
@@ -73,3 +74,29 @@ class FileResPost(Resource):
                 os.remove(_path)
 
         return {'success': True, 'deleted': path}, 200
+
+
+@namespace.route('/check-file')
+class CheckFileResource(Resource):
+    @namespace.doc('file/check', security='Bearer')
+    @namespace.response(404, 'File not found', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @namespace.param('filename', 'Filename to check')
+    @jwt_required()
+    def get(self):
+        filename = request.args.get('filename')
+        if not filename:
+            return {'success': False, 'message': 'Filename parameter is required'}, 400
+
+        user_folder = fileService.user_folder(author=get_jwt_identity())
+        file_path = os.path.join(user_folder, filename)
+
+        if not os.path.exists(file_path):
+            return {'success': False, 'message': f'File {filename} not found'}, 404
+
+        try:
+            adata = anndata.read_h5ad(file_path)
+            keys = list(adata.obs_keys())
+            return {'success': True, 'keys': keys}, 200
+        except Exception as e:
+            return {'success': False, 'message': f'Error processing file: {str(e)}'}, 500
