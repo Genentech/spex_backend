@@ -37,7 +37,7 @@ class FileResPost(Resource):
         args = upload_parser.parse_args()
         file = args['filenames']
         destination = fileService.user_folder(author=get_jwt_identity(), folder=args['folder'])
-        file_to_save = '%s%s' % (destination, file.filename)
+        file_to_save = os.path.join(destination, file.filename)
         file.save(file_to_save)
 
         return {'success': 'True', 'filename': file.filename}, 200
