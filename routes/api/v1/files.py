@@ -37,7 +37,7 @@ class FileResPost(Resource):
         args = upload_parser.parse_args()
         file = args['filenames']
         destination = fileService.user_folder(author=get_jwt_identity(), folder=args['folder'])
-        file_to_save = '%s%s' % (destination, file.filename)
+        file_to_save = os.path.join(destination, file.filename)
         file.save(file_to_save)
 
         return {'success': 'True', 'filename': file.filename}, 200
@@ -51,7 +51,8 @@ class FileResPost(Resource):
     def get(self):
 
         tree = fileService.path_to_dict(fileService.user_folder(author=get_jwt_identity()))
-        return {'success': 'True', 'tree': tree}, 200
+        user_folder_tree = tree[list(tree.keys())[0]]['children']
+        return {'success': 'True', 'tree': user_folder_tree}, 200
 
     @namespace.doc('file/deletefilefolder', security='Bearer')
     # @namespace.expect(upload_parser)
