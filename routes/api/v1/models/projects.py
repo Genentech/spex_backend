@@ -14,6 +14,10 @@ projects_model = Model('ProjectBase', {
         fields.String,
         required=False,
         description='image id'),
+    'file_names': fields.List(
+        fields.String,
+        required=False,
+        description='file attached names'),
     'taskIds': fields.List(
         fields.String,
         required=False,
