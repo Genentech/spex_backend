@@ -37,6 +37,7 @@ class VisType(str, Enum):
 
 
 logger = get_logger("spex.backend")
+plt.rcParams['figure.max_open_warning'] = 40
 
 namespace = Namespace("Tasks", description="Tasks CRUD operations")
 
@@ -403,7 +404,10 @@ class TasksGetIm(Resource):
         debug: bool = False
 
         matplotlib.rc_file_defaults()
-        pyplot.clf()
+        try:
+            pyplot.clf()
+        except ValueError:
+            pass
         plt.subplots(ncols=1, figsize=(5, 5))
         marker_list = []
 
@@ -637,8 +641,8 @@ class TasksGetIm(Resource):
                 )
                 for ax in g.axes[0]:
                     ax.invert_yaxis()
-                index += 1
 
+                index += 1
                 fig.suptitle(vis_name)
 
             elif key == "qfmatch":
@@ -703,8 +707,11 @@ class TasksGetIm(Resource):
 
         if vis_name == VisType.boxplot:
             to_show_data = pd.melt(data, id_vars=["label", "centroid-0", "centroid-1"])
-            to_show_data = to_show_data[to_show_data["variable"].isin(marker_list)]
+            if marker_list:
+                to_show_data = to_show_data[to_show_data["variable"].isin(marker_list)]
             ax = sns.boxplot(y="variable", x="value", data=to_show_data, palette="Set3")
+            ax.set_yticklabels(to_show_data['variable'].unique())
+
             ax.set(title=vis_name)
 
         if vis_name == VisType.heatmap:

@@ -9,12 +9,19 @@ from .models import responses
 from werkzeug.datastructures import FileStorage
 import spex_common.services.Utils as Utils
 import anndata
-
+import io
+import h5py
 
 namespace = Namespace('Files', description='Files operations CRUD operations')
 upload_parser = namespace.parser()
 upload_parser.add_argument('filenames', location='files', type=FileStorage, required=True)
-upload_parser.add_argument('folder', help='parent folder name create if not exist', location='headers', type=str, required=False)
+upload_parser.add_argument(
+    'folder',
+    help='parent folder name create if not exist',
+    location='headers',
+    type=str,
+    required=False
+)
 
 namespace.add_model(_file.file_model.name, _file.file_model)
 namespace.add_model(_file.file_get_model.name, _file.file_get_model)
@@ -29,18 +36,26 @@ namespace.add_model(responses.error_response.name, responses.error_response)
 class FileResPost(Resource):
     @namespace.doc('file/uploadone', security='Bearer')
     @namespace.expect(upload_parser)
-    # @namespace.marshal_with(_resource.list_tasks_response)
     @namespace.response(404, 'file not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
     def post(self):
         args = upload_parser.parse_args()
         file = args['filenames']
+        file_bytes = io.BytesIO(file.read())
+
+        with h5py.File(file_bytes, 'r') as h5_file:
+            obs_keys = [key.lower() for key in h5_file['obs'].keys()]
+
+        # if 'cell_id1' not in obs_keys:
+        #     return {"error": "File does not contain the required key: Cell_Id"}, 400
+
         destination = fileService.user_folder(author=get_jwt_identity(), folder=args['folder'])
         file_to_save = os.path.join(destination, file.filename)
+        file.stream.seek(0)
         file.save(file_to_save)
 
-        return {'success': 'True', 'filename': file.filename}, 200
+        return {"success": True, "keys": obs_keys}, 200
 
     @namespace.doc('file/getfiletree', security='Bearer')
     # @namespace.expect(upload_parser)
