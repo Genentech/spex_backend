@@ -15,6 +15,10 @@ jobs_model = Model('JobBase', {
         fields.String,
         required=False,
         description='image id'),
+    'file_names': fields.List(
+        fields.String,
+        required=False,
+        description='file names'),
     'status': fields.Integer(
         requred=False,
         description='status'),
@@ -34,6 +38,10 @@ jobs_update_model = Model('JobUpdate', {
         fields.String,
         required=False,
         description='image id'),
+    'file_names': fields.List(
+        fields.String,
+        required=False,
+        description='file names'),
     'status': fields.Integer(
         requred=False,
         description='status'),
