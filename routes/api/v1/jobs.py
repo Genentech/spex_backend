@@ -2,11 +2,20 @@ import spex_common.services.Job as JobService
 import spex_common.services.Task as TaskService
 import spex_common.services.Script as ScriptService
 import spex_common.services.Pipeline as PipelineService
+import spex_common.services.Utils as Utils
 from spex_common.models.Status import TaskStatus
 from flask_restx import Namespace, Resource
 from flask import request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import jobs, responses
+import anndata
+import pandas as pd
+import numpy as np
+import os
+import tempfile
+from flask import send_file
+from scipy.stats import zscore
+import pickle
 
 
 namespace = Namespace('Jobs', description='Jobs CRUD operations')
@@ -237,3 +246,78 @@ class JobFind(Resource):
                         task['status'] = to_update
 
         return {'success': True, 'data': result}, 200
+
+
+@namespace.route('/merged_result/<string:job_id>')
+@namespace.param('job_id', 'Job id')
+class MergedResult(Resource):
+    @namespace.doc('job/get_merged_result', security='Bearer')
+    @namespace.response(404, 'Job or Tasks not found', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @jwt_required()
+    def get(self, job_id):
+
+        def create_anndata(data):
+            df = data['dataframe']
+            df.index = df.index.astype(str)
+
+            coordinates = np.column_stack((df['centroid-1'], df['centroid-0']))
+            celltype = df[['label']].copy()
+            celltype = celltype.rename(columns={'label': 'Cell_ID'})
+            celltype['Cell_ID'] = celltype['Cell_ID'].astype('category')
+            cl = data["channel_list"]
+            if not cl:
+                cl = data["all_channels"]
+            expression_data = np.array(df[cl[0].lower().replace('target:', '')])
+            expression_data = expression_data.reshape(-1, 1)
+            expression_data = np.apply_along_axis(zscore, axis=0, arr=expression_data)
+
+            adata = anndata.AnnData(
+                X=expression_data.astype(np.float32),
+                obs=pd.DataFrame(index=df.index),
+                obsm={'spatial': coordinates},
+                layers={'zscored': expression_data.astype(np.float32)},
+            )
+
+            for col in df.columns:
+                adata.obs[col] = df[col]
+
+            adata.obs['Cell_ID'] = celltype['Cell_ID']
+
+            return adata
+
+        def merge_tasks_result(_tasks):
+            merged_adata = None
+            for task in _tasks:
+                task_result_path = task.get("result")
+                task_result_path = Utils.getAbsoluteRelative(task_result_path, absolute=True)
+                if task_result_path is None or not os.path.exists(task_result_path):
+                    continue
+
+                with open(task_result_path, "rb") as infile:
+                    data = pickle.load(infile)
+                    adata = create_anndata(data)
+
+                    adata.obs['batch'] = task["id"]
+
+                    if merged_adata is None:
+                        merged_adata = adata
+                    else:
+                        merged_adata = merged_adata.concatenate(adata, batch_key='batch')
+
+            return merged_adata
+
+        tasks = TaskService.select_tasks_edge(f'jobs/{job_id}')
+        if not tasks:
+            return {'success': False, 'message': 'Tasks not found', 'data': {}}, 404
+
+        m_data = merge_tasks_result(tasks)
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            m_data.write(f.name)
+            f.seek(0)
+            return send_file(
+                f.name,
+                attachment_filename='merged_result.h5ad',
+                as_attachment=True,
+                mimetype='application/octet-stream',
+            )
