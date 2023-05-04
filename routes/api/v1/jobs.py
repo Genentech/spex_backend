@@ -16,6 +16,8 @@ import tempfile
 from flask import send_file
 from scipy.stats import zscore
 import pickle
+import zipfile
+import io
 
 
 namespace = Namespace('Jobs', description='Jobs CRUD operations')
@@ -257,6 +259,20 @@ class MergedResult(Resource):
     @jwt_required()
     def get(self, job_id):
 
+        csv_data = {}
+
+        def save_to_csv(adata):
+            expression_data = pd.DataFrame(adata.X, columns=adata.var.index, index=adata.obs.index)
+            metadata = adata.obs
+
+            expression_data_buffer = io.StringIO()
+            metadata_buffer = io.StringIO()
+
+            expression_data.to_csv(expression_data_buffer)
+            metadata.to_csv(metadata_buffer)
+
+            return expression_data_buffer.getvalue(), metadata_buffer.getvalue()
+
         def create_anndata(data):
             df = data['dataframe']
             df.index = df.index.astype(str)
@@ -297,6 +313,8 @@ class MergedResult(Resource):
                 with open(task_result_path, "rb") as infile:
                     data = pickle.load(infile)
                     adata = create_anndata(data)
+                    expression_data_csv, metadata_csv = save_to_csv(adata)
+                    csv_data[task["id"]] = {"expression_data": expression_data_csv, "metadata": metadata_csv}
 
                     adata.obs['batch'] = task["id"]
 
@@ -312,12 +330,22 @@ class MergedResult(Resource):
             return {'success': False, 'message': 'Tasks not found', 'data': {}}, 404
 
         m_data = merge_tasks_result(tasks)
-        with tempfile.NamedTemporaryFile(delete=False) as f:
-            m_data.write(f.name)
-            f.seek(0)
-            return send_file(
-                f.name,
-                attachment_filename='merged_result.h5ad',
-                as_attachment=True,
-                mimetype='application/octet-stream',
-            )
+        temp_dir = tempfile.mkdtemp()
+        zip_file_path = os.path.join(temp_dir, "merged_result.zip")
+
+        with zipfile.ZipFile(zip_file_path, "w") as zipf:
+            for task_id, data in csv_data.items():
+                zipf.writestr(f"csv/{job_id}/{task_id}/expression_data.csv", data["expression_data"])
+                zipf.writestr(f"csv/{job_id}/{task_id}/metadata.csv", data["metadata"])
+
+            with tempfile.NamedTemporaryFile(delete=False) as f:
+                m_data.write(f.name)
+                f.seek(0)
+                zipf.write(f.name, "merged_result.h5ad")
+
+        return send_file(
+            zip_file_path,
+            attachment_filename="merged_result.zip",
+            as_attachment=True,
+            mimetype="application/zip",
+        )
