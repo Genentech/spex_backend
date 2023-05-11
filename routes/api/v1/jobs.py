@@ -107,8 +107,10 @@ class Item(Resource):
         result = JobService.select_jobs(**{'author': get_jwt_identity(), '_key': _id})
         if not result:
             return {'success': False, 'message': 'job not found', 'data': {}}, 200
+        body = request.json
+        body['author'] = get_jwt_identity()
 
-        updated_job = JobService.update_job(id=_id, data=request.json, history=request.json)
+        updated_job = JobService.update_job(id=_id, data=body, history=body)
         return {'success': True, 'data': updated_job}, 200
 
     @namespace.doc('job/delete', security='Bearer')
