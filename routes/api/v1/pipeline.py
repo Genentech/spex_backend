@@ -1,6 +1,8 @@
 import spex_common.services.Pipeline as PipelineService
 import spex_common.services.Project as ProjectService
 import spex_common.services.Task as TaskService
+import spex_common.services.Templates as TemplateService
+import spex_common.services.Job as JobService
 from spex_common.models.Status import TaskStatus
 from flask_restx import Namespace, Resource
 from flask import request
@@ -249,7 +251,11 @@ class PipelineDelete(Resource):
 @namespace.param('child_id', 'child id only job')
 @namespace.param('pipeline_id', 'pipeline id')
 class PipelineConnect(Resource):
-    @namespace.doc('pipeline_jobs_connect_job/connect', security='Bearer', description='Second step connect between pipeline and created job or existed')
+    @namespace.doc(
+        'pipeline_jobs_connect_job/connect',
+        security='Bearer',
+        description='Second step connect between pipeline and created job or existed'
+    )
     @namespace.marshal_with(pipeline.a_pipeline_response)
     @namespace.response(404, 'Object not found', responses.error_response)
     @namespace.response(400, 'Bad request', responses.error_response)
@@ -314,3 +320,80 @@ class PipelineConnect(Resource):
         }
         data = PipelineService.insert(data=link, collection='pipeline_direction')
         return {'success': True, 'data': data}, 200
+
+
+# get pipelines list with child's
+@namespace.route('/copy')
+class PipelineGet(Resource):
+    @namespace.doc('pipeline/insert', security='Bearer', description='Copy pipeline')
+    @namespace.expect(pipeline.pipeline_copy_model)
+    @namespace.marshal_with(pipeline.a_pipeline_response)
+    @namespace.response(200, 'Created pipeline', pipeline.a_pipeline_response)
+    @namespace.response(400, 'Message about reason of error', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @namespace.response(404, 'Not Found', responses.error_response)
+    @jwt_required()
+    def post(self):
+
+        body = request.json
+        author = get_jwt_identity()
+
+        def create_jobs(_job, _parent_id: str = "", _pipeline_id: str = "", _project_id: str = ""):
+            if isinstance(_job, dict) and 'name' in _job.keys():
+                _job['author'] = get_jwt_identity()
+                _job.update(status=TaskStatus.pending_approval.value)
+                if _job.get('params') is None:
+                    _job['params'] = {}
+
+                result = JobService.insert(_job)
+                _from = _parent_id if 'jobs' in _parent_id else _pipeline_id
+                print(_from, _parent_id, _pipeline_id)
+                _link = {
+                    '_from': _from,
+                    '_to': f'jobs/{str(result.id)}',
+                    'author': author,
+                    'project': _project_id,
+                    'pipeline': _pipeline_id.replace('pipeline/', '')
+                }
+                data = PipelineService.insert(data=_link, collection='pipeline_direction')
+                _parent_id = f'jobs/{result.id}'
+                create_jobs(_job.get('jobs', []), _parent_id, _pipeline_id, _project_id)
+            else:
+                for one_job in _job:
+                    create_jobs(one_job, _parent_id, _pipeline_id, _project_id)
+
+        parent_id = body.get('parent_id')
+        parent = PipelineService.select_pipeline(collection='pipeline', _key=parent_id, one=True)
+        jobs = TemplateService.get_template_tree(pipeline_id=parent_id, author=author)
+
+        if not parent:
+            return {'success': False, 'message': 'parent pipeline not found'}, 404
+        name = body.get('name')
+        if not name:
+            name = parent.get('name')
+
+        data = {
+            'name': name,
+            'author': author,
+            'complete': 0,
+            'project': parent.get('project'),
+        }
+
+        item = PipelineService.insert(data, collection='pipeline').to_json()
+        project_id = parent.get('project')
+        link = {
+            '_from': f'projects/{parent.get("project")}',
+            '_to': item.get('_id'),
+            'author': author,
+            'project': project_id,
+            'pipeline': item.get('id')
+        }
+
+        pipeline_direction = PipelineService.insert(link)
+
+        for job in jobs:
+            create_jobs(job['jobs'], parent_id, item.get('_id'), project_id)
+
+        item.update({'nested': pipeline_direction.to_json()})
+
+        return {'success': True, 'data': item}, 200
