@@ -9,6 +9,18 @@ pipeline_create_model = Model('PipelineBase', {
     )
 })
 
+
+pipeline_copy_model = Model('PipelineBase', {
+    'parent_id': fields.String(
+        description='pipeline id',
+        required=True
+    ),
+    'name': fields.String(
+        description='pipeline name',
+        required=False
+    )
+})
+
 pipeline_model = pipeline_create_model.inherit('Pipeline base1', {
     'id': fields.String(
         required=False,
