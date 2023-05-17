@@ -322,7 +322,7 @@ class PipelineConnect(Resource):
         return {'success': True, 'data': data}, 200
 
 
-# get pipelines list with child's
+# copy pipelines with child's
 @namespace.route('/copy')
 class PipelineGet(Resource):
     @namespace.doc('pipeline/insert', security='Bearer', description='Copy pipeline')
