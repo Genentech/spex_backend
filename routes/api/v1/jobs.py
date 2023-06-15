@@ -331,7 +331,25 @@ class MergedResult(Resource):
         if not tasks:
             return {'success': False, 'message': 'Tasks not found', 'data': {}}, 404
 
+        show_structure = request.args.get('show_structure', None)
         m_data = merge_tasks_result(tasks)
+
+        if show_structure:
+            # If the 'show_structure' flag is passed
+            # Return the anndata structure and the first 10 values of each array
+            data_structure = {
+                "obs": m_data.obs.head(10).to_dict(),
+                "var": m_data.var.head(10).to_dict(),
+                "obsm": {k: v[:10].tolist() for k, v in m_data.obsm.items()},
+                "varm": {k: v[:10].tolist() for k, v in m_data.varm.items()},
+                "obsp": {k: v[:10].tolist() for k, v in m_data.obsp.items()},
+                "varp": {k: v[:10].tolist() for k, v in m_data.varp.items()},
+                "uns": list(m_data.uns.keys()),
+                "layers": {k: v[:10].tolist() for k, v in m_data.layers.items()},
+            }
+
+            return {'success': True, 'data': data_structure}, 200
+
         temp_dir = tempfile.mkdtemp()
         zip_file_path = os.path.join(temp_dir, "merged_result.zip")
 
