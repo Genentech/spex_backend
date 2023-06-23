@@ -332,40 +332,40 @@ class MergedResult(Resource):
             return {'success': False, 'message': 'Tasks not found', 'data': {}}, 404
 
         show_structure = request.args.get('show_structure', None)
-        m_data = merge_tasks_result(tasks)
 
-        if show_structure:
-            # If the 'show_structure' flag is passed
-            # Return the anndata structure and the first 10 values of each array
-            data_structure = {
-                "obs": m_data.obs.head(10).to_dict(),
-                "var": m_data.var.head(10).to_dict(),
-                "obsm": {k: v[:10].tolist() for k, v in m_data.obsm.items()},
-                "varm": {k: v[:10].tolist() for k, v in m_data.varm.items()},
-                "obsp": {k: v[:10].tolist() for k, v in m_data.obsp.items()},
-                "varp": {k: v[:10].tolist() for k, v in m_data.varp.items()},
-                "uns": list(m_data.uns.keys()),
-                "layers": {k: v[:10].tolist() for k, v in m_data.layers.items()},
-            }
+        if m_data := merge_tasks_result(tasks):
+            if show_structure:
+                data_structure = {
+                    "obs": m_data.obs.head(10).to_dict(),
+                    "var": m_data.var.head(10).to_dict(),
+                    "obsm": {k: v[:10].tolist() for k, v in m_data.obsm.items()},
+                    "varm": {k: v[:10].tolist() for k, v in m_data.varm.items()},
+                    "obsp": {k: v[:10].tolist() for k, v in m_data.obsp.items()},
+                    "varp": {k: v[:10].tolist() for k, v in m_data.varp.items()},
+                    "uns": list(m_data.uns.keys()),
+                    "layers": {k: v[:10].tolist() for k, v in m_data.layers.items()},
+                }
 
-            return {'success': True, 'data': data_structure}, 200
+                return {'success': True, 'data': data_structure}, 200
 
-        temp_dir = tempfile.mkdtemp()
-        zip_file_path = os.path.join(temp_dir, "merged_result.zip")
+            temp_dir = tempfile.mkdtemp()
+            zip_file_path = os.path.join(temp_dir, "merged_result.zip")
 
-        with zipfile.ZipFile(zip_file_path, "w") as zipf:
-            for task_id, data in csv_data.items():
-                zipf.writestr(f"csv/{job_id}/{task_id}/expression_data.csv", data["expression_data"])
-                zipf.writestr(f"csv/{job_id}/{task_id}/metadata.csv", data["metadata"])
+            with zipfile.ZipFile(zip_file_path, "w") as zipf:
+                for task_id, data in csv_data.items():
+                    zipf.writestr(f"csv/{job_id}/{task_id}/expression_data.csv", data["expression_data"])
+                    zipf.writestr(f"csv/{job_id}/{task_id}/metadata.csv", data["metadata"])
 
-            with tempfile.NamedTemporaryFile(delete=False) as f:
-                m_data.write(f.name)
-                f.seek(0)
-                zipf.write(f.name, "merged_result.h5ad")
+                with tempfile.NamedTemporaryFile(delete=False) as f:
+                    m_data.write(f.name)
+                    f.seek(0)
+                    zipf.write(f.name, "merged_result.h5ad")
 
-        return send_file(
-            zip_file_path,
-            attachment_filename="merged_result.zip",
-            as_attachment=True,
-            mimetype="application/zip",
-        )
+            return send_file(
+                zip_file_path,
+                attachment_filename="merged_result.zip",
+                as_attachment=True,
+                mimetype="application/zip",
+            )
+        else:
+            return {'success': False, 'message': 'data not found', 'data': {}}, 404
