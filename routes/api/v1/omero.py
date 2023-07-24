@@ -7,7 +7,6 @@ from os import getenv
 from urllib.parse import unquote
 from spex_common.services.Utils import download_file
 
-
 namespace = Namespace('Omero', description='Omero operations')
 namespace.add_model(omero.omero_download_model.name, omero.omero_download_model)
 namespace.add_model(omero.login_model.name, omero.login_model)
@@ -22,6 +21,10 @@ excluded_headers = [
     'set-cookie',
     'authorization'
 ]
+
+
+def get_omero_web():
+    return getenv('OMERO_WEB')
 
 
 def _request(path, method='get', **kwargs):
@@ -83,3 +86,13 @@ class DownloadImageReturnPath(Resource):
         relativePath = download_file(path, client=session, imgId=imageId)
         if relativePath is not None:
             return {'success': True, 'path': relativePath}, 200
+
+
+@namespace.route('/omero_web')
+class OmeroWeb(Resource):
+    @namespace.doc('omero/WebPath', security='Bearer')
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @jwt_required()
+    def get(self):
+        omero_web_value = get_omero_web()
+        return {'success': True, 'omero_web': omero_web_value}, 200

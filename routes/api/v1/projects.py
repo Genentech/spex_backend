@@ -9,9 +9,7 @@ from .models import projects, responses
 from spex_common.models.Status import TaskStatus
 
 
-
 namespace = Namespace("Projects", description="Projects CRUD operations")
-
 namespace.add_model(projects.projects_model.name, projects.projects_model)
 namespace.add_model(projects.project_get_model.name, projects.project_get_model)
 namespace.add_model(responses.response.name, responses.response)
@@ -51,6 +49,8 @@ class ProjectsCreateGetPost(Resource):
 
         if result is None:
             return {"success": True, "data": []}, 200
+        for project in result:
+            project["author"] = dict(project["author"])
 
         return {"success": True, "data": result}, 200
 
@@ -71,8 +71,10 @@ class ProjectGetById(Resource):
 
         if result is None:
             return {"success": False, "message": "project not found"}, 404
+        project = result[0]
+        project["author"] = dict(project["author"])
 
-        return {"success": True, "data": result[0]}, 200
+        return {"success": True, "data": project}, 200
 
     @namespace.doc("project/updateone", security="Bearer")
     @namespace.marshal_with(projects.a_project_response)
