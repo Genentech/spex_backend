@@ -10,6 +10,7 @@ from spex_common.models.Status import TaskStatus
 
 
 namespace = Namespace("Projects", description="Projects CRUD operations")
+namespace.add_model(projects.author_model.name, projects.author_model)
 namespace.add_model(projects.projects_model.name, projects.projects_model)
 namespace.add_model(projects.project_get_model.name, projects.project_get_model)
 namespace.add_model(responses.response.name, responses.response)

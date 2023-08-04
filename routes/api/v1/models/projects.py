@@ -1,7 +1,7 @@
 from flask_restx import fields, Model
 from .responses import response
 
-author_mode = Model('Author', {
+author_model = Model('Author', {
     'id': fields.String,
     'login': fields.String,
 })
@@ -31,8 +31,9 @@ projects_model = Model('ProjectBase', {
         fields.String,
         required=False,
         description='Tasks results (resource)id'),
-    'author': fields.Nested(author_mode),
+    'author': fields.Nested(author_model),
 })
+
 
 project_get_model = projects_model.inherit('ProjectsGet', {
     'id': fields.String(
