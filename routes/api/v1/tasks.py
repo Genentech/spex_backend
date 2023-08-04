@@ -11,7 +11,8 @@ import spex_common.services.Job as JobService
 import spex_common.services.Utils as Utils
 from spex_common.modules.logging import get_logger
 from flask_restx import Namespace, Resource
-from flask import request, send_file, make_response
+from flask import request, send_file, make_response, jsonify
+import csv
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import tasks, responses
 from enum import Enum
@@ -806,3 +807,164 @@ class TasksGetIm(Resource):
             return {"success": False, "message": "result not found", "data": {}}, 200
 
         return create_resp_from_data(ax, debug)
+
+
+@namespace.route("/static/<_id>")
+@namespace.param("key", "key name")
+@namespace.param("_id", "task id")
+class TaskStaticGet(Resource):
+    @namespace.doc("tasks/vitesscegenes")
+    @namespace.response(404, "Task not found", responses.error_response)
+    @namespace.response(401, "Unauthorized", responses.error_response)
+    def get(self, _id):
+        key: str = ""
+        task = TaskService.select(_id)
+        if task is None:
+            return {"success": False, "message": "task not found", "data": {}}, 200
+        task = task.to_json()
+        if task.get("result") is None:
+            return {"success": False, "message": "result not found", "data": {}}, 200
+
+        path = task.get("result")
+        path = Utils.getAbsoluteRelative(path, absolute=True)
+        for k in request.args.keys():
+            if k == "key":
+                key = request.args.get(k)
+
+        if "csv" in request.args and request.args["csv"].lower() == "true":
+            file_path = f'{os.path.dirname(path)}/static/cells.csv'
+        else:
+            file_path = f'{os.path.dirname(path)}/static/cells.json'
+        if not os.path.exists(file_path):
+            with open(path, "rb") as infile:
+                to_show_data = pickle.load(infile)
+
+                if not key:
+                    return {"success": True, "data": list(to_show_data.keys())}, 200
+
+                if key == "dataframe":
+                    to_show_data = pd.melt(
+                        to_show_data[key], id_vars=["label", "centroid-0", "centroid-1"]
+                    )
+                    to_show_data["value"] = to_show_data["value"].round()
+
+                    # Transform to Vitessce cell format
+                    cells = []
+                    for _, row in to_show_data.iterrows():
+                        cell = {
+                            "cellId": row["label"],
+                            "xy": [row["centroid-0"], row["centroid-1"]],
+                            "factors": {
+                                "label": row["label"],
+                                "variable": row["variable"]
+                            },
+                            "geneExpression": {
+                                "value": row["value"]
+                            }
+                        }
+                        cells.append(cell)
+
+                    to_show_data = cells
+
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            with open(file_path, 'w') as outfile:
+                if "csv" in request.args and request.args["csv"].lower() == "true":
+                    fieldnames = ['cellId', 'x', 'y', 'label', 'variable', 'value']
+                    writer = csv.DictWriter(outfile, fieldnames=fieldnames)
+                    writer.writeheader()
+                    for item in to_show_data:
+                        row = {
+                            'cellId': item['cellId'],
+                            'x': item['xy'][0],
+                            'y': item['xy'][1],
+                            'label': item['factors']['label'],
+                            'variable': item['factors']['variable'],
+                            'value': item['geneExpression']['value']
+                        }
+                        writer.writerow(row)
+                else:
+                    json.dump(to_show_data, outfile)
+
+        if "csv" in request.args and request.args["csv"].lower() == "true":
+            return send_file(
+                file_path,
+                mimetype='text/csv',
+                attachment_filename=f"{_id}_result_{key}.csv",
+            )
+        else:
+            return send_file(
+                file_path,
+                attachment_filename=f"{_id}_result_{key}.json",
+            )
+
+
+@namespace.route("/vitessce/<_id>")
+@namespace.param("_id", "task id")
+class TaskConfigGet(Resource):
+    # @namespace.doc("tasks/vitessceconfig", security="Bearer")
+    @namespace.response(404, "Task not found", responses.error_response)
+    @namespace.response(401, "Unauthorized", responses.error_response)
+    def get(self, _id):
+
+        task = TaskService.select(_id)
+        if task is None:
+            return {"success": False, "message": "task not found", "data": {}}, 200
+
+        base_url = 'http://127.0.0.1/v1/tasks/static'
+        data_url = f'{base_url}/{_id}?key=dataframe&vis_name=scatter&csv=True'
+
+        # Create Vitessce configuration
+        vitessce_config = {
+            "name": "Eng et al., Nature 2019",
+            "version": "1.0.15",
+            "description": "Transcriptome-scale super-resolved imaging in tissues by RNA seqFISH",
+            "datasets": [
+                {
+                    "uid": "eng-2019",
+                    "name": "Eng 2019",
+                    "files": [
+                        {
+                            "fileType": "obsEmbedding.csv",
+                            "url": data_url,
+                            "coordinationValues": {
+                                "obsType": "cell",
+                                "embeddingType": "UMAP"
+                            },
+                            "options": {
+                                "obsIndex": "cellId",
+                                "obsEmbedding": ["x", "y"]
+                            }
+                        }
+                    ]
+                }
+            ],
+            "initStrategy": "auto",
+            "coordinationSpace": {
+                "embeddingType": {
+                    "UMAP": "UMAP"
+                },
+                "embeddingZoom": {
+                    "UMAP": 3
+                }
+            },
+            "layout": [
+                {
+                    "component": "scatterplot",
+                    "coordinationScopes": {
+                        "embeddingType": "UMAP",
+                        "embeddingZoom": "UMAP",
+                        "embeddingObsSetLabelsVisible": "A",
+                        "embeddingObsSetLabelSize": "A",
+                        "embeddingObsSetPolygonsVisible": "A",
+                        "embeddingObsRadiusMode": "A",
+                        "embeddingObsRadius": "A"
+                    },
+                    "x": 0,
+                    "y": 0,
+                    "w": 5,
+                    "h": 4
+                }
+            ]
+        }
+
+        return jsonify(vitessce_config)
