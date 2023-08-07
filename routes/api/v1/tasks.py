@@ -346,7 +346,6 @@ def create_resp_from_data(ax, debug):
 
 
 def create_resp_from_df(pd_data, debug, _format="png", channels=[], file=False):
-
     nuc = np.zeros_like(pd_data)
     for i in channels:
         nuc += pd_data[i]
@@ -600,7 +599,6 @@ class TasksGetIm(Resource):
                 if marker_list:
                     to_show_data = to_show_data[to_show_data["variable"].isin(marker_list)]
 
-
                 cols = len(to_show_data["variable"].unique())
                 fig, axs = plt.subplots(ncols=1, nrows=cols, figsize=(8, 4 * cols))
                 fig.tight_layout()
@@ -763,7 +761,7 @@ class TasksGetIm(Resource):
             fig, axs = plt.subplots(
                 nrows=len(marker_list),
                 ncols=1,
-                figsize=(7, 7*len(marker_list))
+                figsize=(7, 7 * len(marker_list))
             )
             if len(marker_list) == 1:
                 axs = [axs]
@@ -905,12 +903,11 @@ class TaskConfigGet(Resource):
     @namespace.response(404, "Task not found", responses.error_response)
     @namespace.response(401, "Unauthorized", responses.error_response)
     def get(self, _id):
-
         task = TaskService.select(_id)
         if task is None:
             return {"success": False, "message": "task not found", "data": {}}, 200
 
-        base_url = 'http://127.0.0.1/v1/tasks/static'
+        base_url = 'REACT_APP_BACKEND_URL_ROOTtasks/static'
         data_url = f'{base_url}/{_id}?key=dataframe&vis_name=scatter&csv=True'
 
         # Create Vitessce configuration
@@ -918,25 +915,28 @@ class TaskConfigGet(Resource):
             "name": "Eng et al., Nature 2019",
             "version": "1.0.15",
             "description": "Transcriptome-scale super-resolved imaging in tissues by RNA seqFISH",
-            "datasets": [
+            'datasets': [
                 {
-                    "uid": "eng-2019",
-                    "name": "Eng 2019",
-                    "files": [
+                    'uid': 'eng-2019',
+                    'name': 'Eng 2019',
+                    'files': [
                         {
-                            "fileType": "obsEmbedding.csv",
-                            "url": data_url,
-                            "coordinationValues": {
-                                "obsType": "cell",
-                                "embeddingType": "UMAP"
+                            'fileType': 'obsEmbedding.csv',
+                            'url': data_url,
+                            'coordinationValues': {
+                                'obsType': 'cell',
+                                'embeddingType': 'UMAP',
                             },
-                            "options": {
-                                "obsIndex": "cellId",
-                                "obsEmbedding": ["x", "y"]
-                            }
-                        }
-                    ]
-                }
+                            'options': {
+                                'obsIndex': 'cellId',
+                                'obsEmbedding': [
+                                    'x',
+                                    'y',
+                                ],
+                            },
+                        },
+                    ],
+                },
             ],
             "initStrategy": "auto",
             "coordinationSpace": {
