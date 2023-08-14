@@ -1,7 +1,7 @@
 from spex_common.services.Utils import download_file, del_file, copy_file
 import spex_common.services.Image as ImageService
 from flask_restx import Namespace, Resource
-from flask import request
+from flask import request, send_file, send_from_directory
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import image
 from .models import responses
@@ -158,3 +158,21 @@ class ImagesGet(Resource):
             return {'success': False, 'message': 'Images not found'}, 200
         else:
             return {'success': True, 'data': images}, 200
+
+
+@namespace.route('/download/original/<string:omero_image_id>')
+@namespace.param('omero_image_id', 'The ID of the omero image to download')
+class OriginalImageDownload(Resource):
+
+    @namespace.doc('image/download/original', security='Bearer')
+    @namespace.response(200, 'Original image file')
+    @namespace.response(404, 'Image not found', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    # @jwt_required()
+    def get(self, omero_image_id):
+        file_path = f'{os.getenv("DATA_STORAGE")}/originals/{omero_image_id}'
+
+        if not os.path.exists(file_path):
+            return {'success': False, 'message': 'Image not found'}, 404
+
+        return send_from_directory(file_path, 'image.tiff', as_attachment=True)

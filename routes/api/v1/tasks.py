@@ -911,60 +911,136 @@ class TaskConfigGet(Resource):
         data_url = f'{base_url}/{_id}?key=dataframe&vis_name=scatter&csv=True'
 
         # Create Vitessce configuration
-        vitessce_config = {
-            "name": "Eng et al., Nature 2019",
-            "version": "1.0.15",
-            "description": "Transcriptome-scale super-resolved imaging in tissues by RNA seqFISH",
-            'datasets': [
+        # vitessce_config = {
+        #     "name": "Eng et al., Nature 2019",
+        #     "version": "1.0.15",
+        #     "description": "Transcriptome-scale super-resolved imaging in tissues by RNA seqFISH",
+        #     'datasets': [
+        #         {
+        #             'uid': 'eng-2019',
+        #             'name': 'Eng 2019',
+        #             'files': [
+        #                 {
+        #                     'fileType': 'obsEmbedding.csv',
+        #                     'url': data_url,
+        #                     'coordinationValues': {
+        #                         'obsType': 'cell',
+        #                         'embeddingType': 'UMAP',
+        #                     },
+        #                     'options': {
+        #                         'obsIndex': 'cellId',
+        #                         'obsEmbedding': [
+        #                             'x',
+        #                             'y',
+        #                         ],
+        #                     },
+        #                 },
+        #             ],
+        #         },
+        #     ],
+        #     "initStrategy": "auto",
+        #     "coordinationSpace": {
+        #         "embeddingType": {
+        #             "UMAP": "UMAP"
+        #         },
+        #         "embeddingZoom": {
+        #             "UMAP": 3
+        #         }
+        #     },
+        #     "layout": [
+        #         {
+        #             "component": "scatterplot",
+        #             "coordinationScopes": {
+        #                 "embeddingType": "UMAP",
+        #                 "embeddingZoom": "UMAP",
+        #                 "embeddingObsSetLabelsVisible": "A",
+        #                 "embeddingObsSetLabelSize": "A",
+        #                 "embeddingObsSetPolygonsVisible": "A",
+        #                 "embeddingObsRadiusMode": "A",
+        #                 "embeddingObsRadius": "A"
+        #             },
+        #             "x": 0,
+        #             "y": 0,
+        #             "w": 5,
+        #             "h": 4
+        #         }
+        #     ]
+        # }
+        #
+        # return jsonify(vitessce_config)
+        #
+        vt_2 = {
+            "version": "1.0.1",
+            "name": "Neumann et al., 2020",
+            "description": "Four registered imaging modalities (PAS, IMS, AF) from HuBMAP collection HBM876.XNRH.336",
+            "datasets": [
                 {
-                    'uid': 'eng-2019',
-                    'name': 'Eng 2019',
-                    'files': [
+                    "uid": "A",
+                    "name": "Spraggins",
+                    "files": [
+                        # {
+                        #     'fileType': 'obsEmbedding.csv',
+                        #     'url': data_url,
+                        #     "name": "AFF",
+                        #     'coordinationValues': {
+                        #         'obsType': 'cell',
+                        #         'embeddingType': 'UMAP',
+                        #     },
+                        #     'options': {
+                        #         'obsIndex': 'cellId',
+                        #         'obsEmbedding': [
+                        #             'x',
+                        #             'y',
+                        #         ],
+                        #     },
+                        # },
                         {
-                            'fileType': 'obsEmbedding.csv',
-                            'url': data_url,
-                            'coordinationValues': {
-                                'obsType': 'cell',
-                                'embeddingType': 'UMAP',
-                            },
-                            'options': {
-                                'obsIndex': 'cellId',
-                                'obsEmbedding': [
-                                    'x',
-                                    'y',
+                            "type": "raster",
+                            "fileType": "raster.json",
+                            "options": {
+                                "schemaVersion": "0.0.2",
+                                "images": [
+                                    {
+                                        "name": "PAS",
+                                        "type": "ome-tiff",
+                                        "url": "http://127.0.0.1/v1/images/download/original/99"
+                                    },
+                                    {
+                                        "name": "AF",
+                                        "type": "ome-tiff",
+                                        "url": "https://assets.hubmapconsortium.org/2130d5f91ce61d7157a42c0497b06de8/ometiff-pyramids/processedMicroscopy/VAN0006-LK-2-85-AF_preIMS_images/VAN0006-LK-2-85-AF_preIMS_registered.ome.tif?token="
+                                    },
                                 ],
-                            },
-                        },
-                    ],
-                },
-            ],
-            "initStrategy": "auto",
-            "coordinationSpace": {
-                "embeddingType": {
-                    "UMAP": "UMAP"
-                },
-                "embeddingZoom": {
-                    "UMAP": 3
+                                "usePhysicalSizeScaling": True,
+                                "renderLayers": [
+                                    "PAS",
+                                    "AF",
+                                ]
+                            }
+                        }
+                    ]
                 }
-            },
+            ],
+            "coordinationSpace": {},
             "layout": [
                 {
-                    "component": "scatterplot",
-                    "coordinationScopes": {
-                        "embeddingType": "UMAP",
-                        "embeddingZoom": "UMAP",
-                        "embeddingObsSetLabelsVisible": "A",
-                        "embeddingObsSetLabelSize": "A",
-                        "embeddingObsSetPolygonsVisible": "A",
-                        "embeddingObsRadiusMode": "A",
-                        "embeddingObsRadius": "A"
-                    },
+                    "component": "spatial",
+                    "coordinationScopes": {},
                     "x": 0,
                     "y": 0,
-                    "w": 5,
-                    "h": 4
+                    "w": 9,
+                    "h": 12
+                },
+                {
+                    "component": "layerController",
+                    "coordinationScopes": {},
+                    "x": 9,
+                    "y": 0,
+                    "w": 3,
+                    "h": 12
                 }
-            ]
+            ],
+            "initStrategy": "auto"
         }
 
-        return jsonify(vitessce_config)
+        return jsonify(vt_2)
