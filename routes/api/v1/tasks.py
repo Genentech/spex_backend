@@ -810,15 +810,6 @@ class TasksGetIm(Resource):
 
         return create_resp_from_data(ax, debug)
 
-def print_anndata_structure(adata):
-    print("Shape of X:", adata.X.shape if adata.X is not None else None)
-    print("Columns in obs:", adata.obs.columns.tolist() if adata.obs is not None else None)
-    print("Columns in var:", adata.var.columns.tolist() if adata.var is not None else None)
-    print("Keys in obsm:", list(adata.obsm.keys()))
-    print("Keys in varm:", list(adata.varm.keys()))
-    print("Keys in layers:", list(adata.layers.keys()))
-
-
 @namespace.route("/static/<_id>/<path:filename>")
 @namespace.param("key", "key name")
 @namespace.param("_id", "task id")
@@ -888,7 +879,7 @@ class TaskConfigGet(Resource):
 
         base_url = 'REACT_APP_BACKEND_URL_ROOTtasks/static'
 
-        vt_2 = {
+        _conf = {
             "version": "1.0.15",
             "name": "HBM336.FWTN.636",
             "description": "Spleen scRNA-seq HuBMAP dataset with cell type annotations",
@@ -900,7 +891,7 @@ class TaskConfigGet(Resource):
                     "files": [
                         {
                             "fileType": "anndata.zarr",
-                            "url": f"http://127.0.0.1/v1/tasks/static/{_id}",
+                            "url": f"{base_url}/{_id}",
                             "coordinationValues": {
                                 "obsType": "cell",
                                 "featureType": "gene",
@@ -952,4 +943,4 @@ class TaskConfigGet(Resource):
             ]
         }
 
-        return jsonify(vt_2)
+        return jsonify(_conf)
