@@ -11,7 +11,7 @@ import spex_common.services.Job as JobService
 import spex_common.services.Utils as Utils
 from spex_common.modules.logging import get_logger
 from flask_restx import Namespace, Resource
-from flask import request, send_file, make_response, jsonify
+from flask import request, send_file, make_response, jsonify, send_from_directory
 import csv
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import tasks, responses
@@ -27,6 +27,10 @@ from skimage.segmentation import mark_boundaries
 import scanpy as sc
 import anndata
 from scipy.stats import zscore
+from vitessce.data_utils import (
+    optimize_adata,
+    VAR_CHUNK_SIZE,
+)
 
 
 class VisType(str, Enum):
@@ -806,15 +810,23 @@ class TasksGetIm(Resource):
 
         return create_resp_from_data(ax, debug)
 
+def print_anndata_structure(adata):
+    print("Shape of X:", adata.X.shape if adata.X is not None else None)
+    print("Columns in obs:", adata.obs.columns.tolist() if adata.obs is not None else None)
+    print("Columns in var:", adata.var.columns.tolist() if adata.var is not None else None)
+    print("Keys in obsm:", list(adata.obsm.keys()))
+    print("Keys in varm:", list(adata.varm.keys()))
+    print("Keys in layers:", list(adata.layers.keys()))
 
-@namespace.route("/static/<_id>")
+
+@namespace.route("/static/<_id>/<path:filename>")
 @namespace.param("key", "key name")
 @namespace.param("_id", "task id")
 class TaskStaticGet(Resource):
     @namespace.doc("tasks/vitesscegenes")
     @namespace.response(404, "Task not found", responses.error_response)
     @namespace.response(401, "Unauthorized", responses.error_response)
-    def get(self, _id):
+    def get(self, _id, filename):
         key: str = ""
         task = TaskService.select(_id)
         if task is None:
@@ -829,71 +841,38 @@ class TaskStaticGet(Resource):
             if k == "key":
                 key = request.args.get(k)
 
-        if "csv" in request.args and request.args["csv"].lower() == "true":
-            file_path = f'{os.path.dirname(path)}/static/cells.csv'
-        else:
-            file_path = f'{os.path.dirname(path)}/static/cells.json'
-        if not os.path.exists(file_path):
+        folder_name = 'cells.h5ad.zarr'
+        zarr_path = f'{os.path.dirname(path)}/static/{folder_name}'
+
+        if not os.path.exists(zarr_path):
             with open(path, "rb") as infile:
                 to_show_data = pickle.load(infile)
+                os.makedirs(os.path.dirname(zarr_path), exist_ok=True)
 
-                if not key:
-                    return {"success": True, "data": list(to_show_data.keys())}, 200
+                if key == "adata":
+                    adata = to_show_data[key]
+                    obs_cols = ['Cell_ID', 'Nucleus_area', 'x_coordinate', 'y_coordinate']
+                    obsm_keys = ['spatial']
+                    layer_keys = ['X_uint8']
 
-                if key == "dataframe":
-                    to_show_data = pd.melt(
-                        to_show_data[key], id_vars=["label", "centroid-0", "centroid-1"]
+                    optimized_adata = optimize_adata(
+                        adata=adata,
+                        obs_cols=obs_cols,
+                        obsm_keys=obsm_keys,
+                        layer_keys=layer_keys,
+                        remove_X=False,
+                        optimize_X=True,
+                        to_dense_X=False,
+                        to_sparse_X=False
                     )
-                    to_show_data["value"] = to_show_data["value"].round()
 
-                    # Transform to Vitessce cell format
-                    cells = []
-                    for _, row in to_show_data.iterrows():
-                        cell = {
-                            "cellId": row["label"],
-                            "xy": [row["centroid-0"], row["centroid-1"]],
-                            "factors": {
-                                "label": row["label"],
-                                "variable": row["variable"]
-                            },
-                            "geneExpression": {
-                                "value": row["value"]
-                            }
-                        }
-                        cells.append(cell)
+                    optimized_adata.write_zarr(zarr_path, chunks=[optimized_adata.shape[0], 2000])
 
-                    to_show_data = cells
-
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            with open(file_path, 'w') as outfile:
-                if "csv" in request.args and request.args["csv"].lower() == "true":
-                    fieldnames = ['cellId', 'x', 'y', 'label', 'variable', 'value']
-                    writer = csv.DictWriter(outfile, fieldnames=fieldnames)
-                    writer.writeheader()
-                    for item in to_show_data:
-                        row = {
-                            'cellId': item['cellId'],
-                            'x': item['xy'][0],
-                            'y': item['xy'][1],
-                            'label': item['factors']['label'],
-                            'variable': item['factors']['variable'],
-                            'value': item['geneExpression']['value']
-                        }
-                        writer.writerow(row)
-                else:
-                    json.dump(to_show_data, outfile)
-
-        if "csv" in request.args and request.args["csv"].lower() == "true":
-            return send_file(
-                file_path,
-                mimetype='text/csv',
-                attachment_filename=f"{_id}_result_{key}.csv",
-            )
+        # file_path = f'{file_path}/{filename}'
+        if os.path.exists(zarr_path):
+            return send_from_directory(zarr_path, filename)
         else:
-            return send_file(
-                file_path,
-                attachment_filename=f"{_id}_result_{key}.json",
-            )
+            return {"success": False, "message": "result not found", "data": {}}, 200
 
 
 @namespace.route("/vitessce/<_id>")
@@ -908,139 +887,69 @@ class TaskConfigGet(Resource):
             return {"success": False, "message": "task not found", "data": {}}, 200
 
         base_url = 'REACT_APP_BACKEND_URL_ROOTtasks/static'
-        data_url = f'{base_url}/{_id}?key=dataframe&vis_name=scatter&csv=True'
 
-        # Create Vitessce configuration
-        # vitessce_config = {
-        #     "name": "Eng et al., Nature 2019",
-        #     "version": "1.0.15",
-        #     "description": "Transcriptome-scale super-resolved imaging in tissues by RNA seqFISH",
-        #     'datasets': [
-        #         {
-        #             'uid': 'eng-2019',
-        #             'name': 'Eng 2019',
-        #             'files': [
-        #                 {
-        #                     'fileType': 'obsEmbedding.csv',
-        #                     'url': data_url,
-        #                     'coordinationValues': {
-        #                         'obsType': 'cell',
-        #                         'embeddingType': 'UMAP',
-        #                     },
-        #                     'options': {
-        #                         'obsIndex': 'cellId',
-        #                         'obsEmbedding': [
-        #                             'x',
-        #                             'y',
-        #                         ],
-        #                     },
-        #                 },
-        #             ],
-        #         },
-        #     ],
-        #     "initStrategy": "auto",
-        #     "coordinationSpace": {
-        #         "embeddingType": {
-        #             "UMAP": "UMAP"
-        #         },
-        #         "embeddingZoom": {
-        #             "UMAP": 3
-        #         }
-        #     },
-        #     "layout": [
-        #         {
-        #             "component": "scatterplot",
-        #             "coordinationScopes": {
-        #                 "embeddingType": "UMAP",
-        #                 "embeddingZoom": "UMAP",
-        #                 "embeddingObsSetLabelsVisible": "A",
-        #                 "embeddingObsSetLabelSize": "A",
-        #                 "embeddingObsSetPolygonsVisible": "A",
-        #                 "embeddingObsRadiusMode": "A",
-        #                 "embeddingObsRadius": "A"
-        #             },
-        #             "x": 0,
-        #             "y": 0,
-        #             "w": 5,
-        #             "h": 4
-        #         }
-        #     ]
-        # }
-        #
-        # return jsonify(vitessce_config)
-        #
         vt_2 = {
-            "version": "1.0.1",
-            "name": "Neumann et al., 2020",
-            "description": "Four registered imaging modalities (PAS, IMS, AF) from HuBMAP collection HBM876.XNRH.336",
+            "version": "1.0.15",
+            "name": "HBM336.FWTN.636",
+            "description": "Spleen scRNA-seq HuBMAP dataset with cell type annotations",
+
             "datasets": [
                 {
-                    "uid": "A",
-                    "name": "Spraggins",
+                    "uid": "2dca1bf5832a4102ba780e9e54f6c350",
+                    "name": "HBM336.FWTN.636",
                     "files": [
-                        # {
-                        #     'fileType': 'obsEmbedding.csv',
-                        #     'url': data_url,
-                        #     "name": "AFF",
-                        #     'coordinationValues': {
-                        #         'obsType': 'cell',
-                        #         'embeddingType': 'UMAP',
-                        #     },
-                        #     'options': {
-                        #         'obsIndex': 'cellId',
-                        #         'obsEmbedding': [
-                        #             'x',
-                        #             'y',
-                        #         ],
-                        #     },
-                        # },
                         {
-                            "type": "raster",
-                            "fileType": "raster.json",
+                            "fileType": "anndata.zarr",
+                            "url": f"http://127.0.0.1/v1/tasks/static/{_id}",
+                            "coordinationValues": {
+                                "obsType": "cell",
+                                "featureType": "gene",
+                                "featureValueType": "expression",
+                                "embeddingType": "UMAP"
+                            },
                             "options": {
-                                "schemaVersion": "0.0.2",
-                                "images": [
-                                    {
-                                        "name": "PAS",
-                                        "type": "ome-tiff",
-                                        "url": "http://127.0.0.1/v1/images/download/original/99"
-                                    },
-                                    {
-                                        "name": "AF",
-                                        "type": "ome-tiff",
-                                        "url": "https://assets.hubmapconsortium.org/2130d5f91ce61d7157a42c0497b06de8/ometiff-pyramids/processedMicroscopy/VAN0006-LK-2-85-AF_preIMS_images/VAN0006-LK-2-85-AF_preIMS_registered.ome.tif?token="
-                                    },
-                                ],
-                                "usePhysicalSizeScaling": True,
-                                "renderLayers": [
-                                    "PAS",
-                                    "AF",
+                                "obsEmbedding": {
+                                    "path": "obsm/spatial"
+                                },
+                                "obsFeatureMatrix": {
+                                    "path": "X"
+                                },
+                                "obsLabels": [
+                                    {"path": "obs/Cell_ID", "obsLabelsType": "Cell ID"},
+                                    {"path": "obs/Nucleus_area", "obsLabelsType": "Nucleus Area"},
+                                    {"path": "obs/x_coordinate", "obsLabelsType": "X Coordinate"},
+                                    {"path": "obs/y_coordinate", "obsLabelsType": "Y Coordinate"}
                                 ]
                             }
                         }
                     ]
                 }
             ],
-            "coordinationSpace": {},
+            "initStrategy": "auto",
+            "coordinationSpace": {
+                        "embeddingType": {
+                            "UMAP": "UMAP"
+                        },
+                        "embeddingZoom": {
+                            "UMAP": 3
+                        }
+                    },
             "layout": [
                 {
-                    "component": "spatial",
-                    "coordinationScopes": {},
+                    "component": "scatterplot",
+                    "h": 4,
+                    "w": 4,
                     "x": 0,
                     "y": 0,
-                    "w": 9,
-                    "h": 12
-                },
-                {
-                    "component": "layerController",
-                    "coordinationScopes": {},
-                    "x": 9,
-                    "y": 0,
-                    "w": 3,
-                    "h": 12
+                    "coordinationScopes": {
+                        "embeddingType": "UMAP",
+                        "embeddingZoom": "A",
+                        "embeddingTargetX": "A",
+                        "embeddingTargetY": "A",
+                        "obsLabelsType": ["A"]
+                    }
                 }
-            ],
-            "initStrategy": "auto"
+            ]
         }
 
         return jsonify(vt_2)
