@@ -73,7 +73,7 @@ class ImgGetDel(Resource):
                 break
         deleted = ImageService.delete(id)
         if deleted is None:
-            return {'success': False, 'message': 'cannot delete'}, 200
+            return {'success': False, 'message': 'can not delete'}, 200
         else:
             return {'success': True, 'data': deleted}, 200
 
@@ -160,7 +160,7 @@ class ImagesGet(Resource):
             return {'success': True, 'data': images}, 200
 
 
-@namespace.route('/download/original/<string:omero_image_id>')
+@namespace.route('/download/original/<string:omero_image_id>.ome.tif')
 @namespace.param('omero_image_id', 'The ID of the omero image to download')
 class OriginalImageDownload(Resource):
 

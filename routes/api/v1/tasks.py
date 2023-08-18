@@ -877,7 +877,7 @@ class TaskConfigGet(Resource):
         if task is None:
             return {"success": False, "message": "task not found", "data": {}}, 200
 
-        base_url = 'REACT_APP_BACKEND_URL_ROOTtasks/static'
+        base_url = 'REACT_APP_BACKEND_URL_ROOT'
 
         _conf = {
             "version": "1.0.15",
@@ -886,12 +886,12 @@ class TaskConfigGet(Resource):
 
             "datasets": [
                 {
-                    "uid": "2dca1bf5832a4102ba780e9e54f6c350",
+                    "uid": "B",
                     "name": "HBM336.FWTN.636",
                     "files": [
                         {
                             "fileType": "anndata.zarr",
-                            "url": f"{base_url}/{_id}",
+                            "url": f"{base_url}tasks/static/{_id}",
                             "coordinationValues": {
                                 "obsType": "cell",
                                 "featureType": "gene",
@@ -910,6 +910,24 @@ class TaskConfigGet(Resource):
                                     {"path": "obs/Nucleus_area", "obsLabelsType": "Nucleus Area"},
                                     {"path": "obs/x_coordinate", "obsLabelsType": "X Coordinate"},
                                     {"path": "obs/y_coordinate", "obsLabelsType": "Y Coordinate"}
+                                ]
+                            }
+                        },
+                        {
+                            "type": "raster",
+                            "fileType": "raster.json",
+                            "options": {
+                                "schemaVersion": "0.0.2",
+                                "images": [
+                                    {
+                                        "name": "omero",
+                                        "type": "ome-tiff",
+                                        "url": f"{base_url}images/download/original/{104}.ome.tif"
+                                    },
+                                ],
+                                "usePhysicalSizeScaling": False,
+                                "renderLayers": [
+                                    "omero",
                                 ]
                             }
                         }
@@ -934,12 +952,20 @@ class TaskConfigGet(Resource):
                     "y": 0,
                     "coordinationScopes": {
                         "embeddingType": "UMAP",
-                        "embeddingZoom": "A",
-                        "embeddingTargetX": "A",
-                        "embeddingTargetY": "A",
-                        "obsLabelsType": ["A"]
+                        "embeddingZoom": "B",
+                        "embeddingTargetX": "B",
+                        "embeddingTargetY": "B",
+                        "obsLabelsType": ["B"]
                     }
-                }
+                },
+                {
+                    "component": "spatial",
+                    "coordinationScopes": {},
+                    "x": 0,
+                    "y": 0,
+                    "w": 9,
+                    "h": 12
+                },
             ]
         }
 
