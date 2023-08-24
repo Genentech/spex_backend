@@ -810,6 +810,7 @@ class TasksGetIm(Resource):
 
         return create_resp_from_data(ax, debug)
 
+
 @namespace.route("/static/<_id>/<path:filename>")
 @namespace.param("key", "key name")
 @namespace.param("_id", "task id")
@@ -840,24 +841,24 @@ class TaskStaticGet(Resource):
                 to_show_data = pickle.load(infile)
                 os.makedirs(os.path.dirname(zarr_path), exist_ok=True)
 
-                if key == "adata":
-                    adata = to_show_data[key]
-                    obs_cols = ['Cell_ID', 'Nucleus_area', 'x_coordinate', 'y_coordinate']
-                    obsm_keys = ['spatial']
-                    layer_keys = ['X_uint8']
+                # if key == "adata":
+                adata = to_show_data['adata']
+                obs_cols = ['Cell_ID', 'Nucleus_area', 'x_coordinate', 'y_coordinate']
+                obsm_keys = ['spatial']
+                layer_keys = ['X_uint8']
 
-                    optimized_adata = optimize_adata(
-                        adata=adata,
-                        obs_cols=obs_cols,
-                        obsm_keys=obsm_keys,
-                        layer_keys=layer_keys,
-                        remove_X=False,
-                        optimize_X=True,
-                        to_dense_X=False,
-                        to_sparse_X=False
-                    )
+                optimized_adata = optimize_adata(
+                    adata=adata,
+                    obs_cols=obs_cols,
+                    obsm_keys=obsm_keys,
+                    layer_keys=layer_keys,
+                    remove_X=False,
+                    optimize_X=True,
+                    to_dense_X=False,
+                    to_sparse_X=False
+                )
 
-                    optimized_adata.write_zarr(zarr_path, chunks=[optimized_adata.shape[0], 2000])
+                optimized_adata.write_zarr(zarr_path, chunks=[optimized_adata.shape[0], 2000])
 
         # file_path = f'{file_path}/{filename}'
         if os.path.exists(zarr_path):
@@ -883,7 +884,6 @@ class TaskConfigGet(Resource):
             "version": "1.0.15",
             "name": "HBM336.FWTN.636",
             "description": "Spleen scRNA-seq HuBMAP dataset with cell type annotations",
-
             "datasets": [
                 {
                     "uid": "B",
@@ -910,39 +910,38 @@ class TaskConfigGet(Resource):
                                     {"path": "obs/Nucleus_area", "obsLabelsType": "Nucleus Area"},
                                     {"path": "obs/x_coordinate", "obsLabelsType": "X Coordinate"},
                                     {"path": "obs/y_coordinate", "obsLabelsType": "Y Coordinate"}
-                                ]
+                                ],
+                                "obsSegmentations": {
+                                    "path": "obsm/xy_segmentations_scaled"
+                                }
                             }
                         },
                         {
-                            "type": "raster",
-                            "fileType": "raster.json",
-                            "options": {
-                                "schemaVersion": "0.0.2",
-                                "images": [
-                                    {
-                                        "name": "omero",
-                                        "type": "ome-tiff",
-                                        "url": f"{base_url}images/download/original/{104}.ome.tif"
-                                    },
-                                ],
-                                "usePhysicalSizeScaling": False,
-                                "renderLayers": [
-                                    "omero",
-                                ]
-                            }
+                            "fileType": "image.ome-tiff",
+                            "url": f"{base_url}images/download/original/{task.omeroId}.ome.tif"
                         }
                     ]
-                }
+                },
+
             ],
             "initStrategy": "auto",
+
             "coordinationSpace": {
-                        "embeddingType": {
-                            "UMAP": "UMAP"
-                        },
-                        "embeddingZoom": {
-                            "UMAP": 3
-                        }
-                    },
+                "embeddingType": {
+                    "UMAP": "UMAP"
+                },
+                "embeddingZoom": {
+                    "UMAP": 3
+                },
+                "spatialSegmentationLayer": {
+                    "B": {
+                        "radius": 65,
+                        "stroked": True,
+                        "visible": True,
+                        "opacity": 1
+                    }
+                }
+            },
             "layout": [
                 {
                     "component": "scatterplot",
@@ -960,12 +959,28 @@ class TaskConfigGet(Resource):
                 },
                 {
                     "component": "spatial",
-                    "coordinationScopes": {},
-                    "x": 0,
-                    "y": 0,
-                    "w": 9,
-                    "h": 12
+                    "h": 4,
+                    "w": 4,
+                    "x": 4,
+                    "y": 4,
+                    "coordinationScopes": {
+                        "obsType": "B",
+                        "spatialSegmentationLayer": "B"
+                    },
+                    "uid": "B"
                 },
+                {
+                    "component": "layerController",
+                    "coordinationScopes": {
+                        "obsType": "B",
+                        "spatialSegmentationLayer": "B"
+                    },
+                    "h": 4,
+                    "w": 3,
+                    "x": 0,
+                    "y": 4,
+                    "uid": "I"
+                }
             ]
         }
 
