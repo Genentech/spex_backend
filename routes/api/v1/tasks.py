@@ -5,14 +5,14 @@ import os
 import pickle
 import numpy as np
 import io
-
+import zarr
 import spex_common.services.Task as TaskService
 import spex_common.services.Job as JobService
 import spex_common.services.Utils as Utils
 from spex_common.modules.logging import get_logger
 from flask_restx import Namespace, Resource
 from flask import request, send_file, make_response, jsonify, send_from_directory
-import csv
+import tifffile
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import tasks, responses
 from enum import Enum
@@ -31,6 +31,8 @@ from vitessce.data_utils import (
     optimize_adata,
     VAR_CHUNK_SIZE,
 )
+from vitessce import VitessceConfig
+import ome_zarr
 
 
 class VisType(str, Enum):
@@ -811,58 +813,59 @@ class TasksGetIm(Resource):
         return create_resp_from_data(ax, debug)
 
 
-@namespace.route("/static/<_id>/<path:filename>")
-@namespace.param("key", "key name")
+@namespace.route("/static/<_id>/<path:filepath>")
 @namespace.param("_id", "task id")
 class TaskStaticGet(Resource):
     @namespace.doc("tasks/vitesscegenes")
     @namespace.response(404, "Task not found", responses.error_response)
     @namespace.response(401, "Unauthorized", responses.error_response)
-    def get(self, _id, filename):
-        key: str = ""
+    def get(self, _id, filepath):
         task = TaskService.select(_id)
-        if task is None:
+        if not task:
             return {"success": False, "message": "task not found", "data": {}}, 200
-        task = task.to_json()
-        if task.get("result") is None:
+
+        task_json = task.to_json()
+        result_path = task_json.get("result")
+        if not result_path:
             return {"success": False, "message": "result not found", "data": {}}, 200
 
-        path = task.get("result")
-        path = Utils.getAbsoluteRelative(path, absolute=True)
-        for k in request.args.keys():
-            if k == "key":
-                key = request.args.get(k)
+        absolute_path = Utils.getAbsoluteRelative(result_path, absolute=True)
+        zarr_dir = f'{os.path.dirname(absolute_path)}/static/cells.h5ad.zarr'
 
-        folder_name = 'cells.h5ad.zarr'
-        zarr_path = f'{os.path.dirname(path)}/static/{folder_name}'
+        if os.path.exists(zarr_dir):
+            return send_from_directory(zarr_dir, filepath)
 
-        if not os.path.exists(zarr_path):
-            with open(path, "rb") as infile:
-                to_show_data = pickle.load(infile)
-                os.makedirs(os.path.dirname(zarr_path), exist_ok=True)
+        with open(absolute_path, "rb") as infile:
+            to_show_data = pickle.load(infile)
 
-                # if key == "adata":
-                adata = to_show_data['adata']
-                obs_cols = ['Cell_ID', 'Nucleus_area', 'x_coordinate', 'y_coordinate']
-                obsm_keys = ['spatial']
-                layer_keys = ['X_uint8']
+        os.makedirs(os.path.dirname(zarr_dir), exist_ok=True)
 
-                optimized_adata = optimize_adata(
-                    adata=adata,
-                    obs_cols=obs_cols,
-                    obsm_keys=obsm_keys,
-                    layer_keys=layer_keys,
-                    remove_X=False,
-                    optimize_X=True,
-                    to_dense_X=False,
-                    to_sparse_X=False
-                )
+        adata = to_show_data['adata']
+        xy_coordinates = adata.obs[["x_coordinate", "y_coordinate"]].values
+        adata.obsm['xy_scaled'] = xy_coordinates
 
-                optimized_adata.write_zarr(zarr_path, chunks=[optimized_adata.shape[0], 2000])
+        # Добавляем xy_segmentations_scaled
+        xy_segmentations_scaled = xy_coordinates.copy()  # Можете модифицировать, если нужно
+        num_points = xy_segmentations_scaled.shape[0]
+        white_color_array = np.full((num_points, 3), [255, 255, 255])
+        adata.obsm['xy_segmentations_scaled'] = white_color_array
+        adata.obs['obsType'] = 'spot'
 
-        # file_path = f'{file_path}/{filename}'
-        if os.path.exists(zarr_path):
-            return send_from_directory(zarr_path, filename)
+        optimized_adata = optimize_adata(
+            adata,
+            obs_cols=['Cell_ID', 'Nucleus_area', 'x_coordinate', 'y_coordinate', 'obsType'],
+            obsm_keys=['spatial', 'xy_scaled'],
+            var_cols=None,
+            varm_keys=None,
+            layer_keys=['X_uint8'],
+            remove_X=False,
+            optimize_X=True
+        )
+
+        optimized_adata.write_zarr(zarr_dir, chunks=[optimized_adata.shape[0], 2000])
+
+        if os.path.exists(zarr_dir):
+            return send_from_directory(zarr_dir, filepath)
         else:
             return {"success": False, "message": "result not found", "data": {}}, 200
 
@@ -893,27 +896,21 @@ class TaskConfigGet(Resource):
                             "fileType": "anndata.zarr",
                             "url": f"{base_url}tasks/static/{_id}",
                             "coordinationValues": {
-                                "obsType": "cell",
+                                "obsType": "spot",
                                 "featureType": "gene",
-                                "featureValueType": "expression",
-                                "embeddingType": "UMAP"
+                                "featureValueType": "expression"
                             },
                             "options": {
-                                "obsEmbedding": {
-                                    "path": "obsm/spatial"
+                                "obsLocations": {
+                                    "path": "obsm/xy_scaled"
                                 },
+                                # "obsSegmentations": {
+                                #     "path": "obsm/xy_segmentations_scaled"
+                                # },
                                 "obsFeatureMatrix": {
                                     "path": "X"
                                 },
-                                "obsLabels": [
-                                    {"path": "obs/Cell_ID", "obsLabelsType": "Cell ID"},
-                                    {"path": "obs/Nucleus_area", "obsLabelsType": "Nucleus Area"},
-                                    {"path": "obs/x_coordinate", "obsLabelsType": "X Coordinate"},
-                                    {"path": "obs/y_coordinate", "obsLabelsType": "Y Coordinate"}
-                                ],
-                                "obsSegmentations": {
-                                    "path": "obsm/xy_segmentations_scaled"
-                                }
+                                "obsSets": []
                             }
                         },
                         {
@@ -921,21 +918,22 @@ class TaskConfigGet(Resource):
                             "url": f"{base_url}images/download/original/{task.omeroId}.ome.tif"
                         }
                     ]
-                },
-
+                }
             ],
             "initStrategy": "auto",
-
             "coordinationSpace": {
-                "embeddingType": {
-                    "UMAP": "UMAP"
+                "obsType": {
+                    "B": "spot"
                 },
-                "embeddingZoom": {
-                    "UMAP": 3
+                "featureType": {
+                    "A": "gene"
+                },
+                "featureValueType": {
+                    "C": "expression"
                 },
                 "spatialSegmentationLayer": {
                     "B": {
-                        "radius": 65,
+                        "radius": 3,
                         "stroked": True,
                         "visible": True,
                         "opacity": 1
@@ -944,27 +942,15 @@ class TaskConfigGet(Resource):
             },
             "layout": [
                 {
-                    "component": "scatterplot",
+                    "component": "spatial",
                     "h": 4,
                     "w": 4,
                     "x": 0,
                     "y": 0,
                     "coordinationScopes": {
-                        "embeddingType": "UMAP",
-                        "embeddingZoom": "B",
-                        "embeddingTargetX": "B",
-                        "embeddingTargetY": "B",
-                        "obsLabelsType": ["B"]
-                    }
-                },
-                {
-                    "component": "spatial",
-                    "h": 4,
-                    "w": 4,
-                    "x": 4,
-                    "y": 4,
-                    "coordinationScopes": {
                         "obsType": "B",
+                        "featureType": "A",
+                        "featureValueType": "C",
                         "spatialSegmentationLayer": "B"
                     },
                     "uid": "B"
@@ -984,4 +970,60 @@ class TaskConfigGet(Resource):
             ]
         }
 
+
         return jsonify(_conf)
+
+
+@namespace.route("/static/image/<_id>/<path:filepath>")
+@namespace.param("_id", "task id")
+class ImageStaticGet(Resource):
+    @namespace.doc("tasks/vitessceimage")
+    @namespace.response(404, "Task not found", responses.error_response)
+    @namespace.response(401, "Unauthorized", responses.error_response)
+    def get(self, _id, filepath):
+        task = TaskService.select(_id)
+        if not task:
+            return {"success": False, "message": "task not found", "data": {}}, 200
+
+        task_json = task.to_json()
+        image_path = f'{os.getenv("DATA_STORAGE")}/originals/{task_json["omeroId"]}/image.tiff'
+        if not os.path.exists(image_path):
+            return {'success': False, 'message': 'Image not found'}, 404
+
+        with tifffile.TiffFile(image_path) as tif:
+            image_data = tif.asarray()
+            # image_data = image_data.transpose(1, 2, 0)
+            ome_metadata = tif.ome_metadata
+
+        result_path = task_json.get("result")
+        absolute_path = Utils.getAbsoluteRelative(result_path, absolute=True)
+        zarr_image_dir = f'{os.path.dirname(absolute_path)}/static/image.h5ad.zarr'
+
+        if os.path.exists(zarr_image_dir):
+            return send_from_directory(zarr_image_dir, filepath)
+
+        os.makedirs(zarr_image_dir, exist_ok=True)
+
+        store = zarr.DirectoryStore(zarr_image_dir)
+        root = zarr.group(store=store, overwrite=True)
+
+        # Создание одного уровня Zarr файла
+        image_zarr = root.create_dataset("0", shape=image_data.shape, dtype=image_data.dtype)
+        image_zarr[:] = image_data
+
+        # Добавление атрибутов по спецификации OME-Zarr
+        image_zarr.attrs['multiscales'] = [
+            {
+                "version": "0.1",
+                "datasets": [{"path": "0"}],
+                "type": "image",
+                "metadata": {
+                    "omero": ome_metadata  # Тут используем метаданные из OME-TIFF
+                }
+            }
+        ]
+
+        if os.path.exists(os.path.join(zarr_image_dir, filepath)):
+            return send_from_directory(zarr_image_dir, filepath)
+        else:
+            return {"success": False, "message": "result not found", "data": {}}, 200
