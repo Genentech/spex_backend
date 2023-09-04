@@ -27,8 +27,10 @@ from skimage.segmentation import mark_boundaries
 import scanpy as sc
 import anndata
 from scipy.stats import zscore
+import lttb
 from vitessce.data_utils import (
     optimize_adata,
+    optimize_arr,
     VAR_CHUNK_SIZE,
 )
 from vitessce import VitessceConfig
@@ -820,6 +822,7 @@ class TaskStaticGet(Resource):
     @namespace.response(404, "Task not found", responses.error_response)
     @namespace.response(401, "Unauthorized", responses.error_response)
     def get(self, _id, filepath):
+
         task = TaskService.select(_id)
         if not task:
             return {"success": False, "message": "task not found", "data": {}}, 200
@@ -828,7 +831,7 @@ class TaskStaticGet(Resource):
         result_path = task_json.get("result")
         if not result_path:
             return {"success": False, "message": "result not found", "data": {}}, 200
-
+ 
         absolute_path = Utils.getAbsoluteRelative(result_path, absolute=True)
         zarr_dir = f'{os.path.dirname(absolute_path)}/static/cells.h5ad.zarr'
 
@@ -842,26 +845,36 @@ class TaskStaticGet(Resource):
 
         adata = to_show_data['adata']
         xy_coordinates = adata.obs[["x_coordinate", "y_coordinate"]].values
+        # contours = generate_contours(xy_coordinates)
         adata.obsm['xy_scaled'] = xy_coordinates
+        lens = []
+        reduced_polygons = []
+        cell_polygons = np.array(adata.obsm['cell_polygon'])
+        for polygon in cell_polygons:
+            num_points = len(polygon)
+            if num_points < 6:
+                extra_points_needed = 6 - num_points
+                extra_points = polygon[-extra_points_needed:]
+                new_polygon = np.vstack([polygon, extra_points])
+                reduced_polygon = new_polygon
+            else:
+                swapped_polygon = polygon[:, [1, 0]]
+                reduced_polygon = lttb.downsample(np.array(swapped_polygon), n_out=6, validators=[])
 
-        # Добавляем xy_segmentations_scaled
-        xy_segmentations_scaled = xy_coordinates.copy()  # Можете модифицировать, если нужно
-        num_points = xy_segmentations_scaled.shape[0]
-        white_color_array = np.full((num_points, 3), [255, 255, 255])
-        adata.obsm['xy_segmentations_scaled'] = white_color_array
-        adata.obs['obsType'] = 'spot'
+            reduced_polygons.append(reduced_polygon)
+
+        adata.obsm['cell_polygon'] = np.array(reduced_polygons)
 
         optimized_adata = optimize_adata(
             adata,
-            obs_cols=['Cell_ID', 'Nucleus_area', 'x_coordinate', 'y_coordinate', 'obsType'],
-            obsm_keys=['spatial', 'xy_scaled'],
+            obs_cols=['Cell_ID', 'Nucleus_area', 'x_coordinate', 'y_coordinate'],
+            obsm_keys=['spatial', 'xy_scaled', 'cell_polygon'],
             var_cols=None,
             varm_keys=None,
             layer_keys=['X_uint8'],
             remove_X=False,
             optimize_X=True
         )
-
         optimized_adata.write_zarr(zarr_dir, chunks=[optimized_adata.shape[0], 2000])
 
         if os.path.exists(zarr_dir):
@@ -904,13 +917,22 @@ class TaskConfigGet(Resource):
                                 "obsLocations": {
                                     "path": "obsm/xy_scaled"
                                 },
-                                # "obsSegmentations": {
-                                #     "path": "obsm/xy_segmentations_scaled"
-                                # },
+                                "obsSegmentations": {
+                                     "path": "obsm/cell_polygon"
+                                },
                                 "obsFeatureMatrix": {
                                     "path": "X"
                                 },
-                                "obsSets": []
+                                "obsSets": [
+                                    # {
+                                    #     "name": "Spot Type",
+                                    #     "path": "obs/obsType"
+                                    # },
+                                    {
+                                        "name": "Nucleus_area",
+                                        "path": "obs/Nucleus_area"
+                                    },
+                                ]
                             }
                         },
                         {
