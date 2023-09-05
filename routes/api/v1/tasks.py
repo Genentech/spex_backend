@@ -831,7 +831,7 @@ class TaskStaticGet(Resource):
         result_path = task_json.get("result")
         if not result_path:
             return {"success": False, "message": "result not found", "data": {}}, 200
- 
+
         absolute_path = Utils.getAbsoluteRelative(result_path, absolute=True)
         zarr_dir = f'{os.path.dirname(absolute_path)}/static/cells.h5ad.zarr'
 
@@ -847,7 +847,6 @@ class TaskStaticGet(Resource):
         xy_coordinates = adata.obs[["x_coordinate", "y_coordinate"]].values
         # contours = generate_contours(xy_coordinates)
         adata.obsm['xy_scaled'] = xy_coordinates
-        lens = []
         reduced_polygons = []
         cell_polygons = np.array(adata.obsm['cell_polygon'])
         for polygon in cell_polygons:
@@ -864,10 +863,11 @@ class TaskStaticGet(Resource):
             reduced_polygons.append(reduced_polygon)
 
         adata.obsm['cell_polygon'] = np.array(reduced_polygons)
+        adata.obs['test'] = 'test'
 
         optimized_adata = optimize_adata(
             adata,
-            obs_cols=['Cell_ID', 'Nucleus_area', 'x_coordinate', 'y_coordinate'],
+            obs_cols=['Cell_ID', 'Nucleus_area', 'x_coordinate', 'y_coordinate', 'test'],
             obsm_keys=['spatial', 'xy_scaled', 'cell_polygon'],
             var_cols=None,
             varm_keys=None,
@@ -910,7 +910,7 @@ class TaskConfigGet(Resource):
                             "url": f"{base_url}tasks/static/{_id}",
                             "coordinationValues": {
                                 "obsType": "spot",
-                                "featureType": "gene",
+                                "featureType": "channel",
                                 "featureValueType": "expression"
                             },
                             "options": {
@@ -918,19 +918,19 @@ class TaskConfigGet(Resource):
                                     "path": "obsm/xy_scaled"
                                 },
                                 "obsSegmentations": {
-                                     "path": "obsm/cell_polygon"
+                                    "path": "obsm/cell_polygon"
                                 },
                                 "obsFeatureMatrix": {
                                     "path": "X"
                                 },
                                 "obsSets": [
-                                    # {
-                                    #     "name": "Spot Type",
-                                    #     "path": "obs/obsType"
-                                    # },
                                     {
                                         "name": "Nucleus_area",
                                         "path": "obs/Nucleus_area"
+                                    },
+                                    {
+                                        "name": "test",
+                                        "path": "obs/test"
                                     },
                                 ]
                             }
@@ -948,7 +948,7 @@ class TaskConfigGet(Resource):
                     "B": "spot"
                 },
                 "featureType": {
-                    "A": "gene"
+                    "A": "channel"
                 },
                 "featureValueType": {
                     "C": "expression"
@@ -960,9 +960,40 @@ class TaskConfigGet(Resource):
                         "visible": True,
                         "opacity": 1
                     }
-                }
+                },
+                "featureSelection": {
+                    "D": []
+                },
             },
             "layout": [
+                {
+                    "component": "heatmap",
+                    "h": 4,
+                    "w": 4,
+                    "x": 4,
+                    "y": 0,
+                    "coordinationScopes": {
+                        "obsType": "B",
+                        "featureType": "A",
+                        "featureValueType": "C",
+                        "featureSelection": "D"
+                    },
+                    "uid": "C"
+                },
+                {
+                    "component": "featureList",
+                    "h": 4,
+                    "w": 3,
+                    "x": 4,
+                    "y": 4,
+                    "coordinationScopes": {
+                        "obsType": "B",
+                        "featureType": "A",
+                        "featureValueType": "C",
+                        "featureSelection": "D"
+                    },
+                    "uid": "F"
+                },
                 {
                     "component": "spatial",
                     "h": 4,
@@ -973,9 +1004,24 @@ class TaskConfigGet(Resource):
                         "obsType": "B",
                         "featureType": "A",
                         "featureValueType": "C",
-                        "spatialSegmentationLayer": "B"
+                        "spatialSegmentationLayer": "B",
+                        "featureSelection": "D"
                     },
                     "uid": "B"
+                },
+                {
+                    "component": "featureValueHistogram",
+                    "h": 4,
+                    "w": 3,
+                    "x": 8,
+                    "y": 0,
+                    "coordinationScopes": {
+                        "obsType": "B",
+                        "featureType": "A",
+                        "featureValueType": "C",
+                        "featureSelection": "D",
+                    },
+                    "uid": "H"
                 },
                 {
                     "component": "layerController",
@@ -989,9 +1035,8 @@ class TaskConfigGet(Resource):
                     "y": 4,
                     "uid": "I"
                 }
-            ]
+            ],
         }
-
 
         return jsonify(_conf)
 
