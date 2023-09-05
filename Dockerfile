@@ -22,6 +22,7 @@ RUN echo "buffer-size = 65535" >> /app/uwsgi.ini
 
 RUN pip install uwsgi
 RUN pipenv install --system --deploy --ignore-pipfile
+
 RUN pip install seaborn matplotlib==3.5.1 MarkupSafe==2.0.1 anndata==0.8.0 scanpy==1.9.3 vitessce==3.0.5 lttb==0.3.1
 
 EXPOSE 8080
