@@ -847,18 +847,23 @@ class TaskStaticGet(Resource):
         xy_coordinates = adata.obs[["x_coordinate", "y_coordinate"]].values
         # contours = generate_contours(xy_coordinates)
         adata.obsm['xy_scaled'] = xy_coordinates
+        for col in adata.obs.columns:
+            if adata.obs[col].dtype == '<i8':
+                adata.obs[col] = adata.obs[col].astype('int32')
+        adata.X = adata.X.astype('float32')
+
         reduced_polygons = []
         cell_polygons = np.array(adata.obsm['cell_polygon'])
         for polygon in cell_polygons:
             num_points = len(polygon)
-            if num_points < 6:
-                extra_points_needed = 6 - num_points
+            if num_points < 32:
+                extra_points_needed = 32 - num_points
                 extra_points = polygon[-extra_points_needed:]
                 new_polygon = np.vstack([polygon, extra_points])
                 reduced_polygon = new_polygon
             else:
                 swapped_polygon = polygon[:, [1, 0]]
-                reduced_polygon = lttb.downsample(np.array(swapped_polygon), n_out=6, validators=[])
+                reduced_polygon = lttb.downsample(np.array(swapped_polygon), n_out=32, validators=[])
 
             reduced_polygons.append(reduced_polygon)
 
