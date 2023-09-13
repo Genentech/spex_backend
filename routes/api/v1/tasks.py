@@ -30,11 +30,7 @@ from scipy.stats import zscore
 import lttb
 from vitessce.data_utils import (
     optimize_adata,
-    optimize_arr,
-    VAR_CHUNK_SIZE,
 )
-from vitessce import VitessceConfig
-import ome_zarr
 
 
 class VisType(str, Enum):

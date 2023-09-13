@@ -2,7 +2,7 @@ import spex_common.services.Project as ProjectService
 import spex_common.services.Pipeline as PipelineService
 import spex_common.services.Job as JobService
 import spex_common.services.Task as TaskService
-from flask_restx import Namespace, Resource
+from flask_restx import Namespace, Resource, reqparse
 from flask import request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import projects, responses
@@ -19,6 +19,8 @@ namespace.add_model(responses.error_response.name, responses.error_response)
 namespace.add_model(
     projects.list_projects_response.name, projects.list_projects_response
 )
+parser = reqparse.RequestParser()
+
 
 
 @namespace.route("")
@@ -113,6 +115,9 @@ class ProjectGetById(Resource):
         return {"success": True, "data": project.to_json()}, 200
 
 
+parser.add_argument('pipeline_id', type=str, required=False)
+
+
 @namespace.route("/<string:id>/list")
 class ProjectGetById(Resource):
     @namespace.doc("project/getbyid", security="Bearer")
@@ -123,10 +128,19 @@ class ProjectGetById(Resource):
     @jwt_required()
     def get(self, id):
         author = get_jwt_identity()
+        args = parser.parse_args()
+        condition: dict = {
+            "project": id,
+            "author": author,
+            "collection": "pipeline",
+        }
+        if args['pipeline_id']:
+            condition['_key'] = args['pipeline_id']
 
-        result = PipelineService.select_pipeline(
-            project=id, author=author, collection="pipeline"
-        )
+        result = PipelineService.select_pipeline(**condition)
+        if not result:
+            return {"success": False, "message": "project not found"}, 404
+
         res = []
         for pipeline in result:
             pipelines = PipelineService.get_tree(pipeline_id=pipeline["id"])
