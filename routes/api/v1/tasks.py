@@ -811,34 +811,30 @@ class TasksGetIm(Resource):
         return create_resp_from_data(ax, debug)
 
 
-@namespace.route("/static/<_id>/<path:filepath>")
-@namespace.param("_id", "task id")
-class TaskStaticGet(Resource):
-    @namespace.doc("tasks/vitesscegenes")
-    @namespace.response(404, "Task not found", responses.error_response)
-    @namespace.response(401, "Unauthorized", responses.error_response)
-    def get(self, _id, filepath):
+def create_zarr_archive(task_json):
+    result_path = task_json.get("result")
+    if not result_path:
+        return False
 
-        task = TaskService.select(_id)
-        if not task:
-            return {"success": False, "message": "task not found", "data": {}}, 200
+    absolute_path = Utils.getAbsoluteRelative(result_path, absolute=True)
+    zarr_dir = f'{os.path.dirname(absolute_path)}/static/cells.h5ad.zarr'
+    started_file_path = f"{os.path.dirname(zarr_dir)}/started"
+    if os.path.exists(started_file_path):
+        return False
 
-        task_json = task.to_json()
-        result_path = task_json.get("result")
-        if not result_path:
-            return {"success": False, "message": "result not found", "data": {}}, 200
+    if not os.path.exists(f"{os.path.dirname(zarr_dir)}/complete"):
+        os.makedirs(os.path.dirname(started_file_path), exist_ok=True)
+        with open(started_file_path, 'w') as started_file:
+            started_file.write("started")
+    if os.path.exists(zarr_dir):
+        return True
 
-        absolute_path = Utils.getAbsoluteRelative(result_path, absolute=True)
-        zarr_dir = f'{os.path.dirname(absolute_path)}/static/cells.h5ad.zarr'
+    with open(absolute_path, "rb") as infile:
+        to_show_data = pickle.load(infile)
 
-        if os.path.exists(zarr_dir):
-            return send_from_directory(zarr_dir, filepath)
-
-        with open(absolute_path, "rb") as infile:
-            to_show_data = pickle.load(infile)
+    if to_show_data:
 
         os.makedirs(os.path.dirname(zarr_dir), exist_ok=True)
-
         adata = to_show_data['adata']
         xy_coordinates = adata.obs[["x_coordinate", "y_coordinate"]].values
         # contours = generate_contours(xy_coordinates)
@@ -877,9 +873,46 @@ class TaskStaticGet(Resource):
             optimize_X=True
         )
         optimized_adata.write_zarr(zarr_dir, chunks=[optimized_adata.shape[0], 2000])
+        os.remove(started_file_path)
+        with open(f"{os.path.dirname(zarr_dir)}/complete", 'w') as complete_file:
+            complete_file.write("complete")
 
         if os.path.exists(zarr_dir):
-            return send_from_directory(zarr_dir, filepath)
+            return True
+        else:
+            return False
+    return False
+
+
+@namespace.route("/static/<_id>/<path:filepath>")
+@namespace.param("_id", "task id")
+class TaskStaticGet(Resource):
+    @namespace.doc("tasks/vitesscegenes")
+    @namespace.response(404, "Task not found", responses.error_response)
+    @namespace.response(401, "Unauthorized", responses.error_response)
+    def get(self, _id, filepath):
+
+        task = TaskService.select(_id)
+        if not task:
+            return {"success": False, "message": "task not found", "data": {}}, 200
+
+        task_json = task.to_json()
+        result_path = task_json.get("result")
+        if not result_path:
+            return False
+
+        absolute_path = Utils.getAbsoluteRelative(result_path, absolute=True)
+        created = create_zarr_archive(task_json)
+
+        z_d = f'{os.path.dirname(absolute_path)}/static/cells.h5ad.zarr'
+        complete_file_path = f"{os.path.dirname(z_d)}/complete"
+        started_file_path = f"{os.path.dirname(z_d)}/started"
+
+        if os.path.exists(started_file_path) and not os.path.exists(complete_file_path):
+            return {"success": False, "message": "result not yet available", "data": {}}, 408
+
+        if created:
+            return send_from_directory(z_d, filepath)
         else:
             return {"success": False, "message": "result not found", "data": {}}, 200
 
@@ -899,12 +932,12 @@ class TaskConfigGet(Resource):
 
         _conf = {
             "version": "1.0.15",
-            "name": "HBM336.FWTN.636",
-            "description": "Spleen scRNA-seq HuBMAP dataset with cell type annotations",
+            "name": "feature_extraction_config",
+            "description": "vitessce setup for feature extraction",
             "datasets": [
                 {
                     "uid": "B",
-                    "name": "HBM336.FWTN.636",
+                    "name": "zarr",
                     "files": [
                         {
                             "fileType": "anndata.zarr",
@@ -967,26 +1000,26 @@ class TaskConfigGet(Resource):
                 },
             },
             "layout": [
+                # Layer Controller ( 30% width)
                 {
-                    "component": "heatmap",
-                    "h": 4,
-                    "w": 4,
-                    "x": 4,
-                    "y": 0,
+                    "component": "layerController",
                     "coordinationScopes": {
                         "obsType": "B",
-                        "featureType": "A",
-                        "featureValueType": "C",
-                        "featureSelection": "D"
+                        "spatialSegmentationLayer": "B"
                     },
-                    "uid": "C"
+                    "h": 4,
+                    "w": 3,
+                    "x": 0,
+                    "y": 0,
+                    "uid": "I"
                 },
+                # Channel List ( 20%  width)
                 {
                     "component": "featureList",
                     "h": 4,
-                    "w": 3,
-                    "x": 4,
-                    "y": 4,
+                    "w": 2,
+                    "x": 3,
+                    "y": 0,
                     "coordinationScopes": {
                         "obsType": "B",
                         "featureType": "A",
@@ -995,11 +1028,12 @@ class TaskConfigGet(Resource):
                     },
                     "uid": "F"
                 },
+                # Spatial (left 50% width)
                 {
                     "component": "spatial",
                     "h": 4,
-                    "w": 4,
-                    "x": 0,
+                    "w": 5,
+                    "x": 5,
                     "y": 0,
                     "coordinationScopes": {
                         "obsType": "B",
@@ -1010,12 +1044,13 @@ class TaskConfigGet(Resource):
                     },
                     "uid": "B"
                 },
+                # Expression histogramm (second level)
                 {
                     "component": "featureValueHistogram",
                     "h": 4,
-                    "w": 3,
-                    "x": 8,
-                    "y": 0,
+                    "w": 4,
+                    "x": 4,
+                    "y": 4,
                     "coordinationScopes": {
                         "obsType": "B",
                         "featureType": "A",
@@ -1024,17 +1059,20 @@ class TaskConfigGet(Resource):
                     },
                     "uid": "H"
                 },
+                # Heatmap (second level)
                 {
-                    "component": "layerController",
-                    "coordinationScopes": {
-                        "obsType": "B",
-                        "spatialSegmentationLayer": "B"
-                    },
+                    "component": "heatmap",
                     "h": 4,
-                    "w": 3,
+                    "w": 4,
                     "x": 0,
                     "y": 4,
-                    "uid": "I"
+                    "coordinationScopes": {
+                        "obsType": "B",
+                        "featureType": "A",
+                        "featureValueType": "C",
+                        "featureSelection": "D"
+                    },
+                    "uid": "C"
                 }
             ],
         }
@@ -1075,18 +1113,16 @@ class ImageStaticGet(Resource):
         store = zarr.DirectoryStore(zarr_image_dir)
         root = zarr.group(store=store, overwrite=True)
 
-        # Создание одного уровня Zarr файла
         image_zarr = root.create_dataset("0", shape=image_data.shape, dtype=image_data.dtype)
         image_zarr[:] = image_data
 
-        # Добавление атрибутов по спецификации OME-Zarr
         image_zarr.attrs['multiscales'] = [
             {
                 "version": "0.1",
                 "datasets": [{"path": "0"}],
                 "type": "image",
                 "metadata": {
-                    "omero": ome_metadata  # Тут используем метаданные из OME-TIFF
+                    "omero": ome_metadata
                 }
             }
         ]

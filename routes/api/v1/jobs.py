@@ -18,7 +18,7 @@ from scipy.stats import zscore
 import pickle
 import zipfile
 import io
-
+from routes.api.v1.tasks import create_zarr_archive
 
 namespace = Namespace('Jobs', description='Jobs CRUD operations')
 
@@ -252,6 +252,27 @@ class JobFind(Resource):
         return {'success': True, 'data': result}, 200
 
 
+def list_files(startpath):
+    tree = {}
+    for root, dirs, files in os.walk(startpath):
+        level = root.replace(startpath, '').count(os.sep)
+        if level == 0:
+            subtree = tree
+        else:
+            parent_dirs = root.replace(startpath, '').split(os.sep)[1:]
+            subtree = tree
+            for parent_dir in parent_dirs:
+                subtree = subtree.setdefault(parent_dir, {})
+
+        for _dir in dirs:
+            subtree.setdefault(_dir, {})
+
+        for file in files:
+            subtree[file] = None
+
+    return tree
+
+
 @namespace.route('/merged_result/<string:job_id>')
 @namespace.param('job_id', 'Job id')
 class MergedResult(Resource):
@@ -261,105 +282,28 @@ class MergedResult(Resource):
     @jwt_required()
     def get(self, job_id):
 
-        csv_data = {}
-
-        def save_to_csv(adata):
-            expression_data = pd.DataFrame(adata.X, columns=adata.var.index, index=adata.obs.index)
-            metadata = adata.obs
-
-            expression_data_buffer = io.StringIO()
-            metadata_buffer = io.StringIO()
-
-            expression_data.to_csv(expression_data_buffer)
-            metadata.to_csv(metadata_buffer)
-
-            return expression_data_buffer.getvalue(), metadata_buffer.getvalue()
-
-        def create_anndata(data):
-            df = data['dataframe']
-            df.index = df.index.astype(str)
-
-            coordinates = np.column_stack((df['centroid-1'], df['centroid-0']))
-            celltype = df[['label']].copy()
-            celltype = celltype.rename(columns={'label': 'Cell_ID'})
-            celltype['Cell_ID'] = celltype['Cell_ID'].astype('category')
-            cl = data["channel_list"]
-            if not cl:
-                cl = data["all_channels"]
-            expression_data = np.array(df[cl[0].lower().replace('target:', '')])
-            expression_data = expression_data.reshape(-1, 1)
-            expression_data = np.apply_along_axis(zscore, axis=0, arr=expression_data)
-
-            adata = anndata.AnnData(
-                X=expression_data.astype(np.float32),
-                obs=pd.DataFrame(index=df.index),
-                obsm={'spatial': coordinates},
-                layers={'zscored': expression_data.astype(np.float32)},
-            )
-
-            for col in df.columns:
-                adata.obs[col] = df[col]
-
-            adata.obs['Cell_ID'] = celltype['Cell_ID']
-
-            return adata
-
-        def merge_tasks_result(_tasks):
-            merged_adata = None
-            for task in _tasks:
-                task_result_path = task.get("result")
-                task_result_path = Utils.getAbsoluteRelative(task_result_path, absolute=True)
-                if task_result_path is None or not os.path.exists(task_result_path):
-                    continue
-
-                with open(task_result_path, "rb") as infile:
-                    data = pickle.load(infile)
-                    adata = create_anndata(data)
-                    expression_data_csv, metadata_csv = save_to_csv(adata)
-                    csv_data[task["id"]] = {"expression_data": expression_data_csv, "metadata": metadata_csv}
-
-                    adata.obs['batch'] = task["id"]
-
-                    if merged_adata is None:
-                        merged_adata = adata
-                    else:
-                        merged_adata = merged_adata.concatenate(adata, batch_key='batch')
-
-            return merged_adata
-
         tasks = TaskService.select_tasks_edge(f'jobs/{job_id}')
         if not tasks:
             return {'success': False, 'message': 'Tasks not found', 'data': {}}, 404
 
         show_structure = request.args.get('show_structure', None)
-
-        if m_data := merge_tasks_result(tasks):
-            if show_structure:
-                data_structure = {
-                    "obs": m_data.obs.head(10).to_dict(),
-                    "var": m_data.var.head(10).to_dict(),
-                    "obsm": {k: v[:10].tolist() for k, v in m_data.obsm.items()},
-                    "varm": {k: v[:10].tolist() for k, v in m_data.varm.items()},
-                    "obsp": {k: v[:10].tolist() for k, v in m_data.obsp.items()},
-                    "varp": {k: v[:10].tolist() for k, v in m_data.varp.items()},
-                    "uns": list(m_data.uns.keys()),
-                    "layers": {k: v[:10].tolist() for k, v in m_data.layers.items()},
-                }
-
-                return {'success': True, 'data': data_structure}, 200
-
+        path_list: list = []
+        for task in tasks:
+            if path := Utils.getAbsoluteRelative(task.get('result')):
+                if create_zarr_archive(task):
+                    path_list.append(f'{os.path.dirname(path)}/static/cells.h5ad.zarr')
+        if path_list and not show_structure:
             temp_dir = tempfile.mkdtemp()
             zip_file_path = os.path.join(temp_dir, "merged_result.zip")
 
             with zipfile.ZipFile(zip_file_path, "w") as zipf:
-                for task_id, data in csv_data.items():
-                    zipf.writestr(f"csv/{job_id}/{task_id}/expression_data.csv", data["expression_data"])
-                    zipf.writestr(f"csv/{job_id}/{task_id}/metadata.csv", data["metadata"])
-
-                with tempfile.NamedTemporaryFile(delete=False) as f:
-                    m_data.write(f.name)
-                    f.seek(0)
-                    zipf.write(f.name, "merged_result.h5ad")
+                for path in path_list:
+                    for root, dirs, files in os.walk(path):
+                        for file in files:
+                            absolute_path = os.path.join(root, file)
+                            relative_path = os.path.relpath(absolute_path, path)
+                            archive_path = os.path.join(os.path.basename(path), relative_path)
+                            zipf.write(absolute_path, archive_path)
 
             return send_file(
                 zip_file_path,
@@ -367,5 +311,7 @@ class MergedResult(Resource):
                 as_attachment=True,
                 mimetype="application/zip",
             )
-        else:
-            return {'success': False, 'message': 'data not found', 'data': {}}, 404
+        if path_list and show_structure.lower() == 'true':
+            folder_trees = {os.path.basename(path): list_files(path) for path in path_list}
+            return {'success': True, 'data': folder_trees}, 200
+
