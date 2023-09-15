@@ -8,17 +8,11 @@ from flask_restx import Namespace, Resource
 from flask import request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import jobs, responses
-import anndata
-import pandas as pd
-import numpy as np
 import os
 import tempfile
 from flask import send_file
-from scipy.stats import zscore
-import pickle
 import zipfile
-import io
-from routes.api.v1.tasks import create_zarr_archive
+from routes.api.v1.tasks import create_zarr_archive, ZarrStatus
 
 namespace = Namespace('Jobs', description='Jobs CRUD operations')
 
@@ -290,7 +284,7 @@ class MergedResult(Resource):
         path_list: list = []
         for task in tasks:
             if path := Utils.getAbsoluteRelative(task.get('result')):
-                if create_zarr_archive(task):
+                if create_zarr_archive(task) == ZarrStatus.complete:
                     path_list.append(f'{os.path.dirname(path)}/static/cells.h5ad.zarr')
         if path_list and not show_structure:
             temp_dir = tempfile.mkdtemp()

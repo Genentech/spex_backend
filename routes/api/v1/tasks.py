@@ -1,6 +1,7 @@
 import base64
 import json
 import tempfile
+import shutil
 import os
 import pickle
 import numpy as np
@@ -39,6 +40,13 @@ class VisType(str, Enum):
     heatmap = "heatmap"
     barplot = "barplot"
     violin = "violin"
+
+
+class ZarrStatus(str, Enum):
+    started = "started"
+    in_progress = "in_progress"
+    complete = "complete"
+    error = "error"
 
 
 logger = get_logger("spex.backend")
@@ -811,77 +819,86 @@ class TasksGetIm(Resource):
         return create_resp_from_data(ax, debug)
 
 
-def create_zarr_archive(task_json):
+def create_zarr_archive(task_json) -> ZarrStatus:
     result_path = task_json.get("result")
     if not result_path:
-        return False
+        return ZarrStatus.error
 
     absolute_path = Utils.getAbsoluteRelative(result_path, absolute=True)
     zarr_dir = f'{os.path.dirname(absolute_path)}/static/cells.h5ad.zarr'
     started_file_path = f"{os.path.dirname(zarr_dir)}/started"
+    completed_file_path = f"{os.path.dirname(zarr_dir)}/complete"
     if os.path.exists(started_file_path):
-        return False
+        return ZarrStatus.started
 
-    if not os.path.exists(f"{os.path.dirname(zarr_dir)}/complete"):
+    if os.path.exists(completed_file_path) and os.path.exists(zarr_dir):
+        return ZarrStatus.complete
+
+    if (
+            os.path.exists(completed_file_path)
+            and not os.path.exists(started_file_path)
+            and os.path.exists(zarr_dir)
+    ):
+        return ZarrStatus.complete
+
+    if not os.path.exists(zarr_dir):
         os.makedirs(os.path.dirname(started_file_path), exist_ok=True)
         with open(started_file_path, 'w') as started_file:
             started_file.write("started")
-    if os.path.exists(zarr_dir):
-        return True
 
-    with open(absolute_path, "rb") as infile:
-        to_show_data = pickle.load(infile)
+        with open(absolute_path, "rb") as infile:
+            to_show_data = pickle.load(infile)
 
-    if to_show_data:
+        if to_show_data:
 
-        os.makedirs(os.path.dirname(zarr_dir), exist_ok=True)
-        adata = to_show_data['adata']
-        xy_coordinates = adata.obs[["x_coordinate", "y_coordinate"]].values
-        # contours = generate_contours(xy_coordinates)
-        adata.obsm['xy_scaled'] = xy_coordinates
-        for col in adata.obs.columns:
-            if adata.obs[col].dtype == '<i8':
-                adata.obs[col] = adata.obs[col].astype('int32')
-        adata.X = adata.X.astype('float32')
+            os.makedirs(os.path.dirname(zarr_dir), exist_ok=True)
+            adata = to_show_data['adata']
+            xy_coordinates = adata.obs[["x_coordinate", "y_coordinate"]].values
+            # contours = generate_contours(xy_coordinates)
+            adata.obsm['xy_scaled'] = xy_coordinates
+            for col in adata.obs.columns:
+                if adata.obs[col].dtype == '<i8':
+                    adata.obs[col] = adata.obs[col].astype('int32')
+            adata.X = adata.X.astype('float32')
 
-        reduced_polygons = []
-        cell_polygons = np.array(adata.obsm['cell_polygon'])
-        for polygon in cell_polygons:
-            num_points = len(polygon)
-            if num_points < 32:
-                extra_points_needed = 32 - num_points
-                extra_points = polygon[-extra_points_needed:]
-                new_polygon = np.vstack([polygon, extra_points])
-                reduced_polygon = new_polygon
+            reduced_polygons = []
+            cell_polygons = np.array(adata.obsm['cell_polygon'])
+            for polygon in cell_polygons:
+                num_points = len(polygon)
+                if num_points < 32:
+                    extra_points_needed = 32 - num_points
+                    extra_points = polygon[-extra_points_needed:]
+                    new_polygon = np.vstack([polygon, extra_points])
+                    reduced_polygon = new_polygon
+                else:
+                    swapped_polygon = polygon[:, [1, 0]]
+                    reduced_polygon = lttb.downsample(np.array(swapped_polygon), n_out=32, validators=[])
+
+                reduced_polygons.append(reduced_polygon)
+
+            adata.obsm['cell_polygon'] = np.array(reduced_polygons)
+            adata.obs['test'] = 'test'
+
+            optimized_adata = optimize_adata(
+                adata,
+                obs_cols=['Cell_ID', 'Nucleus_area', 'x_coordinate', 'y_coordinate', 'test'],
+                obsm_keys=['spatial', 'xy_scaled', 'cell_polygon'],
+                var_cols=None,
+                varm_keys=None,
+                layer_keys=['X_uint8'],
+                remove_X=False,
+                optimize_X=True
+            )
+            optimized_adata.write_zarr(zarr_dir, chunks=[optimized_adata.shape[0], 2000])
+            os.remove(started_file_path)
+            with open(f"{os.path.dirname(zarr_dir)}/complete", 'w') as complete_file:
+                complete_file.write("complete")
+
+            if os.path.exists(zarr_dir):
+                return ZarrStatus.complete
             else:
-                swapped_polygon = polygon[:, [1, 0]]
-                reduced_polygon = lttb.downsample(np.array(swapped_polygon), n_out=32, validators=[])
-
-            reduced_polygons.append(reduced_polygon)
-
-        adata.obsm['cell_polygon'] = np.array(reduced_polygons)
-        adata.obs['test'] = 'test'
-
-        optimized_adata = optimize_adata(
-            adata,
-            obs_cols=['Cell_ID', 'Nucleus_area', 'x_coordinate', 'y_coordinate', 'test'],
-            obsm_keys=['spatial', 'xy_scaled', 'cell_polygon'],
-            var_cols=None,
-            varm_keys=None,
-            layer_keys=['X_uint8'],
-            remove_X=False,
-            optimize_X=True
-        )
-        optimized_adata.write_zarr(zarr_dir, chunks=[optimized_adata.shape[0], 2000])
-        os.remove(started_file_path)
-        with open(f"{os.path.dirname(zarr_dir)}/complete", 'w') as complete_file:
-            complete_file.write("complete")
-
-        if os.path.exists(zarr_dir):
-            return True
-        else:
-            return False
-    return False
+                return ZarrStatus.error
+        return ZarrStatus.error
 
 
 @namespace.route("/static/<_id>/<path:filepath>")
@@ -911,16 +928,26 @@ class TaskStaticGet(Resource):
         if os.path.exists(started_file_path) and not os.path.exists(complete_file_path):
             return {"success": False, "message": "result not yet available", "data": {}}, 408
 
-        if created:
+        if created == ZarrStatus.complete:
             return send_from_directory(z_d, filepath)
         else:
             return {"success": False, "message": "result not found", "data": {}}, 200
 
 
+def delete_zarr_archive(task_json):
+    absolute_path = Utils.getAbsoluteRelative(task_json.get("result"), absolute=True)
+    zarr_dir = f'{os.path.dirname(absolute_path)}/static/cells.h5ad.zarr'
+
+    if os.path.exists(zarr_dir):
+        shutil.rmtree(f'{os.path.dirname(absolute_path)}/static')
+        return True
+    return False
+
+
 @namespace.route("/vitessce/<_id>")
 @namespace.param("_id", "task id")
 class TaskConfigGet(Resource):
-    # @namespace.doc("tasks/vitessceconfig", security="Bearer")
+    @namespace.doc("tasks/vitessceconfig")
     @namespace.response(404, "Task not found", responses.error_response)
     @namespace.response(401, "Unauthorized", responses.error_response)
     def get(self, _id):
@@ -1078,6 +1105,36 @@ class TaskConfigGet(Resource):
         }
 
         return jsonify(_conf)
+
+    @namespace.response(404, "Task not found", responses.error_response)
+    @namespace.response(401, "Unauthorized", responses.error_response)
+    def delete(self, _id):
+
+        task = TaskService.select(_id)
+        if not task:
+            return {"success": False, "message": "task not found", "data": {}}, 200
+
+        deleted = delete_zarr_archive(task.to_json())
+        if deleted:
+            return {"success": True, "message": "data deleted", "data": {}}, 200
+        else:
+            return {"success": False, "message": "data does not exist", "data": {}}, 200
+
+    @namespace.response(404, "Task not found", responses.error_response)
+    @namespace.response(401, "Unauthorized", responses.error_response)
+    def post(self, _id):
+
+        task = TaskService.select(_id)
+        if task is None:
+            return {"success": False, "message": "task not found", "data": {}}, 200
+
+        status = create_zarr_archive(task.to_json())
+        if status == ZarrStatus.complete:
+            return {"success": True, "message": "data created", "data": {}}, 200
+        elif status == ZarrStatus.started:
+            return {"success": True, "message": "data creation in progress", "data": {}}, 200
+        else:
+            return {"success": False, "message": "data creation failed", "data": {}}, 200
 
 
 @namespace.route("/static/image/<_id>/<path:filepath>")
