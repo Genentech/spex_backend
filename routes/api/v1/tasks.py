@@ -863,11 +863,12 @@ def create_zarr_archive(task_json) -> ZarrStatus:
 
             reduced_polygons = []
             cell_polygons = np.array(adata.obsm['cell_polygon'])
+
             for polygon in cell_polygons:
                 num_points = len(polygon)
                 if num_points < 32:
                     extra_points_needed = 32 - num_points
-                    extra_points = polygon[-extra_points_needed:]
+                    extra_points = np.tile(polygon[-1:], (extra_points_needed, 1))
                     new_polygon = np.vstack([polygon, extra_points])
                     reduced_polygon = new_polygon
                 else:
@@ -936,11 +937,11 @@ class TaskStaticGet(Resource):
 
 def delete_zarr_archive(task_json):
     absolute_path = Utils.getAbsoluteRelative(task_json.get("result"), absolute=True)
-    zarr_dir = f'{os.path.dirname(absolute_path)}/static/cells.h5ad.zarr'
+    static_folder_path = f'{os.path.dirname(absolute_path)}/static'
 
-    if os.path.exists(zarr_dir):
-        shutil.rmtree(f'{os.path.dirname(absolute_path)}/static')
-        return True
+    if os.path.exists(static_folder_path):
+        shutil.rmtree(static_folder_path)
+
     return False
 
 
