@@ -31,12 +31,23 @@ pipeline_model = pipeline_create_model.inherit('Pipeline base1', {
         description='status'
     ),
     'status_name': fields.String,
+    'shared': fields.Boolean(
+        required=False,
+        description='shared to other users'
+    ),
     'project': fields.String(
         required=False,
         description='project id'
     )
 })
 
+shared_pipeline = Model('PipelineShared', {
+    'shared': fields.Boolean(
+        required=False,
+        description='shared to other users'
+    ),
+
+})
 
 pipeline_get_model = pipeline_model.inherit('Pipeline get', {
     '_id': fields.String(

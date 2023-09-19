@@ -21,6 +21,7 @@ namespace.add_model(pipeline.list_pipeline_response.name, pipeline.list_pipeline
 namespace.add_model(pipeline.pipeline_get_model.name, pipeline.pipeline_get_model)
 namespace.add_model(pipeline.task_resource_image_connect_to_job.name, pipeline.task_resource_image_connect_to_job)
 namespace.add_model(pipeline.pipeline_status_model.name, pipeline.pipeline_status_model)
+namespace.add_model(pipeline.shared_pipeline.name, pipeline.shared_pipeline)
 
 
 # get pipelines list with child's
@@ -108,6 +109,31 @@ class PipelineGet(Resource):
         return {'success': True, 'data': item}, 200
 
 
+@namespace.route('/share/<string:pipeline_id>')
+@namespace.param('pipeline_id', 'pipeline_id')
+class PipelineShare(Resource):
+    @namespace.doc('pipeline/share', security='Bearer', description='share pipeline data')
+    @namespace.expect(pipeline.shared_pipeline)
+    @namespace.marshal_with(pipeline.a_pipeline_response)
+    @namespace.response(200, 'Update pipeline', pipeline.a_pipeline_response)
+    @namespace.response(400, 'Message about reason of error', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @namespace.response(404, 'Object not found', responses.error_response)
+    @jwt_required()
+    def put(self, pipeline_id):
+        # author = get_jwt_identity()
+        body = request.json
+
+        # item = PipelineService.select_pipeline(collection='pipeline', _key=pipeline_id, author=author)
+        item = PipelineService.select_pipeline(collection='pipeline', _key=pipeline_id)
+        if not item:
+            return {'success': False, 'message': f'pipeline with id: {pipeline_id} not found'}, 404
+
+        item = PipelineService.update(collection='pipeline', id=pipeline_id, data=body)
+
+        return {'success': True, 'data': item.to_json()}, 200
+
+
 @namespace.route('/<string:pipeline_id>')
 @namespace.param('pipeline_id', 'pipeline_id')
 class PipelineGetList(Resource):
@@ -144,9 +170,11 @@ class PipelineGetList(Resource):
 
         item = PipelineService.select_pipeline(collection='pipeline', _key=pipeline_id, author=author)
         if not item:
-            return {'success': False, 'message': f'pipeline with id: {pipeline_id} not found'}, 404
+            item = PipelineService.select_pipeline(collection='pipeline', _key=pipeline_id, shared=True)
+            if not item:
+                return {'success': False, 'message': f'pipeline with id: {pipeline_id} not found'}, 404
 
-        pipelines = PipelineService.get_tree(pipeline_id=pipeline_id, author=author)
+        pipelines = PipelineService.get_tree(pipeline_id=pipeline_id)
 
         return {'success': True, 'data': {"pipelines": pipelines}}, 200
 

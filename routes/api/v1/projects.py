@@ -129,17 +129,24 @@ class ProjectGetById(Resource):
     def get(self, id):
         author = get_jwt_identity()
         args = parser.parse_args()
+
         condition: dict = {
             "project": id,
             "author": author,
             "collection": "pipeline",
         }
+
         if args['pipeline_id']:
             condition['_key'] = args['pipeline_id']
 
         result = PipelineService.select_pipeline(**condition)
+
         if not result:
-            return {"success": False, "message": "project not found"}, 404
+            condition.pop('author')
+            condition['shared'] = True
+            result = PipelineService.select_pipeline(**condition)
+            if not result:
+                return {"success": False, "message": "project not found"}, 404
 
         res = []
         for pipeline in result:
