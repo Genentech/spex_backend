@@ -971,7 +971,7 @@ class TaskConfigGet(Resource):
                             "fileType": "anndata.zarr",
                             "url": f"{base_url}tasks/static/{_id}",
                             "coordinationValues": {
-                                "obsType": "spot",
+                                "obsType": "cell",
                                 "featureType": "channel",
                                 "featureValueType": "expression"
                             },
@@ -1007,7 +1007,7 @@ class TaskConfigGet(Resource):
             "initStrategy": "auto",
             "coordinationSpace": {
                 "obsType": {
-                    "B": "spot"
+                    "B": "cell"
                 },
                 "featureType": {
                     "A": "channel"
