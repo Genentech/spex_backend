@@ -878,12 +878,18 @@ def create_zarr_archive(task_json) -> ZarrStatus:
                 reduced_polygons.append(reduced_polygon)
 
             adata.obsm['cell_polygon'] = np.array(reduced_polygons)
-            adata.obs['test'] = 'test'
+
+            obs_cols = ['Cell_ID', 'Nucleus_area', 'x_coordinate', 'y_coordinate']
+            obsm_keys = ['spatial', 'xy_scaled', 'cell_polygon']
+
+            if task_json.get("name") == "phenograph_cluster":
+                obs_cols += ['cluster_phenograph']
+                obsm_keys += ['X_umap']
 
             optimized_adata = optimize_adata(
                 adata,
-                obs_cols=['Cell_ID', 'Nucleus_area', 'x_coordinate', 'y_coordinate', 'test'],
-                obsm_keys=['spatial', 'xy_scaled', 'cell_polygon'],
+                obs_cols=obs_cols,
+                obsm_keys=obsm_keys,
                 var_cols=None,
                 varm_keys=None,
                 layer_keys=['X_uint8'],
@@ -948,16 +954,10 @@ def delete_zarr_archive(task_json):
 @namespace.route("/vitessce/<_id>")
 @namespace.param("_id", "task id")
 class TaskConfigGet(Resource):
-    @namespace.doc("tasks/vitessceconfig")
-    @namespace.response(404, "Task not found", responses.error_response)
-    @namespace.response(401, "Unauthorized", responses.error_response)
-    def get(self, _id):
-        task = TaskService.select(_id)
-        if task is None:
-            return {"success": False, "message": "task not found", "data": {}}, 200
+    base_url = 'REACT_APP_BACKEND_URL_ROOT'
 
-        base_url = 'REACT_APP_BACKEND_URL_ROOT'
-
+    def get_feature_extraction_config(self, task):
+        _id = task.id
         _conf = {
             "version": "1.0.15",
             "name": "feature_extraction_config",
@@ -969,7 +969,7 @@ class TaskConfigGet(Resource):
                     "files": [
                         {
                             "fileType": "anndata.zarr",
-                            "url": f"{base_url}tasks/static/{_id}",
+                            "url": f"{self.base_url}tasks/static/{_id}",
                             "coordinationValues": {
                                 "obsType": "cell",
                                 "featureType": "channel",
@@ -999,7 +999,7 @@ class TaskConfigGet(Resource):
                         },
                         {
                             "fileType": "image.ome-tiff",
-                            "url": f"{base_url}images/download/original/{task.omeroId}.ome.tif"
+                            "url": f"{self.base_url}images/download/original/{task.omeroId}.ome.tif"
                         }
                     ]
                 }
@@ -1104,8 +1104,114 @@ class TaskConfigGet(Resource):
                 }
             ],
         }
+        return jsonify(_conf)
+
+    def get_phenograph_config(self, task):
+        _id = task.id
+        _conf = {
+            "version": "1.0.15",
+            "name": "scatterplot_config",
+            "description": "vitessce setup for scatterplot",
+            "datasets": [
+                {
+                    "uid": "B",
+                    "name": "zarr",
+                    "files": [
+                        {
+                            "fileType": "anndata.zarr",
+                            "url": f"{self.base_url}tasks/static/{_id}",
+                            "coordinationValues": {
+                                "obsType": "cell",
+                                "featureType": "channel",
+                                "featureValueType": "transcript count"
+                            },
+                            "options": {
+                                "obsFeatureMatrix": {
+                                    "path": "X"
+                                },
+                                "obsEmbedding": [
+                                    {
+                                        "path": "obsm/X_umap",
+                                        "embeddingType": "UMAP"
+                                    }
+                                ],
+                                "obsSets": [
+                                    {
+                                        "name": "Phenograph Cluster",
+                                        "path": "obs/cluster_phenograph"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ],
+            "initStrategy": "auto",
+            "coordinationSpace": {
+                "embeddingType": {
+                    "UMAP": "UMAP"
+                },
+                "featureValueColormapRange": {
+                    "A": [
+                        0,
+                        0.1
+                    ]
+                },
+                "embeddingObsSetLabelsVisible": {
+                    "A": True
+                },
+                "obsSetSelection": {
+                    "A": None,
+                    "B": None
+                },
+                "obsSetColor": {
+                    "A": None,
+                    "B": None
+                }
+            },
+            "layout": [
+                {
+                    "component": "scatterplot",
+                    "h": 4,
+                    "w": 4,
+                    "x": 0,
+                    "y": 0,
+                    "coordinationScopes": {
+                        "embeddingType": "UMAP",
+                        "featureType": "A",
+                        "featureSelection": "A",
+                        "obsColorEncoding": "A",
+                        "obsSetColor": "A",
+                        "obsSetSelection": "A",
+                        "featureValueColormapRange": "A",
+                        "embeddingObsSetLabelsVisible": "A"
+                    },
+                    "uid": "S"
+                },
+                {
+                    "component": "obsSets",
+                    "h": 4,
+                    "w": 3,
+                    "x": 5,
+                    "y": 0,
+                    "uid": "F"
+                }
+            ]
+        }
 
         return jsonify(_conf)
+
+    @namespace.doc("tasks/vitessceconfig")
+    @namespace.response(404, "Task not found", responses.error_response)
+    @namespace.response(401, "Unauthorized", responses.error_response)
+    def get(self, _id):
+        task = TaskService.select(_id)
+        if task is None:
+            return {"success": False, "message": "task not found", "data": {}}, 200
+        if task.name == "feature_extraction":
+            return self.get_feature_extraction_config(task)
+        if task.name == "phenograph_cluster":
+            return self.get_phenograph_config(task)
 
     @namespace.response(404, "Task not found", responses.error_response)
     @namespace.response(401, "Unauthorized", responses.error_response)
