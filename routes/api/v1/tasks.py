@@ -990,10 +990,6 @@ class TaskConfigGet(Resource):
                                         "name": "Nucleus_area",
                                         "path": "obs/Nucleus_area"
                                     },
-                                    {
-                                        "name": "test",
-                                        "path": "obs/test"
-                                    },
                                 ]
                             }
                         },
@@ -1151,6 +1147,10 @@ class TaskConfigGet(Resource):
                 "embeddingType": {
                     "UMAP": "UMAP"
                 },
+                "obsSetHighlight": {
+                    "A": None,
+                    "B": None
+                },
                 "featureValueColormapRange": {
                     "A": [
                         0,
@@ -1184,6 +1184,7 @@ class TaskConfigGet(Resource):
                         "obsSetColor": "A",
                         "obsSetSelection": "A",
                         "featureValueColormapRange": "A",
+                        "obsSetHighlight": "A",
                         "embeddingObsSetLabelsVisible": "A"
                     },
                     "uid": "S"
