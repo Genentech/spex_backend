@@ -11,6 +11,12 @@ tasks_model = Model('TasksBase', {
     'error': fields.String
 })
 
+
+tasks_data_get_model = Model('TaskDataGetModel', {
+    'fields': fields.List(fields.String, required=True, description='data keys')
+})
+
+
 task_get_model = tasks_model.inherit('Task get', {
     'id': fields.String(
         required=True,

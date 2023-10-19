@@ -61,6 +61,7 @@ namespace.add_model(tasks.a_tasks_response.name, tasks.a_tasks_response)
 namespace.add_model(responses.error_response.name, responses.error_response)
 namespace.add_model(tasks.list_tasks_response.name, tasks.list_tasks_response)
 namespace.add_model(tasks.task_get_model.name, tasks.task_get_model)
+namespace.add_model(tasks.tasks_data_get_model.name, tasks.tasks_data_get_model)
 
 
 @namespace.route("/<_id>")
@@ -939,6 +940,41 @@ class TaskStaticGet(Resource):
             return send_from_directory(z_d, filepath)
         else:
             return {"success": False, "message": "result not found", "data": {}}, 200
+
+
+@namespace.route("/get_result_data/<_id>")
+@namespace.param("_id", "job id")
+class TaskStaticGet(Resource):
+    @namespace.doc("tasks/vitesscegenes")
+    @namespace.response(404, "Task not found", responses.error_response)
+    @namespace.response(401, "Unauthorized", responses.error_response)
+    @namespace.expect(tasks.tasks_data_get_model)
+    def post(self, _id):
+
+        body = request.json
+
+        _tasks = TaskService.select_tasks(parent=_id)
+        if not _tasks:
+            return {"success": False, "message": "task not found", "data": {}}, 200
+        else:
+            result_data = {}
+            for task_json in _tasks:
+                result_path = task_json.get("result")
+                if not result_path:
+                    continue
+
+                absolute_path = Utils.getAbsoluteRelative(result_path, absolute=True)
+                with open(absolute_path, "rb") as infile:
+                    to_show_data = pickle.load(infile)
+
+                if to_show_data:
+                    for _field in body['fields']:
+                        result_data[_field] = to_show_data[_field]
+
+                if len(result_data.keys()) > 0:
+                    return {"success": True, "data": result_data}, 200
+
+        return {"success": False, "message": "result not found", "data": {}}, 200
 
 
 def delete_zarr_archive(task_json):
