@@ -863,40 +863,52 @@ def create_zarr_archive(task_json) -> ZarrStatus:
             adata.X = adata.X.astype('float32')
 
             reduced_polygons = []
-            cell_polygons = np.array(adata.obsm['cell_polygon'])
+            obs_cols = []
+            obsm_keys = []
+            if task_json.get("name") != "phenograph_cluster":
+                cell_polygons = np.array(adata.obsm['cell_polygon'])
 
-            for polygon in cell_polygons:
-                num_points = len(polygon)
-                if num_points < 32:
-                    extra_points_needed = 32 - num_points
-                    extra_points = np.tile(polygon[-1:], (extra_points_needed, 1))
-                    new_polygon = np.vstack([polygon, extra_points])
-                    reduced_polygon = new_polygon
-                else:
-                    swapped_polygon = polygon[:, [1, 0]]
-                    reduced_polygon = lttb.downsample(np.array(swapped_polygon), n_out=32, validators=[])
+                for polygon in cell_polygons:
+                    num_points = len(polygon)
+                    if num_points < 32:
+                        extra_points_needed = 32 - num_points
+                        extra_points = np.tile(polygon[-1:], (extra_points_needed, 1))
+                        new_polygon = np.vstack([polygon, extra_points])
+                        reduced_polygon = new_polygon
+                    else:
+                        swapped_polygon = polygon[:, [1, 0]]
+                        reduced_polygon = lttb.downsample(np.array(swapped_polygon), n_out=32, validators=[])
 
-                reduced_polygons.append(reduced_polygon)
+                    reduced_polygons.append(reduced_polygon)
 
-            adata.obsm['cell_polygon'] = np.array(reduced_polygons)
+                adata.obsm['cell_polygon'] = np.array(reduced_polygons)
 
-            obs_cols = ['Cell_ID', 'Nucleus_area', 'x_coordinate', 'y_coordinate']
-            obsm_keys = ['spatial', 'xy_scaled', 'cell_polygon']
+                obs_cols = ['Cell_ID', 'Nucleus_area', 'x_coordinate', 'y_coordinate']
+                obsm_keys = ['spatial', 'xy_scaled', 'cell_polygon']
+                optimized_adata = optimize_adata(
+                    adata,
+                    obs_cols=obs_cols,
+                    obsm_keys=obsm_keys,
+                    var_cols=None,
+                    varm_keys=None,
+                    layer_keys=['X_uint8'],
+                    remove_X=False,
+                    optimize_X=True
+                )
 
             if task_json.get("name") == "phenograph_cluster":
-                obs_cols += ['cluster_phenograph']
+                obs_cols += ['cluster_phenograph', 'image_id']
                 obsm_keys += ['X_umap']
+                optimized_adata = optimize_adata(
+                    adata,
+                    obs_cols=obs_cols,
+                    obsm_keys=obsm_keys,
+                    var_cols=None,
+                    varm_keys=None,
+                    remove_X=False,
+                    optimize_X=True
+                )
 
-            optimized_adata = optimize_adata(
-                adata,
-                obs_cols=obs_cols,
-                obsm_keys=obsm_keys,
-                var_cols=None,
-                varm_keys=None,
-                layer_keys=['X_uint8'],
-                remove_X=False,
-                optimize_X=True
-            )
             optimized_adata.write_zarr(zarr_dir, chunks=[optimized_adata.shape[0], 2000])
             os.remove(started_file_path)
             with open(f"{os.path.dirname(zarr_dir)}/complete", 'w') as complete_file:
@@ -1154,23 +1166,25 @@ class TaskConfigGet(Resource):
                             "url": f"{self.base_url}tasks/static/{_id}",
                             "coordinationValues": {
                                 "obsType": "cell",
-                                "featureType": "channel",
-                                "featureValueType": "transcript count"
+                                "featureType": "gene",
+                                "featureValueType": "expression",
+                                "embeddingType": "UMAP"
                             },
                             "options": {
+                                "obsEmbedding": {
+                                    "path": "obsm/X_umap"
+                                },
                                 "obsFeatureMatrix": {
                                     "path": "X"
                                 },
-                                "obsEmbedding": [
-                                    {
-                                        "path": "obsm/X_umap",
-                                        "embeddingType": "UMAP"
-                                    }
-                                ],
                                 "obsSets": [
                                     {
                                         "name": "Phenograph Cluster",
                                         "path": "obs/cluster_phenograph"
+                                    },
+                                    {
+                                        "name": "image id",
+                                        "path": "obs/image_id"
                                     }
                                 ]
                             }
@@ -1224,6 +1238,20 @@ class TaskConfigGet(Resource):
                         "embeddingObsSetLabelsVisible": "A"
                     },
                     "uid": "S"
+                },
+                {
+                    "component": "heatmap",
+                    "coordinationScopes": {
+                        "featureValueColormapRange": "A",
+                        "obsLabelsType": [
+                            "A"
+                        ]
+                    },
+                    "h": 4,
+                    "w": 10,
+                    "x": 0,
+                    "y": 4,
+                    "uid": "H"
                 },
                 {
                     "component": "obsSets",
