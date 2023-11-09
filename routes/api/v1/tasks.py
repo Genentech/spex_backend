@@ -1,3 +1,4 @@
+from typing import List, Dict
 import base64
 import json
 import tempfile
@@ -820,6 +821,25 @@ class TasksGetIm(Resource):
         return create_resp_from_data(ax, debug)
 
 
+def write_zarr_for_tasks(tasks_list: List[Dict], filtered_adatas: Dict[str, anndata.AnnData]):
+    for task in tasks_list:
+        if task['name'] == 'feature_extraction':
+            omero_id = task['omeroId']
+            result_path = task.get("result")
+            if not result_path:
+                continue
+            absolute_path = Utils.getAbsoluteRelative(result_path, absolute=True)
+            zarr_dir = f'{os.path.dirname(absolute_path)}/static/clusters.h5ad.zarr'
+            if os.path.exists(zarr_dir):
+                shutil.rmtree(zarr_dir)
+            logger.debug(f"zarr_dir: {zarr_dir}")
+            os.makedirs(zarr_dir, exist_ok=True)
+
+            current_data = filtered_adatas.get(omero_id)
+            if current_data:
+                current_data.write_zarr(zarr_dir, chunks=[current_data.shape[0], 2000])
+
+
 def create_zarr_archive(task_json) -> ZarrStatus:
     result_path = task_json.get("result")
     if not result_path:
@@ -909,6 +929,15 @@ def create_zarr_archive(task_json) -> ZarrStatus:
                     optimize_X=True
                 )
 
+                filtered_adatas = {}
+                unique_image_ids = optimized_adata.obs['image_id'].unique()
+                for image_id in unique_image_ids:
+                    current_data = optimized_adata[optimized_adata.obs['image_id'] == image_id].copy()
+                    filtered_adatas[image_id] = current_data
+                fe_tasks = to_show_data.get('tasks_list', [])
+                if len(filtered_adatas.keys()) > 0 and fe_tasks:
+                    write_zarr_for_tasks(fe_tasks, filtered_adatas)
+
             optimized_adata.write_zarr(zarr_dir, chunks=[optimized_adata.shape[0], 2000])
             os.remove(started_file_path)
             with open(f"{os.path.dirname(zarr_dir)}/complete", 'w') as complete_file:
@@ -952,6 +981,32 @@ class TaskStaticGet(Resource):
             return send_from_directory(z_d, filepath)
         else:
             return {"success": False, "message": "result not found", "data": {}}, 200
+
+
+@namespace.route("/phenograph_static/<_id>/<path:filepath>")
+@namespace.param("_id", "task id")
+class TaskClustersGet(Resource):
+    @namespace.doc("tasks/vitessceclusters")
+    @namespace.response(404, "Task not found", responses.error_response)
+    @namespace.response(401, "Unauthorized", responses.error_response)
+    def get(self, _id, filepath):
+
+        task = TaskService.select(_id)
+        if not task:
+            return {"success": False, "message": "task not found", "data": {}}, 200
+
+        task_json = task.to_json()
+        result_path = task_json.get("result")
+        if not result_path:
+            return False
+
+        absolute_path = Utils.getAbsoluteRelative(result_path, absolute=True)
+        z_d = f'{os.path.dirname(absolute_path)}/static/clusters.h5ad.zarr'
+
+        if os.path.exists(z_d):
+            return send_from_directory(z_d, filepath)
+        else:
+            return {"success": False, "message": "result not found", "data": {}}, 408
 
 
 @namespace.route("/get_result_data/<_id>")
@@ -1148,7 +1203,225 @@ class TaskConfigGet(Resource):
                 }
             ],
         }
-        return jsonify(_conf)
+        return _conf
+
+    def get_combined_config(self, task):
+        _id = task.id
+        _conf = {
+            "version": "1.0.15",
+            "name": "feature_extraction_config",
+            "description": "vitessce setup for feature extraction",
+            "datasets": [
+                {
+                    "uid": "B",
+                    "name": "zarr",
+                    "files": [
+                        {
+                            "fileType": "anndata.zarr",
+                            "url": f"{self.base_url}tasks/static/{_id}",
+                            "coordinationValues": {
+                                "obsType": "cell",
+                                "featureType": "channel",
+                                "featureValueType": "expression"
+                            },
+                            "options": {
+                                "obsLocations": {
+                                    "path": "obsm/xy_scaled"
+                                },
+                                "obsSegmentations": {
+                                    "path": "obsm/cell_polygon"
+                                },
+                                "obsFeatureMatrix": {
+                                    "path": "X"
+                                },
+                                "obsSets": [
+                                    {
+                                        "name": "Nucleus_area",
+                                        "path": "obs/Nucleus_area"
+                                    },
+                                ]
+                            }
+                        },
+                        {
+                            "fileType": "image.ome-tiff",
+                            "url": f"{self.base_url}images/download/original/{task.omeroId}.ome.tif"
+                        },
+                        {
+                            "fileType": "anndata.zarr",
+                            "url": f"{self.base_url}tasks/phenograph_static/{_id}",
+                            "coordinationValues": {
+                                "obsType": "cell",
+                                "featureType": "gene",
+                                "featureValueType": "expression",
+                                "embeddingType": "UMAP"
+                            },
+                            "options": {
+                                "obsEmbedding": {
+                                    "path": "obsm/X_umap"
+                                },
+                                "obsFeatureMatrix": {
+                                    "path": "X"
+                                },
+                                "obsSets": [
+                                    {
+                                        "name": "Phenograph Cluster",
+                                        "path": "obs/cluster_phenograph"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ],
+            "initStrategy": "auto",
+            "coordinationSpace": {
+                "obsType": {
+                    "B": "cell",
+                    "C": "cell"
+                },
+                "featureType": {
+                    "A": "channel",
+                    "C": "gene"
+                },
+                "featureValueType": {
+                    "C": "expression"
+                },
+                "embeddingType": {
+                    "UMAP": "UMAP",
+                    "C": "UMAP"
+                },
+                "spatialSegmentationLayer": {
+                    "B": {
+                        "radius": 3,
+                        "stroked": True,
+                        "visible": True,
+                        "opacity": 1
+                    },
+                    "C": {
+                        "radius": 3,
+                        "stroked": True,
+                        "visible": True,
+                        "opacity": 1
+                    }
+                },
+                "featureSelection": {
+                    "D": [],
+                    "C": []
+                },
+                "obsColorEncoding": {
+                    "A": "cellSetSelection",
+                    "C": "cellSetSelection"
+                },
+            },
+            "layout": [
+                # Layer Controller ( 30% width)
+                {
+                    "component": "layerController",
+                    "coordinationScopes": {
+                        "obsType": "B",
+                        "spatialSegmentationLayer": "B"
+                    },
+                    "h": 4,
+                    "w": 3,
+                    "x": 0,
+                    "y": 0,
+                    "uid": "I"
+                },
+                # Channel List ( 20%  width)
+                {
+                    "component": "featureList",
+                    "h": 4,
+                    "w": 2,
+                    "x": 3,
+                    "y": 0,
+                    "coordinationScopes": {
+                        "obsType": "B",
+                        "featureType": "A",
+                        "featureValueType": "C",
+                        "featureSelection": "D"
+                    },
+                    "uid": "F"
+                },
+                # Spatial (left 50% width)
+                {
+                    "component": "spatial",
+                    "h": 4,
+                    "w": 5,
+                    "x": 5,
+                    "y": 0,
+                    "coordinationScopes": {
+                        "obsType": "B",
+                        "featureType": "A",
+                        "featureValueType": "C",
+                        "spatialSegmentationLayer": "B",
+                        "featureSelection": "D"
+                    },
+                    "uid": "B"
+                },
+                # Expression histogramm (second level)
+                {
+                    "component": "featureValueHistogram",
+                    "h": 4,
+                    "w": 4,
+                    "x": 4,
+                    "y": 4,
+                    "coordinationScopes": {
+                        "obsType": "B",
+                        "featureType": "A",
+                        "featureValueType": "C",
+                        "featureSelection": "D",
+                    },
+                    "uid": "H"
+                },
+                # Heatmap (second level)
+                {
+                    "component": "heatmap",
+                    "h": 4,
+                    "w": 4,
+                    "x": 0,
+                    "y": 4,
+                    "coordinationScopes": {
+                        "obsType": "B",
+                        "featureType": "A",
+                        "featureValueType": "C",
+                        "featureSelection": "D"
+                    },
+                    "uid": "C"
+                },
+                {
+                    "component": "scatterplot",
+                    "h": 4,
+                    "w": 4,
+                    "x": 0,
+                    "y": 8,
+                    "coordinationScopes": {
+                        "embeddingType": "UMAP",
+                        "featureType": "C",
+                        "featureSelection": "C",
+                        "obsColorEncoding": "C",
+                        "obsSetColor": "C",
+                        "obsSetSelection": "C",
+                        "featureValueColormapRange": "C",
+                        "obsSetHighlight": "C",
+                        "embeddingObsSetLabelsVisible": "C"
+                    },
+                    "uid": "scatterplot_C"
+                },
+                {
+                    "component": "obsSets",
+                    "h": 4,
+                    "w": 3,
+                    "x": 5,
+                    "y": 8,
+                    "coordinationScopes": {
+                        "obsSetSelection": "C",
+                        "obsSetColor": "C"
+                    },
+                    "uid": "obsSets_C"
+                }
+            ],
+        }
+        return _conf
 
     def get_phenograph_config(self, task):
         _id = task.id
@@ -1264,19 +1537,117 @@ class TaskConfigGet(Resource):
             ]
         }
 
-        return jsonify(_conf)
+        return _conf
+
+    def get_one_task_config(self, task):
+        _id = task.id
+        _conf = {
+            "version": "1.0.15",
+            "name": "scatterplot_config",
+            "description": "vitessce setup for scatterplot",
+            "datasets": [
+                {
+                    "uid": "B",
+                    "name": "zarr",
+                    "files": [
+                        {
+                            "fileType": "anndata.zarr",
+                            "url": f"{self.base_url}tasks/phenograph_static/{_id}",
+                            "coordinationValues": {
+                                "obsType": "cell",
+                                "featureType": "gene",
+                                "featureValueType": "expression",
+                                "embeddingType": "UMAP"
+                            },
+                            "options": {
+                                "obsEmbedding": {
+                                    "path": "obsm/X_umap"
+                                },
+                                "obsFeatureMatrix": {
+                                    "path": "X"
+                                },
+                                "obsSets": [
+                                    {
+                                        "name": "Phenograph Cluster",
+                                        "path": "obs/cluster_phenograph"
+                                    },
+                                    {
+                                        "name": "image id",
+                                        "path": "obs/image_id"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ],
+            "initStrategy": "auto",
+            "coordinationSpace": {
+                "embeddingType": {
+                    "UMAP": "UMAP"
+                },
+                "obsSetHighlight": {
+                    "A": None,
+                    "B": None
+                },
+                "featureValueColormapRange": {
+                    "A": [
+                        0,
+                        0.1
+                    ]
+                },
+                "embeddingObsSetLabelsVisible": {
+                    "A": True
+                },
+                "obsSetSelection": {
+                    "A": None,
+                    "B": None
+                },
+                "obsSetColor": {
+                    "A": None,
+                    "B": None
+                }
+            },
+            "layout": [
+                {
+                    "component": "scatterplot",
+                    "h": 4,
+                    "w": 4,
+                    "x": 0,
+                    "y": 0,
+                    "coordinationScopes": {
+                        "embeddingType": "UMAP",
+                        "featureType": "A",
+                        "featureSelection": "A",
+                        "obsColorEncoding": "A",
+                        "obsSetColor": "A",
+                        "obsSetSelection": "A",
+                        "featureValueColormapRange": "A",
+                        "obsSetHighlight": "A",
+                        "embeddingObsSetLabelsVisible": "A"
+                    },
+                    "uid": "S"
+                }
+            ]
+        }
+
+        return _conf
 
     @namespace.doc("tasks/vitessceconfig")
     @namespace.response(404, "Task not found", responses.error_response)
     @namespace.response(401, "Unauthorized", responses.error_response)
     def get(self, _id):
+
         task = TaskService.select(_id)
         if task is None:
             return {"success": False, "message": "task not found", "data": {}}, 200
         if task.name == "feature_extraction":
-            return self.get_feature_extraction_config(task)
+            # return self.get_feature_extraction_config(task)
+            # return jsonify(self.get_one_task_config(task))
+            return jsonify(self.get_combined_config(task))
+
         if task.name == "phenograph_cluster":
-            return self.get_phenograph_config(task)
+            return jsonify(self.get_phenograph_config(task))
 
     @namespace.response(404, "Task not found", responses.error_response)
     @namespace.response(401, "Unauthorized", responses.error_response)
