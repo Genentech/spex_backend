@@ -1009,6 +1009,32 @@ class TaskClustersGet(Resource):
             return {"success": False, "message": "result not found", "data": {}}, 408
 
 
+@namespace.route("/clq_static/<_id>/<path:filepath>")
+@namespace.param("_id", "task id")
+class TaskClqGet(Resource):
+    @namespace.doc("tasks/vitessceClq")
+    @namespace.response(404, "Task not found", responses.error_response)
+    @namespace.response(401, "Unauthorized", responses.error_response)
+    def get(self, _id, filepath):
+
+        task = TaskService.select(_id)
+        if not task:
+            return {"success": False, "message": "task not found", "data": {}}, 200
+
+        task_json = task.to_json()
+        result_path = task_json.get("result")
+        if not result_path:
+            return False
+
+        absolute_path = Utils.getAbsoluteRelative(result_path, absolute=True)
+        z_d = f'{os.path.dirname(absolute_path)}/static/clq.h5ad.zarr'
+
+        if os.path.exists(z_d):
+            return send_from_directory(z_d, filepath)
+        else:
+            return {"success": False, "message": "result not found", "data": {}}, 408
+
+
 @namespace.route("/get_result_data/<_id>")
 @namespace.param("_id", "job id")
 class TaskStaticGet(Resource):
@@ -1542,91 +1568,110 @@ class TaskConfigGet(Resource):
     def get_one_task_config(self, task):
         _id = task.id
         _conf = {
-            "version": "1.0.15",
-            "name": "scatterplot_config",
-            "description": "vitessce setup for scatterplot",
+            "version": "1.0.16",
+            "name": "Cluster Matrix Heatmap",
+            "description": "Heatmap visualization of cluster data from AnnData object",
             "datasets": [
                 {
-                    "uid": "B",
-                    "name": "zarr",
+                    "uid": "global_clq",
+                    "name": "Cluster Data",
                     "files": [
                         {
-                            "fileType": "anndata.zarr",
-                            "url": f"{self.base_url}tasks/phenograph_static/{_id}",
+                            "fileType": "obsFeatureMatrix.anndata.zarr",
+                            "url": f"{self.base_url}tasks/clq_static/{_id}",
                             "coordinationValues": {
                                 "obsType": "cell",
                                 "featureType": "gene",
-                                "featureValueType": "expression",
-                                "embeddingType": "UMAP"
+                                "featureValueType": "expression"
                             },
                             "options": {
-                                "obsEmbedding": {
-                                    "path": "obsm/X_umap"
-                                },
-                                "obsFeatureMatrix": {
-                                    "path": "X"
-                                },
-                                "obsSets": [
-                                    {
-                                        "name": "Phenograph Cluster",
-                                        "path": "obs/cluster_phenograph"
-                                    },
-                                    {
-                                        "name": "image id",
-                                        "path": "obs/image_id"
-                                    }
-                                ]
+                                "path": "layers/global_clq"
                             }
-                        }
-                    ]
+                        },
+                    ],
+                },
+                {
+                    "uid": "permute_test",
+                    "name": "Permute Test Data",
+                    "files": [
+                        {
+                            "fileType": "obsFeatureMatrix.anndata.zarr",
+                            "url": f"{self.base_url}tasks/clq_static/{_id}",
+                            "coordinationValues": {
+                                "obsType": "cell",
+                                "featureType": "gene",
+                                "featureValueType": "expression"
+                            },
+                            "options": {
+                                "path": "layers/permute_test"
+                            }
+                        },
+                    ],
                 }
             ],
             "initStrategy": "auto",
             "coordinationSpace": {
+                "dataset": {
+                    "global_clq": "global_clq",
+                    "permute_test": "permute_test"
+                },
                 "embeddingType": {
                     "UMAP": "UMAP"
                 },
                 "obsSetHighlight": {
-                    "A": None,
-                    "B": None
+                    "A": None
                 },
                 "featureValueColormapRange": {
-                    "A": [
-                        0,
-                        0.1
-                    ]
+                    "A": [0, 1]
                 },
                 "embeddingObsSetLabelsVisible": {
                     "A": True
                 },
                 "obsSetSelection": {
-                    "A": None,
-                    "B": None
+                    "A": None
                 },
                 "obsSetColor": {
-                    "A": None,
-                    "B": None
+                    "A": None
                 }
             },
             "layout": [
                 {
-                    "component": "scatterplot",
+                    "component": "heatmap",
                     "h": 4,
                     "w": 4,
                     "x": 0,
                     "y": 0,
+                    "options": {
+                        "showValueAnnotations": True,
+                    },
                     "coordinationScopes": {
-                        "embeddingType": "UMAP",
-                        "featureType": "A",
-                        "featureSelection": "A",
-                        "obsColorEncoding": "A",
-                        "obsSetColor": "A",
-                        "obsSetSelection": "A",
                         "featureValueColormapRange": "A",
                         "obsSetHighlight": "A",
-                        "embeddingObsSetLabelsVisible": "A"
+                        "obsSetSelection": "A",
+                        "obsSetColor": "A",
+                        "obsSetLabelsVisible": "A",
+                        "dataset": "global_clq",
                     },
-                    "uid": "S"
+                    "uid": "H2"
+                },
+                {
+                    "component": "heatmap",
+                    "h": 4,
+                    "w": 4,
+                    "x": 4,
+                    "y": 0,
+                    "options": {
+                        "showValueAnnotations": True,
+                    },
+                    "coordinationScopes": {
+                        "featureValueColormapRange": "A",
+                        "obsSetHighlight": "A",
+                        "obsSetSelection": "A",
+                        "obsSetColor": "A",
+                        "obsSetLabelsVisible": "A",
+                        "dataset": "permute_test",
+                    },
+                    "uid": "H1"
                 }
             ]
         }
