@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-docker build -f ./backend/Dockerfile -t spex.backend:latest .
+docker build -f ./backend/Demo_Dockerfile -t spex.backend:latest .
