@@ -4,7 +4,7 @@ import json
 import tempfile
 import shutil
 import os
-import pickle
+import dill as pickle
 import numpy as np
 import io
 import zarr

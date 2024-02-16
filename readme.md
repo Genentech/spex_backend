@@ -65,6 +65,7 @@ DATA_STORAGE=${TEMP}\\DATA_STORAGE
 $ pip install pipenv 
 $ pipenv install --system --deploy --ignore-pipfile
 $ pipenv shell
+$ pip install itsdangerous==2.0.1
 $ export MODE=development
 $ python ./app.py
 ```
