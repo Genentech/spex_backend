@@ -309,3 +309,45 @@ class MergedResult(Resource):
             folder_trees = {os.path.basename(path): list_files(path) for path in path_list}
             return {'success': True, 'data': folder_trees}, 200
 
+
+@namespace.route('/anndata_result/<string:job_id>')
+@namespace.param('job_id', 'Job id')
+class MergedResult(Resource):
+    @namespace.doc('job/anndata_result', security='Bearer')
+    @namespace.response(404, 'Job or Tasks not found', responses.error_response)
+    @namespace.response(401, 'Unauthorized', responses.error_response)
+    @jwt_required()
+    def get(self, job_id):
+
+        tasks = TaskService.select_tasks_edge(f'jobs/{job_id}')
+        if not tasks:
+            return {'success': False, 'message': 'Tasks not found', 'data': {}}, 200
+
+        path_list: list = []
+        for task in tasks:
+
+            if task.get("result") is None:
+                return {"success": False, "message": "result not found", "data": {}}, 200
+
+            path = task.get("result")
+            path = Utils.getAbsoluteRelative(path, absolute=True)
+            filename, ext = os.path.splitext(path)
+            filename = filename + '.h5ad'
+            if os.path.exists(filename):
+                path_list.append(filename)
+
+        if path_list:
+            temp_dir = tempfile.mkdtemp()
+            zip_file_path = os.path.join(temp_dir, "anndata_result.zip")
+
+            with zipfile.ZipFile(zip_file_path, "w") as zipf:
+                for path in path_list:
+                    zipf.write(path, os.path.basename(path))
+
+            return send_file(
+                zip_file_path,
+                attachment_filename="anndata_result.zip",
+                as_attachment=True,
+                mimetype="application/zip",
+            )
+

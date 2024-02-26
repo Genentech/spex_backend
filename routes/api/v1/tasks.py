@@ -207,10 +207,6 @@ class NumpyEncoder(json.JSONEncoder):
 @namespace.param("_id", "task id")
 @namespace.param("key", "key name")
 class TasksGetIm(Resource):
-    @namespace.doc("tasks/get_file", security="Bearer")
-    @namespace.response(404, "Task not found", responses.error_response)
-    @namespace.response(401, "Unauthorized", responses.error_response)
-    # @namespace.marshal_with(tasks.a_tasks_response)
     @jwt_required()
     def get(self, _id):
         key: str = ""
@@ -268,6 +264,39 @@ class TasksGetIm(Resource):
             logger.warning(error)
 
         return {"success": False, "message": message, "data": {}}, 200
+
+
+@namespace.route("/anndata_load/<_id>")
+@namespace.param("_id", "task id")
+class TasksGetIm(Resource):
+    @namespace.doc("tasks/get_anndata_file_from_task", security="Bearer")
+    @namespace.response(404, "Task not found", responses.error_response)
+    @namespace.response(401, "Unauthorized", responses.error_response)
+    @jwt_required()
+    def get(self, _id):
+
+        task = TaskService.select(_id)
+        if task is None:
+            return {"success": False, "message": "task not found", "data": {}}, 200
+
+        task = task.to_json()
+
+        if task.get("result") is None:
+            return {"success": False, "message": "result not found", "data": {}}, 200
+
+        path = task.get("result")
+        path = Utils.getAbsoluteRelative(path, absolute=True)
+
+        message = "result not found"
+
+        if not os.path.exists(path):
+            return {"success": False, "message": message, "data": {}}, 200
+        return send_file(
+            path,
+            attachment_filename=f"{_id}_result.h5ad",
+            as_attachment=True,
+            mimetype='application/octet-stream'
+        )
 
 
 @namespace.route("/anndata/<_id>")
