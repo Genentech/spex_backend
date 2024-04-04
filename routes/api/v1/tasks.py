@@ -1056,7 +1056,7 @@ class TaskClqGet(Resource):
             return False
 
         absolute_path = Utils.getAbsoluteRelative(result_path, absolute=True)
-        z_d = f'{os.path.dirname(absolute_path)}/static/clq.h5ad.zarr'
+        z_d = f'{os.path.dirname(absolute_path)}/static/zarr.h5ad.zarr'
 
         if os.path.exists(z_d):
             return send_from_directory(z_d, filepath)
@@ -1722,6 +1722,8 @@ class TaskConfigGet(Resource):
 
         if task.name == "phenograph_cluster":
             return jsonify(self.get_phenograph_config(task))
+        if task.name == "clq_anndata":
+            return jsonify(self.get_one_task_config(task))
 
     @namespace.response(404, "Task not found", responses.error_response)
     @namespace.response(401, "Unauthorized", responses.error_response)

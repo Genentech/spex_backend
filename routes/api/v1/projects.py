@@ -152,7 +152,14 @@ class ProjectGetById(Resource):
         for pipeline in result:
             pipelines = PipelineService.get_tree(pipeline_id=pipeline["id"])
             jobs_list = PipelineService.get_jobs(pipelines, prefix=False)
-            task_that_we_can_wiz = ('feature_extraction', 'transformation', 'cluster', 'dml', 'phenograph_cluster')
+            task_that_we_can_wiz = (
+                'feature_extraction',
+                'transformation',
+                'cluster',
+                'dml',
+                'phenograph_cluster',
+                'clq_anndata'
+            )
             if jobs := JobService.select_jobs(condition=" in ", _key=jobs_list):
                 jobs = [
                     job
