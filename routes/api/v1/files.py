@@ -44,18 +44,27 @@ class FileResPost(Resource):
         file = args['filenames']
         file_bytes = io.BytesIO(file.read())
 
-        with h5py.File(file_bytes, 'r') as h5_file:
-            obs_keys = [key.lower() for key in h5_file['obs'].keys()]
+        if file.content_type == 'image/tiff':
+            destination = f'{os.getenv("DATA_STORAGE")}/originals/{file.filename}'
+            file_to_save = os.path.join(destination, 'image.tiff')
+            if not os.path.exists(destination):
+                os.makedirs(destination)
+            file.stream.seek(0)
+            file.save(file_to_save)
+            return {"success": True, "path": file_to_save}, 200
+        else:
+            with h5py.File(file_bytes, 'r') as h5_file:
+                obs_keys = [key.lower() for key in h5_file['obs'].keys()]
 
-        # if 'cell_id1' not in obs_keys:
-        #     return {"error": "File does not contain the required key: Cell_Id"}, 400
+            # if 'cell_id1' not in obs_keys:
+            #     return {"error": "File does not contain the required key: Cell_Id"}, 400
 
-        destination = fileService.user_folder(author=get_jwt_identity(), folder=args['folder'])
-        file_to_save = os.path.join(destination, file.filename)
-        file.stream.seek(0)
-        file.save(file_to_save)
+            destination = fileService.user_folder(author=get_jwt_identity(), folder=args['folder'])
+            file_to_save = os.path.join(destination, file.filename)
+            file.stream.seek(0)
+            file.save(file_to_save)
 
-        return {"success": True, "keys": obs_keys}, 200
+            return {"success": True, "keys": obs_keys}, 200
 
     @namespace.doc('file/getfiletree', security='Bearer')
     # @namespace.expect(upload_parser)
@@ -65,8 +74,22 @@ class FileResPost(Resource):
     @jwt_required()
     def get(self):
 
+        def transform_tiff_tree(_tree):
+            transformed_tree = []
+            for item in _tree:
+                key = list(item.keys())[0]
+                if 'children' in item[key]:
+                    transformed_tree.append({f"{key}.tiff": {"type": "file"}})
+                else:
+                    transformed_tree.append(item)
+            return transformed_tree
+
         tree = fileService.path_to_dict(fileService.user_folder(author=get_jwt_identity()))
+        tiff_tree = fileService.path_to_dict(f'{os.getenv("DATA_STORAGE")}/originals/')
         user_folder_tree = tree[list(tree.keys())[0]]['children']
+        transformed_tiff_tree = transform_tiff_tree(tiff_tree[list(tiff_tree.keys())[0]]['children'])
+        user_folder_tree += transformed_tiff_tree
+
         return {'success': 'True', 'tree': user_folder_tree}, 200
 
     @namespace.doc('file/deletefilefolder', security='Bearer')
@@ -82,7 +105,13 @@ class FileResPost(Resource):
 
         _path, folder = fileService.check_path(get_jwt_identity(), path)
         if _path is None:
-            return {'success': False, 'message': f'path {path} not found'}, 200
+            folder_name, ext = os.path.splitext(path)
+            destination = f'{os.getenv("DATA_STORAGE")}/originals/{folder_name}'
+            if os.path.exists(destination) and os.path.isdir(destination):
+                Utils._rmDir(destination)
+                return {'success': True, 'deleted': destination}, 200
+            else:
+                return {'success': False, 'message': f'path {path} not found'}, 200
         else:
             if folder:
                 Utils._rmDir(_path)
