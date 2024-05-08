@@ -11,6 +11,7 @@ import spex_common.services.Utils as Utils
 import anndata
 import io
 import h5py
+import shutil
 
 namespace = Namespace('Files', description='Files operations CRUD operations')
 upload_parser = namespace.parser()
@@ -67,8 +68,6 @@ class FileResPost(Resource):
             return {"success": True, "keys": obs_keys}, 200
 
     @namespace.doc('file/getfiletree', security='Bearer')
-    # @namespace.expect(upload_parser)
-    # @namespace.marshal_with(_resource.list_tasks_response)
     @namespace.response(404, 'file not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
@@ -77,41 +76,47 @@ class FileResPost(Resource):
         def transform_tiff_tree(_tree):
             transformed_tree = []
             for item in _tree:
-                key = list(item.keys())[0]
-                if 'children' in item[key]:
-                    transformed_tree.append({f"{key}.tiff": {"type": "file"}})
+                if isinstance(item, dict):
+                    key = list(item.keys())[0]
+                    if 'children' in item[key]:
+                        transformed_tree.append({f"{key}": {"type": "file"}})
+                    else:
+                        transformed_tree.append(item)
                 else:
                     transformed_tree.append(item)
             return transformed_tree
 
         tree = fileService.path_to_dict(fileService.user_folder(author=get_jwt_identity()))
         tiff_tree = fileService.path_to_dict(f'{os.getenv("DATA_STORAGE")}/originals/')
-        user_folder_tree = tree[list(tree.keys())[0]]['children']
-        transformed_tiff_tree = transform_tiff_tree(tiff_tree[list(tiff_tree.keys())[0]]['children'])
-        user_folder_tree += transformed_tiff_tree
+        user_folder_tree = []
+
+        if isinstance(tree, dict):
+            user_folder_tree += tree.get(list(tree.keys())[0], {}).get('children', [])
+
+        if isinstance(tiff_tree, dict):
+            tiff_tree_children = tiff_tree.get(list(tiff_tree.keys())[0], {}).get('children', [])
+            transformed_tiff_tree = transform_tiff_tree(tiff_tree_children)
+            user_folder_tree += transformed_tiff_tree
 
         return {'success': 'True', 'tree': user_folder_tree}, 200
 
+
     @namespace.doc('file/deletefilefolder', security='Bearer')
-    # @namespace.expect(upload_parser)
-    # @namespace.marshal_with(_resource.list_tasks_response)
     @namespace.response(404, 'file not found', responses.error_response)
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @namespace.param('path', 'path to delete')
     @jwt_required()
     def delete(self):
-
         path = request.args.get('path')
 
         _path, folder = fileService.check_path(get_jwt_identity(), path)
         if _path is None:
-            folder_name, ext = os.path.splitext(path)
-            destination = f'{os.getenv("DATA_STORAGE")}/originals/{folder_name}'
+            destination = f'{os.getenv("DATA_STORAGE")}/originals/{path}'
             if os.path.exists(destination) and os.path.isdir(destination):
-                Utils._rmDir(destination)
+                shutil.rmtree(destination)
                 return {'success': True, 'deleted': destination}, 200
             else:
-                return {'success': False, 'message': f'path {path} not found'}, 200
+                return {'success': False, 'message': f'Path {path} not found or is not a directory'}, 404
         else:
             if folder:
                 Utils._rmDir(_path)
@@ -119,6 +124,7 @@ class FileResPost(Resource):
                 os.remove(_path)
 
         return {'success': True, 'deleted': path}, 200
+
 
 
 @namespace.route('/check-file')
