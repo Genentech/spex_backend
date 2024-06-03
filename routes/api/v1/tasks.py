@@ -1707,6 +1707,173 @@ class TaskConfigGet(Resource):
 
         return _conf
 
+    def get_spatial_scatter_config(self, task):
+        _id = task.id
+        _conf = {
+            "version": "1.0.15",
+            "name": "feature_extraction_config",
+            "description": "Vitessce setup for feature extraction",
+            "datasets": [
+                {
+                    "uid": "B",
+                    "name": "zarr",
+                    "files": [
+                        {
+                            "fileType": "obsEmbedding.anndata.zarr",
+                            "url": f"{self.base_url}tasks/clq_static/{_id}",
+                            "coordinationValues": {
+                                "obsType": "cell",
+                                "embeddingType": "spatial"
+                            },
+                            "options": {
+                                "path": "obsm/spatial"
+                            }
+                        },
+                        {
+                            "fileType": "obsEmbedding.anndata.zarr",
+                            "url": f"{self.base_url}tasks/clq_static/{_id}",
+                            "coordinationValues": {
+                                "obsType": "cell",
+                                "embeddingType": "UMAP"
+                            },
+                            "options": {
+                                "path": "obsm/X_umap"
+                            }
+                        },
+                        {
+                            "fileType": "obsSets.anndata.zarr",
+                            "url": f"{self.base_url}tasks/clq_static/{_id}",
+                            "coordinationValues": {
+                                "obsType": "cell"
+                            },
+                            "options": [
+
+                                {
+                                    "name": "Niche Analysis",
+                                    "path": "obs/niche"
+                                },
+                                {
+                                    "name": "Leiden Analysis",
+                                    "path": "obs/leiden"
+                                }
+                            ]
+                        },
+                        {
+                            "fileType": "obsFeatureMatrix.anndata.zarr",
+                            "url": f"{self.base_url}tasks/clq_static/{_id}",
+                            "coordinationValues": {
+                                "obsType": "cell",
+                                "featureType": "gene",
+                                "featureValueType": "expression"
+                            },
+                            "options": {
+                                "path": "X"
+                            }
+                        }
+                    ]
+                }
+            ],
+            "initStrategy": "auto",
+            "coordinationSpace": {
+                "dataset": {
+                    "B": "zarr"
+                },
+                "featureValueColormapRange": {
+                    "B": [
+                        0,
+                        0.1
+                    ]
+                },
+                "embeddingObsSetLabelsVisible": {
+                    "B": True
+                },
+                "obsSetSelection": {
+                    "B": None
+                },
+                "obsSetColor": {
+                    "B": None
+                },
+                "embeddingType": {
+                    "SPATIAL": "spatial",
+                    "UMAP": "UMAP"
+                },
+                "embeddingZoom": {
+                    "B": None
+                },
+                "embeddingTargetX": {
+                    "B": None
+                },
+                "embeddingTargetY": {
+                    "B": None
+                },
+                "embeddingObsSetLabelsVisible": {
+                    "B": True
+                },
+                "obsType": {
+                    "B": "cell"
+                },
+                "featureType": {
+                    "B": "gene"
+                },
+                "featureValueType": {
+                    "B": "expression"
+                }
+
+
+            },
+            "layout": [
+
+                {
+                    "component": "scatterplot",
+                    "coordinationScopes": {
+                        "embeddingType": "SPATIAL",
+                        "obsSetColor": "B",
+                        "obsSetSelection": "B",
+                        "obsColorEncoding": "B"
+                    },
+                    "h": 4,
+                    "w": 6,
+                    "x": 0,
+                    "y": 0,
+                    "options": {
+                        "obsColorEncoding": "categorical"
+                    },
+                    "uid": "scatterplot_B"
+                },
+                {
+                    "component": "scatterplot",
+                    "coordinationScopes": {
+                        "embeddingType": "UMAP",
+                        "obsSetColor": "B",
+                        "obsSetSelection": "B",
+                        "obsColorEncoding": "B"
+                    },
+                    "h": 4,
+                    "w": 6,
+                    "x": 0,
+                    "y": 6,
+                    "options": {
+                        "obsColorEncoding": "categorical"
+                    },
+                    "uid": "scatterplot_C"
+                },
+                {
+                    "component": "obsSets",
+                    "coordinationScopes": {
+                        "obsSetSelection": "B",
+                        "obsSetColor": "B"
+                    },
+                    "h": 4,
+                    "w": 3,
+                    "x": 6,
+                    "y": 0,
+                    "uid": "obsSets_B"
+                }
+            ]
+        }
+        return _conf
+
+
     @namespace.doc("tasks/vitessceconfig")
     @namespace.response(404, "Task not found", responses.error_response)
     @namespace.response(401, "Unauthorized", responses.error_response)
@@ -1724,6 +1891,8 @@ class TaskConfigGet(Resource):
             return jsonify(self.get_phenograph_config(task))
         if task.name == "clq_anndata":
             return jsonify(self.get_one_task_config(task))
+        if task.name == "niche_analysis":
+            return jsonify(self.get_spatial_scatter_config(task))
 
     @namespace.response(404, "Task not found", responses.error_response)
     @namespace.response(401, "Unauthorized", responses.error_response)
