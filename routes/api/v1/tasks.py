@@ -1486,7 +1486,7 @@ class TaskConfigGet(Resource):
             "description": "vitessce setup for scatterplot",
             "datasets": [
                 {
-                    "uid": "B",
+                    "uid": "A",
                     "name": "zarr",
                     "files": [
                         {
@@ -1525,6 +1525,9 @@ class TaskConfigGet(Resource):
                 "embeddingType": {
                     "UMAP": "UMAP"
                 },
+                "obsType": {
+                    "A": "cell"
+                },
                 "obsSetHighlight": {
                     "A": None,
                     "B": None
@@ -1556,14 +1559,10 @@ class TaskConfigGet(Resource):
                     "y": 0,
                     "coordinationScopes": {
                         "embeddingType": "UMAP",
-                        "featureType": "A",
-                        "featureSelection": "A",
-                        "obsColorEncoding": "A",
-                        "obsSetColor": "A",
-                        "obsSetSelection": "A",
                         "featureValueColormapRange": "A",
-                        "obsSetHighlight": "A",
-                        "embeddingObsSetLabelsVisible": "A"
+                        "obsLabelsType": [
+                            "A"
+                        ]
                     },
                     "uid": "S"
                 },
@@ -1575,12 +1574,23 @@ class TaskConfigGet(Resource):
                             "A"
                         ]
                     },
+                    "props": {
+                        "transpose": True
+                    },
+
                     "h": 4,
                     "w": 10,
                     "x": 0,
                     "y": 4,
                     "uid": "H"
                 },
+                # {
+                #     "component": "obsSetFeatureValueDistribution",
+                #     "x": 7,
+                #     "y": 4,
+                #     "w": 5,
+                #     "h": 2
+                # },
                 {
                     "component": "obsSets",
                     "h": 4,
