@@ -903,18 +903,31 @@ def create_zarr_archive(task_json) -> ZarrStatus:
 
             os.makedirs(os.path.dirname(zarr_dir), exist_ok=True)
             adata = to_show_data['adata']
-            xy_coordinates = adata.obs[["x_coordinate", "y_coordinate"]].values
-            # contours = generate_contours(xy_coordinates)
-            adata.obsm['xy_scaled'] = xy_coordinates
-            for col in adata.obs.columns:
-                if adata.obs[col].dtype == '<i8':
-                    adata.obs[col] = adata.obs[col].astype('int32')
-            adata.X = adata.X.astype('float32')
+            if task_json.get("name") != "Cluster ST data":
+                xy_coordinates = adata.obs[["x_coordinate", "y_coordinate"]].values
+
+                adata.obsm['xy_scaled'] = xy_coordinates
+                for col in adata.obs.columns:
+                    if adata.obs[col].dtype == '<i8':
+                        adata.obs[col] = adata.obs[col].astype('int32')
+                adata.X = adata.X.astype('float32')
+            else:
+                xy_coordinates = adata.obs[["min_x", "min_y"]].values
+                clusters = adata.obs["leiden"].values
+                # xy_coordinates = adata.obs[["x_coordinate", "y_coordinate"]].values
+                adata._n_obs = len(adata.obs['min_x'])
+                adata._n_vars = len(adata.var['n_cells'])
+
+                adata.obsm['xy_scaled'] = xy_coordinates
+                for col in adata.obs.columns:
+                    if adata.obs[col].dtype == '<i8':
+                        adata.obs[col] = adata.obs[col].astype('int32')
+                adata.X = adata.X.astype('float32')
 
             reduced_polygons = []
             obs_cols = []
             obsm_keys = []
-            if task_json.get("name") != "phenograph_cluster":
+            if task_json.get("name") not in ["phenograph_cluster", "Cluster ST data"]:
                 cell_polygons = np.array(adata.obsm['cell_polygon'])
 
                 for polygon in cell_polygons:
@@ -945,7 +958,11 @@ def create_zarr_archive(task_json) -> ZarrStatus:
                     optimize_X=True
                 )
 
-            if task_json.get("name") == "phenograph_cluster":
+            if task_json.get("name") in ["phenograph_cluster", "Cluster ST data"]:
+                if 'cluster_phenograph' not in adata.obs.keys():
+                    adata.obs['cluster_phenograph'] = clusters
+                    adata.obs['image_id'] = ['adata'] * adata.shape[0]
+
                 obs_cols += ['cluster_phenograph', 'image_id']
                 obsm_keys += ['X_umap']
                 optimized_adata = optimize_adata(
@@ -1574,9 +1591,9 @@ class TaskConfigGet(Resource):
                             "A"
                         ]
                     },
-                    "props": {
-                        "transpose": True
-                    },
+                    # "props": {
+                    #     "transpose": True
+                    # },
 
                     "h": 4,
                     "w": 10,
@@ -1602,6 +1619,116 @@ class TaskConfigGet(Resource):
             ]
         }
 
+        return _conf
+
+    def get_cluster_config(self, task):
+        _id = task.id
+        _conf = {
+            "version": "1.0.15",
+            "name": "scatterplot_config",
+            "description": "vitessce setup for scatterplot",
+            "datasets": [
+                {
+                    "uid": "A",
+                    "name": "zarr",
+                    "files": [
+                        {
+                            "fileType": "anndata.zarr",
+                            "url": f"{self.base_url}tasks/static/{_id}",
+                            "coordinationValues": {
+                                "obsType": "cell",
+                                "featureType": "gene",
+                                "featureValueType": "expression",
+                                "embeddingType": "UMAP"
+                            },
+                            "options": {
+                                "obsEmbedding": {
+                                    "path": "obsm/X_umap"
+                                },
+                                "obsFeatureMatrix": {
+                                    "path": "X"
+                                },
+                                "obsSets": [
+                                    {
+                                        "name": "cluster",
+                                        "path": "obs/cluster_phenograph"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ],
+            "initStrategy": "auto",
+            "coordinationSpace": {
+                "embeddingType": {
+                    "UMAP": "UMAP"
+                },
+                "obsType": {
+                    "A": "cell"
+                },
+                "obsSetHighlight": {
+                    "A": None,
+                    "B": None
+                },
+                "featureValueColormapRange": {
+                    "A": [
+                        0,
+                        0.1
+                    ]
+                },
+                "embeddingObsSetLabelsVisible": {
+                    "A": True
+                },
+                "obsSetSelection": {
+                    "A": None,
+                    "B": None
+                },
+                "obsSetColor": {
+                    "A": None,
+                    "B": None
+                }
+            },
+            "layout": [
+                {
+                    "component": "scatterplot",
+                    "h": 4,
+                    "w": 4,
+                    "x": 0,
+                    "y": 0,
+                    "coordinationScopes": {
+                        "embeddingType": "UMAP",
+                        "featureValueColormapRange": "A",
+                        "obsLabelsType": [
+                            "A"
+                        ]
+                    },
+                    "uid": "S"
+                },
+                {
+                    "component": "heatmap",
+                    "coordinationScopes": {
+                        "featureValueColormapRange": "A",
+                        "obsLabelsType": [
+                            "A"
+                        ]
+                    },
+                    "h": 4,
+                    "w": 10,
+                    "x": 0,
+                    "y": 4,
+                    "uid": "H"
+                },
+                {
+                    "component": "obsSets",
+                    "h": 4,
+                    "w": 3,
+                    "x": 5,
+                    "y": 0,
+                    "uid": "F"
+                }
+            ]
+        }
         return _conf
 
     def get_one_task_config(self, task):
@@ -1899,6 +2026,8 @@ class TaskConfigGet(Resource):
 
         if task.name == "phenograph_cluster":
             return jsonify(self.get_phenograph_config(task))
+        if task.name == "Cluster ST data":
+            return jsonify(self.get_cluster_config(task))
         if task.name == "clq_anndata":
             return jsonify(self.get_one_task_config(task))
         if task.name == "niche_analysis":

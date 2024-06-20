@@ -159,7 +159,8 @@ class ProjectGetById(Resource):
                 'dml',
                 'phenograph_cluster',
                 'clq_anndata',
-                'niche_analysis'
+                'niche_analysis',
+                'Cluster ST data'
             )
             if jobs := JobService.select_jobs(condition=" in ", _key=jobs_list):
                 jobs = [
