@@ -63,6 +63,7 @@ namespace.add_model(responses.error_response.name, responses.error_response)
 namespace.add_model(tasks.list_tasks_response.name, tasks.list_tasks_response)
 namespace.add_model(tasks.task_get_model.name, tasks.task_get_model)
 namespace.add_model(tasks.tasks_data_get_model.name, tasks.tasks_data_get_model)
+namespace.add_model(tasks.zarr_genes.name, tasks.zarr_genes)
 
 
 @namespace.route("/<_id>")
@@ -1029,6 +1030,81 @@ class TaskStaticGet(Resource):
             return {"success": False, "message": "result not found", "data": {}}, 200
 
 
+@namespace.route("/zarr_structure/<_id>")
+@namespace.param("_id", "task id")
+class TaskZarrStructure(Resource):
+    @namespace.doc("tasks/vitesscegenes")
+    @namespace.response(404, "Task not found", responses.error_response)
+    @namespace.response(401, "Unauthorized", responses.error_response)
+    def get(self, _id):
+
+        task = TaskService.select(_id)
+        if not task:
+            return {"success": False, "message": "task not found", "data": {}}, 200
+
+        task_json = task.to_json()
+        result_path = task_json.get("result")
+        if not result_path:
+            return False
+
+        absolute_path = Utils.getAbsoluteRelative(result_path, absolute=True)
+        created = create_zarr_archive(task_json)
+
+        z_d = f'{os.path.dirname(absolute_path)}/static/cells.h5ad.zarr'
+        complete_file_path = f"{os.path.dirname(z_d)}/complete"
+        started_file_path = f"{os.path.dirname(z_d)}/started"
+
+        if os.path.exists(started_file_path) and not os.path.exists(complete_file_path):
+            return {"success": False, "message": "result not yet available", "data": {}}, 408
+
+        if created == ZarrStatus.complete:
+            ad = anndata.read_zarr(z_d);
+            return {"success": True, "data": list(ad.var_names)}
+        else:
+            return {"success": False, "message": "result not found", "data": {}}, 200
+
+    @namespace.doc('tasks/zarr_change', security='Bearer')
+    @namespace.expect(tasks.zarr_genes)
+    # @namespace.marshal_with(jobs.a_jobs_response)
+    @namespace.response(404, "Task not found", responses.error_response)
+    @namespace.response(401, "Unauthorized", responses.error_response)
+    def post(self, _id):
+        body = request.json
+        genes_to_remove = body.get('data', [])
+
+        task = TaskService.select(_id)
+        if not task:
+            return {"success": False, "message": "task not found", "data": {}}, 200
+
+        task_json = task.to_json()
+        result_path = task_json.get("result")
+        if not result_path:
+            return {"success": False, "message": "result path not found", "data": {}}, 200
+
+        absolute_path = Utils.getAbsoluteRelative(result_path, absolute=True)
+        z_d = f'{os.path.dirname(absolute_path)}/static/cells.h5ad.zarr'
+        complete_file_path = f"{os.path.dirname(z_d)}/complete"
+        started_file_path = f"{os.path.dirname(z_d)}/started"
+
+        if os.path.exists(started_file_path) and not os.path.exists(complete_file_path):
+            return {"success": False, "message": "result not yet available", "data": {}}, 408
+
+        created = create_zarr_archive(task_json)
+        if created == ZarrStatus.complete:
+            ad = anndata.read_zarr(z_d)
+            to_save = (set(ad.var_names).intersection(set(genes_to_remove)))
+            if len(to_save) == 0:
+                return {
+                    "success": False, "message": "not have intersection need leave at least one var", "data": {}
+                }, 200
+
+            ad_filtered = ad[:, ad.var_names.isin(to_save)]
+            ad_filtered.write_zarr(z_d)
+            return {"success": True, "message": "genes removed successfully", "data": list(ad_filtered.var_names)}
+        else:
+            return {"success": False, "message": "result not found", "data": {}}, 200
+
+
 @namespace.route("/phenograph_static/<_id>/<path:filepath>")
 @namespace.param("_id", "task id")
 class TaskClustersGet(Resource):
@@ -1722,10 +1798,17 @@ class TaskConfigGet(Resource):
                 {
                     "component": "obsSets",
                     "h": 4,
-                    "w": 3,
-                    "x": 5,
+                    "w": 2,
+                    "x": 4,
                     "y": 0,
                     "uid": "F"
+                },
+                {
+                    "component": "obsSetSizes",
+                    "x": 6,
+                    "y": 0,
+                    "w": 3,
+                    "h": 4
                 }
             ]
         }
@@ -1956,7 +2039,6 @@ class TaskConfigGet(Resource):
                     "B": "expression"
                 }
 
-
             },
             "layout": [
 
@@ -2009,7 +2091,6 @@ class TaskConfigGet(Resource):
             ]
         }
         return _conf
-
 
     @namespace.doc("tasks/vitessceconfig")
     @namespace.response(404, "Task not found", responses.error_response)

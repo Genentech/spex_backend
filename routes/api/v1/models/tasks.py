@@ -39,3 +39,7 @@ list_tasks_response = response.inherit('TaskListResponse', {
 a_tasks_response = response.inherit('TasksResponse', {
     'data': fields.Nested(task_get_model)
 })
+
+zarr_genes = Model('ZarrGenes', {
+    'data': fields.List(fields.String, required=True, description='genes')
+})
