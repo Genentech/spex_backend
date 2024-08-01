@@ -1,6 +1,7 @@
 from typing import List, Dict
 import base64
 import json
+import re
 import tempfile
 import shutil
 import os
@@ -997,6 +998,15 @@ def create_zarr_archive(task_json) -> ZarrStatus:
         return ZarrStatus.error
 
 
+def strip_no_cache(url):
+    if 'nocache' in url.lower():
+        parts = url.split('/')
+        for i, part in enumerate(parts):
+            if 'nocache' in part.lower():
+                return '/'.join(parts[i+1:])
+    return url
+
+
 @namespace.route("/static/<_id>/<path:filepath>")
 @namespace.param("_id", "task id")
 class TaskStaticGet(Resource):
@@ -1005,6 +1015,7 @@ class TaskStaticGet(Resource):
     @namespace.response(401, "Unauthorized", responses.error_response)
     def get(self, _id, filepath):
 
+        filepath = strip_no_cache(filepath)
         task = TaskService.select(_id)
         if not task:
             return {"success": False, "message": "task not found", "data": {}}, 200
@@ -2152,6 +2163,7 @@ class ImageStaticGet(Resource):
     @namespace.response(404, "Task not found", responses.error_response)
     @namespace.response(401, "Unauthorized", responses.error_response)
     def get(self, _id, filepath):
+        filepath = strip_no_cache(filepath)
         task = TaskService.select(_id)
         if not task:
             return {"success": False, "message": "task not found", "data": {}}, 200
