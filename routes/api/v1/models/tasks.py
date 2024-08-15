@@ -41,5 +41,6 @@ a_tasks_response = response.inherit('TasksResponse', {
 })
 
 zarr_genes = Model('ZarrGenes', {
-    'data': fields.List(fields.String, required=True, description='genes')
+    'data': fields.List(fields.String, required=True, description='genes'),
+    'clusters': fields.List(fields.Raw),
 })

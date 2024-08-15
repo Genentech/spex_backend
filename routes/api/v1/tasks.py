@@ -1070,18 +1070,19 @@ class TaskZarrStructure(Resource):
 
         if created == ZarrStatus.complete:
             ad = anndata.read_zarr(z_d);
-            return {"success": True, "data": list(ad.var_names)}
+            clusters = list(set(ad.obs[ad.obs.keys()[0]]));
+            return {"success": True, "data": list(ad.var_names), "clusters": clusters}
         else:
-            return {"success": False, "message": "result not found", "data": {}}, 200
+            return {"success": False, "message": "result not found", "data": [], "clusters": []}, 200
 
     @namespace.doc('tasks/zarr_change', security='Bearer')
     @namespace.expect(tasks.zarr_genes)
-    # @namespace.marshal_with(jobs.a_jobs_response)
     @namespace.response(404, "Task not found", responses.error_response)
     @namespace.response(401, "Unauthorized", responses.error_response)
     def post(self, _id):
         body = request.json
         genes_to_remove = body.get('data', [])
+        clusters = body.get('clusters', [])
 
         task = TaskService.select(_id)
         if not task:
@@ -1103,17 +1104,39 @@ class TaskZarrStructure(Resource):
         created = create_zarr_archive(task_json)
         if created == ZarrStatus.complete:
             ad = anndata.read_zarr(z_d)
-            to_save = (set(ad.var_names).intersection(set(genes_to_remove)))
+
+            if clusters:
+
+                clust_col = ad.obs.columns[-2:][0]
+                ad.obs[clust_col] = ad.obs[clust_col].astype(str)
+
+                for cluster_map in clusters:
+                    for old_cluster, new_cluster in cluster_map.items():
+                        ad.obs[clust_col] = ad.obs[clust_col].replace(old_cluster, new_cluster)
+                ad.obs[clust_col] = ad.obs[clust_col].astype('category')
+
+            to_save = set(ad.var_names).intersection(set(genes_to_remove))
             if len(to_save) == 0:
                 return {
-                    "success": False, "message": "not have intersection need leave at least one var", "data": {}
+                    "success": False, "message": "no intersection found, need to leave at least one var", "data": {}
                 }, 200
 
             ad_filtered = ad[:, ad.var_names.isin(to_save)]
             ad_filtered.write_zarr(z_d)
-            return {"success": True, "message": "genes removed successfully", "data": list(ad_filtered.var_names)}
+            clusters = list(set(ad_filtered.obs[ad_filtered.obs.keys()[0]]));
+            return {
+                "success": True,
+                "message": "genes removed successfully",
+                "data": list(ad_filtered.var_names),
+                "clusters": clusters
+            }
         else:
-            return {"success": False, "message": "result not found", "data": {}}, 200
+            return {
+                "success": False,
+                "message": "result not found",
+                "data": {},
+                "clusters": []
+            }, 200
 
 
 @namespace.route("/phenograph_static/<_id>/<path:filepath>")
