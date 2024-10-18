@@ -1,3 +1,5 @@
+from fileinput import filename
+
 import spex_common.services.Job as JobService
 import spex_common.services.Task as TaskService
 import spex_common.services.Script as ScriptService
@@ -341,8 +343,9 @@ class MergedResult(Resource):
             zip_file_path = os.path.join(temp_dir, "anndata_result.zip")
 
             with zipfile.ZipFile(zip_file_path, "w") as zipf:
-                for path in path_list:
-                    zipf.write(path, os.path.basename(path))
+                for index, path in enumerate(path_list, start=1):
+                    new_filename = f"{index}_{os.path.basename(path)}"
+                    zipf.write(path, new_filename)
 
             return send_file(
                 zip_file_path,
