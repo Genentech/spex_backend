@@ -906,16 +906,21 @@ def create_zarr_archive(task_json) -> ZarrStatus:
             os.makedirs(os.path.dirname(zarr_dir), exist_ok=True)
             adata = to_show_data['adata']
             if task_json.get("name") != "Cluster ST data":
+                if 'x_coordinate' not in adata.obs.columns or 'y_coordinate' not in adata.obs.columns:
+                    adata.obs['x_coordinate'] = 0
+                    adata.obs['y_coordinate'] = 0
                 xy_coordinates = adata.obs[["x_coordinate", "y_coordinate"]].values
 
                 adata.obsm['xy_scaled'] = xy_coordinates
                 for col in adata.obs.columns:
                     if adata.obs[col].dtype == '<i8':
                         adata.obs[col] = adata.obs[col].astype('int32')
-                adata.X = adata.X.astype('float32')
             else:
                 xy_coordinates = adata.obs[["min_x", "min_y"]].values
-                clusters = adata.obs["leiden"].values
+                if 'leiden' in adata.obs.keys():
+                    clusters = adata.obs["leiden"].values
+                else:
+                    clusters = adata.obs["louvain"].values
                 # xy_coordinates = adata.obs[["x_coordinate", "y_coordinate"]].values
                 adata._n_obs = len(adata.obs['min_x'])
                 adata._n_vars = len(adata.var['n_cells'])
@@ -962,6 +967,10 @@ def create_zarr_archive(task_json) -> ZarrStatus:
 
             if task_json.get("name") in ["phenograph_cluster", "Cluster ST data"]:
                 if 'cluster_phenograph' not in adata.obs.keys():
+                    if 'leiden' in adata.obs.keys():
+                        clusters = adata.obs["leiden"].values
+                    else:
+                        clusters = adata.obs["louvain"].values
                     adata.obs['cluster_phenograph'] = clusters
                     adata.obs['image_id'] = ['adata'] * adata.shape[0]
 
@@ -985,6 +994,9 @@ def create_zarr_archive(task_json) -> ZarrStatus:
                 fe_tasks = to_show_data.get('tasks_list', [])
                 if len(filtered_adatas.keys()) > 0 and fe_tasks:
                     write_zarr_for_tasks(fe_tasks, filtered_adatas)
+
+            for col in optimized_adata.obs.select_dtypes(include='category').columns:
+                optimized_adata.obs[col] = optimized_adata.obs[col].cat.add_categories("Unknown")
 
             optimized_adata.write_zarr(zarr_dir, chunks=[optimized_adata.shape[0], 2000])
             os.remove(started_file_path)
