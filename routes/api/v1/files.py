@@ -73,7 +73,6 @@ class FileResPost(Resource):
     @namespace.response(401, 'Unauthorized', responses.error_response)
     @jwt_required()
     def get(self):
-
         def transform_tiff_tree(_tree):
             transformed_tree = []
             for item in _tree:
@@ -86,8 +85,14 @@ class FileResPost(Resource):
 
         tree = fileService.path_to_dict(fileService.user_folder(author=get_jwt_identity()))
         tiff_tree = fileService.path_to_dict(f'{os.getenv("DATA_STORAGE")}/originals/')
-        user_folder_tree = tree[list(tree.keys())[0]]['children']
-        transformed_tiff_tree = transform_tiff_tree(tiff_tree[list(tiff_tree.keys())[0]]['children'])
+
+        if not tiff_tree or list(tiff_tree.keys())[0] not in tiff_tree:
+            tiff_tree_children = []
+        else:
+            tiff_tree_children = tiff_tree[list(tiff_tree.keys())[0]].get('children', [])
+
+        user_folder_tree = tree[list(tree.keys())[0]].get('children', [])
+        transformed_tiff_tree = transform_tiff_tree(tiff_tree_children)
         user_folder_tree += transformed_tiff_tree
 
         return {'success': 'True', 'tree': user_folder_tree}, 200
